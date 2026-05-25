@@ -1,6 +1,9 @@
 plugins {
+    alias(libs.plugins.flyway)
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ktor)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 group = "com.martdev.flickq"
@@ -9,11 +12,25 @@ application {
     mainClass = "com.martdev.flickq.ApplicationKt"
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 dependencies {
-    api(projects.core)
-    implementation(libs.logback)
-    implementation(libs.ktor.serverCore)
-    implementation(libs.ktor.serverNetty)
-    testImplementation(libs.ktor.serverTestHost)
-    testImplementation(libs.kotlin.testJunit)
+//    api(projects.core)
+    implementation(libs.bcrypt)
+    implementation(libs.bundles.exposed.libs)
+    implementation(libs.bundles.ktor.libs)
+    implementation(libs.dotenv)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.postgresql)
+    implementation(libs.hikariCP)
+    implementation(libs.postgresql)
+    implementation(libs.stytch)
+    implementation(libs.testcontainers.postgresql)
+    testImplementation(libs.bundles.server.test.libs)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
