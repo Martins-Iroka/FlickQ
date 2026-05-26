@@ -1,5 +1,10 @@
 package com.martdev.flickq.utils
 
+import com.martdev.flickq.plugins.configureRateLimiter
+import com.martdev.flickq.plugins.configureRequestValidation
+import com.martdev.flickq.plugins.configureSecurity
+import com.martdev.flickq.plugins.configureSerialization
+import com.martdev.flickq.plugins.configureStatusPages
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.Route
@@ -11,11 +16,11 @@ inline fun Application.testAppConfiguration(module: Module, crossinline block: R
     install(Koin) {
         modules(module)
     }
-    /*configureSerialization()
+    configureSerialization()
     configureStatusPages()
     configureSecurity()
     configureRateLimiter()
-    configureRequestValidation()*/
+    configureRequestValidation()
     routing {
         block()
     }
