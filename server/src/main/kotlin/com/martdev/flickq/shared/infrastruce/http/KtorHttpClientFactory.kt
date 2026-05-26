@@ -12,9 +12,10 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import org.koin.core.annotation.Single
 import org.slf4j.LoggerFactory
 
-//@Single
+@Single
 class KtorHttpClientFactory {
 
     private val log = LoggerFactory.getLogger(KtorHttpClientFactory::class.java)

@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.implementation
+
 plugins {
     alias(libs.plugins.flyway)
     alias(libs.plugins.kotlinJvm)
@@ -17,6 +19,7 @@ kotlin {
 }
 
 dependencies {
+    ksp(libs.koin.annotation.compiler)
     implementation(projects.core.domain)
     implementation(libs.bcrypt)
     implementation(libs.bundles.exposed.libs)
@@ -25,6 +28,7 @@ dependencies {
     implementation(libs.flyway.core)
     implementation(libs.flyway.postgresql)
     implementation(libs.hikariCP)
+    implementation(libs.bundles.koin.libs)
     implementation(libs.postgresql)
     implementation(libs.stytch)
     implementation(libs.testcontainers.postgresql)
