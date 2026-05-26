@@ -17,7 +17,7 @@ kotlin {
 }
 
 dependencies {
-//    api(projects.core)
+    implementation(projects.core.domain)
     implementation(libs.bcrypt)
     implementation(libs.bundles.exposed.libs)
     implementation(libs.bundles.ktor.libs)

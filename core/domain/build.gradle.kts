@@ -6,6 +6,7 @@ plugins {
 }
 
 kotlin {
+    jvm()
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -29,8 +30,10 @@ kotlin {
         namespace = "com.martdev.flickq.core.domain"
         compileSdk { version = release(36) }
     }
-}
 
-dependencies {
-    commonMainImplementation(libs.kotlin.datetime)
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlin.datetime)
+        }
+    }
 }
