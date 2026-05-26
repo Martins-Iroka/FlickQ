@@ -18,6 +18,7 @@ kotlin {
 
 dependencies {
     ksp(libs.koin.annotation.compiler)
+    implementation(projects.core.api)
     implementation(projects.core.domain)
     implementation(libs.bcrypt)
     implementation(libs.bundles.exposed.libs)
