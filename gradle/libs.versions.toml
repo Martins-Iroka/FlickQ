@@ -16,7 +16,7 @@ dotenv = "6.5.1"
 exposed = "1.2.0"
 flyway = "10.15.0"
 hikariCP = "4.0.3"
-junit5 = "5.11.4"
+junit5 = "6.1.0"
 koin = "4.2.1"
 koin_annotation = "2.3.0"
 kotlin = "2.3.21"
@@ -53,6 +53,7 @@ exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "e
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway"}
 flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 hikariCP = { module = "com.zaxxer:HikariCP", version.ref = "hikariCP"}
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 junit5 = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 koin-annotation = { module = "io.insert-koin:koin-annotations", version.ref = "koin_annotation" }
 koin-annotation_compiler = { module = "io.insert-koin:koin-ksp-compiler", version.ref = "koin_annotation" }

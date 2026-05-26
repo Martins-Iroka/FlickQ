@@ -1,5 +1,3 @@
-import org.gradle.kotlin.dsl.implementation
-
 plugins {
     alias(libs.plugins.flyway)
     alias(libs.plugins.kotlinJvm)
@@ -15,7 +13,7 @@ application {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 dependencies {
@@ -33,8 +31,9 @@ dependencies {
     implementation(libs.stytch)
     implementation(libs.testcontainers.postgresql)
     testImplementation(libs.bundles.server.test.libs)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-tasks.test {
+tasks.named<Test>("test") {
     useJUnitPlatform()
 }
