@@ -1,0 +1,36 @@
+ktor:
+  deployment:
+    port: 8080
+  application:
+    modules:
+      - com.martdev.ApplicationKt.module
+
+database:
+  address: ${DB_ADDR}
+  maxOpenCons: ${DB_MAX_OPEN_CONNS}
+  maxIdleCons: ${DB_MAX_IDLE_CONNS}
+  maxIdleTime: ${DB_MAX_IDLE_TIME}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+
+stytch:
+  stytchID: ${STYTCH_PROJECT_ID}
+  stytchSecret: ${STYTCH_SECRET}
+
+paystack:
+  secretKey: ${PAYSTACK_SECRET_KEY}
+  publicKey: ${PAYSTACK_PUBLIC_KEY}
+  baseUrl: ${PAYSTACK_BASE_URL:-https://api.paystack.co}
+  callbackUrl: ${PAYSTACK_CALLBACK_URL}
+  webhookSecret: ${PAYSTACK_WEBHOOK_SECRET}
+  currency: ${PAYSTACK_CURRENCY:-NGN}
+
+jwt:
+  secret: ${JWT_SECRET}
+  issuer: ${JWT_ISSUER}
+  audience: ${JWT_AUDIENCE}
+  expirationMinutes: ${JWT_EXPIRATION}
+
+cors:
+  allowedHosts: ${CORS_ALLOWED_HOSTS:-}
+  allowAnyHost: ${CORS_ALLOW_ANY_HOST:-false}

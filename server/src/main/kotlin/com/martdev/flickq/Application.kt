@@ -1,14 +1,13 @@
 package com.martdev.flickq
 
-import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.github.cdimascio.dotenv.dotenv
+import io.ktor.server.application.Application
 
-fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)
+fun main(args: Array<String>) {
+    dotenv {
+        systemProperties = true
+    }
+    io.ktor.server.netty.EngineMain.main(args)
 }
 
 fun Application.module() {
