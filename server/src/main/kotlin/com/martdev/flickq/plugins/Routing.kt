@@ -1,8 +1,8 @@
 package com.martdev.flickq.plugins
 
 import com.martdev.flickq.features.auth.api.authRoutes
-import com.martdev.flickq.features.movies.api.genre.genreRoute
-import com.martdev.flickq.features.movies.api.movie.movieRoute
+import com.martdev.flickq.features.movie.api.genre.genreRoute
+import com.martdev.flickq.features.movie.api.movie.movieRoute
 import io.ktor.server.application.Application
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
