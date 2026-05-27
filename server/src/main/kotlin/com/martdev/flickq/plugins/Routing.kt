@@ -3,6 +3,7 @@ package com.martdev.flickq.plugins
 import com.martdev.flickq.features.auth.api.authRoutes
 import com.martdev.flickq.features.movie.api.genre.genreRoute
 import com.martdev.flickq.features.movie.api.movie.movieRoute
+import com.martdev.flickq.features.reservation.api.reservationRoute
 import com.martdev.flickq.features.room.api.roomRoute
 import com.martdev.flickq.features.room.api.seatRoute
 import com.martdev.flickq.features.showtime.api.showtimeRoute
@@ -20,8 +21,8 @@ fun Application.configureRouting() {
             roomRoute()
             seatRoute()
             showtimeRoute()
-            /*reservationRoute()
-            paymentRoute()
+            reservationRoute()
+            /*paymentRoute()
             reportRoute()*/
         }
     }
