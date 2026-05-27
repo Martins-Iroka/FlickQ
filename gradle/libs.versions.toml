@@ -94,6 +94,7 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
 
 [bundles]
+client-ktor-libs = ["ktor-client-core", "ktor-client-contentNegotiation", "ktor-client-logging", "ktor-serialization-kotlinx-json",]
 exposed-libs = ["exposed-core", "exposed-dao", "exposed-datetime", "exposed-jdbc"]
 koin-libs = ["koin-annotation", "koin-ktor", "koin-logger"]
 ktor-libs = ["logback", "ktor-client-cio", "ktor-client-core", "ktor-client-contentNegotiation", "ktor-server-core", "ktor-client-logging", "ktor-serialization-kotlinx-json",
