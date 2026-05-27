@@ -1,18 +1,20 @@
 package com.martdev.flickq.plugins
 
 import com.martdev.flickq.features.auth.api.authRoutes
+import com.martdev.flickq.features.movies.api.genre.genreRoute
+import com.martdev.flickq.features.movies.api.movie.movieRoute
 import io.ktor.server.application.Application
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 
-const val apiV1Path = "/v1/api"
+const val apiV1Path = "/api/v1"
 fun Application.configureRouting() {
     routing {
         route(apiV1Path) {
             authRoutes()
-            /*movieRoute()
+            movieRoute()
             genreRoute()
-            roomRoute()
+            /*roomRoute()
             seatRoute()
             showtimeRoute()
             reservationRoute()
