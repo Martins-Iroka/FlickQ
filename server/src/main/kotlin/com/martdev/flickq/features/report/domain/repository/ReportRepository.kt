@@ -1,4 +1,4 @@
-package com.martdev.features.report.domain.repository
+package com.martdev.flickq.features.report.domain.repository
 
 import com.martdev.flickq.report.model.CapacityRow
 import com.martdev.flickq.report.model.CapacityTotals

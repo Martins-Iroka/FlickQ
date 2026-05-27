@@ -1,6 +1,5 @@
 package com.martdev.flickq.features.report.infrastructure.db.repository
 
-import com.martdev.features.report.domain.repository.ReportRepository
 import com.martdev.flickq.auth.model.UserData
 import com.martdev.flickq.features.auth.domain.repository.UserRepository
 import com.martdev.flickq.features.auth.infrastructure.db.repository.UserRepositoryImpl
@@ -16,6 +15,7 @@ import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
 import com.martdev.flickq.features.payment.infrastructure.db.repository.PaymentRepositoryImpl
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentTable
+import com.martdev.flickq.features.report.domain.repository.ReportRepository
 import com.martdev.flickq.features.reservation.domain.repository.ReservationRepository
 import com.martdev.flickq.features.reservation.domain.repository.ShowtimeSeatRepository
 import com.martdev.flickq.features.reservation.infrastructure.db.repository.ReservationRepositoryImpl
