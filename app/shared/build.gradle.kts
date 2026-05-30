@@ -60,6 +60,8 @@ kotlin {
             implementation(projects.feature.auth.presentation)
             implementation(projects.feature.movie.data)
             implementation(projects.feature.movie.presentation)
+            implementation(projects.feature.showtime.data)
+            implementation(projects.feature.showtime.presentation)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

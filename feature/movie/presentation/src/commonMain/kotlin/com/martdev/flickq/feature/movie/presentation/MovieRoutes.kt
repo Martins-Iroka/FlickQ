@@ -20,10 +20,12 @@ data class MovieDetailRoute(val movieId: Long)
 
 /**
  * The movie feature's nav graph: browse the catalog and open a detail page.
- * List -> detail is intra-feature, handled by [navController].
+ * List -> detail is intra-feature; [onViewShowtimes] is the cross-feature exit
+ * (wired to the showtime feature in :app:shared).
  */
 fun NavGraphBuilder.movieGraph(
-    navController: NavController
+    navController: NavController,
+    onViewShowtimes: (Long) -> Unit
 ) {
     navigation<MovieGraphRoute>(startDestination = MovieListRoute) {
         composable<MovieListRoute> {
@@ -35,7 +37,8 @@ fun NavGraphBuilder.movieGraph(
             val route = backStackEntry.toRoute<MovieDetailRoute>()
             MovieDetailRoot(
                 movieId = route.movieId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onViewShowtimes = onViewShowtimes
             )
         }
     }

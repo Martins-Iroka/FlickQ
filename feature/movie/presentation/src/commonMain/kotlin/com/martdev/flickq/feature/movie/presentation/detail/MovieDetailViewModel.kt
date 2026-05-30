@@ -25,10 +25,12 @@ data class MovieDetailState(
 sealed interface MovieDetailAction {
     data object OnRetry : MovieDetailAction
     data object OnBackClick : MovieDetailAction
+    data object OnSeeShowtimesClick : MovieDetailAction
 }
 
 sealed interface MovieDetailEvent {
     data object NavigateBack : MovieDetailEvent
+    data class NavigateToShowtimes(val movieId: Long) : MovieDetailEvent
 }
 
 class MovieDetailViewModel(
@@ -51,6 +53,9 @@ class MovieDetailViewModel(
             MovieDetailAction.OnRetry -> loadMovie()
             MovieDetailAction.OnBackClick -> viewModelScope.launch {
                 _events.send(MovieDetailEvent.NavigateBack)
+            }
+            MovieDetailAction.OnSeeShowtimesClick -> viewModelScope.launch {
+                _events.send(MovieDetailEvent.NavigateToShowtimes(movieId))
             }
         }
     }

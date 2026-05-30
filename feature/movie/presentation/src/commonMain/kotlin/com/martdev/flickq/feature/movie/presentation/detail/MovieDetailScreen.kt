@@ -37,6 +37,7 @@ import org.koin.core.parameter.parametersOf
 fun MovieDetailRoot(
     movieId: Long,
     onNavigateBack: () -> Unit,
+    onViewShowtimes: (Long) -> Unit,
     viewModel: MovieDetailViewModel = koinViewModel { parametersOf(movieId) }
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -44,6 +45,7 @@ fun MovieDetailRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             MovieDetailEvent.NavigateBack -> onNavigateBack()
+            is MovieDetailEvent.NavigateToShowtimes -> onViewShowtimes(event.movieId)
         }
     }
 
@@ -80,7 +82,8 @@ fun MovieDetailScreen(
 
             state.movie != null -> MovieDetailContent(
                 movie = state.movie,
-                onBack = { onAction(MovieDetailAction.OnBackClick) }
+                onBack = { onAction(MovieDetailAction.OnBackClick) },
+                onSeeShowtimes = { onAction(MovieDetailAction.OnSeeShowtimesClick) }
             )
         }
     }
@@ -89,7 +92,8 @@ fun MovieDetailScreen(
 @Composable
 private fun MovieDetailContent(
     movie: MovieUi,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSeeShowtimes: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -145,6 +149,15 @@ private fun MovieDetailContent(
             color = FlickQColors.TicketPaper,
             fontSize = 15.sp,
             modifier = Modifier.padding(top = 20.dp)
+        )
+
+        FlickQButton(
+            text = "See showtimes",
+            onClick = onSeeShowtimes,
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 280.dp)
+                .padding(top = 28.dp)
         )
     }
 }
