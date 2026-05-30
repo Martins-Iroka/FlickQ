@@ -58,6 +58,8 @@ kotlin {
             implementation(projects.core.designSystem)
             implementation(projects.feature.auth.data)
             implementation(projects.feature.auth.presentation)
+            implementation(projects.feature.movie.data)
+            implementation(projects.feature.movie.presentation)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

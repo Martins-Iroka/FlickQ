@@ -3,6 +3,8 @@ package com.martdev.flickq.di
 import com.martdev.flickq.core.data.coreDataModule
 import com.martdev.flickq.feature.auth.data.authDataModule
 import com.martdev.flickq.feature.auth.presentation.authPresentationModule
+import com.martdev.flickq.feature.movie.data.movieDataModule
+import com.martdev.flickq.feature.movie.presentation.moviePresentationModule
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
 
@@ -16,7 +18,9 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
         modules(
             coreDataModule,
             authDataModule,
-            authPresentationModule
+            authPresentationModule,
+            movieDataModule,
+            moviePresentationModule
         )
     }
 }
