@@ -7,6 +7,8 @@ import com.martdev.flickq.feature.movie.data.movieDataModule
 import com.martdev.flickq.feature.movie.presentation.moviePresentationModule
 import com.martdev.flickq.feature.showtime.data.showtimeDataModule
 import com.martdev.flickq.feature.showtime.presentation.showtimePresentationModule
+import com.martdev.flickq.feature.booking.data.bookingDataModule
+import com.martdev.flickq.feature.booking.presentation.bookingPresentationModule
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
 
@@ -24,7 +26,9 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
             movieDataModule,
             moviePresentationModule,
             showtimeDataModule,
-            showtimePresentationModule
+            showtimePresentationModule,
+            bookingDataModule,
+            bookingPresentationModule
         )
     }
 }

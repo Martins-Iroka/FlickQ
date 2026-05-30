@@ -21,6 +21,8 @@ import com.martdev.flickq.core.designsystem.FlickQTheme
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
 import com.martdev.flickq.feature.auth.presentation.AuthGraphRoute
 import com.martdev.flickq.feature.auth.presentation.authGraph
+import com.martdev.flickq.feature.booking.presentation.SeatSelectionRoute
+import com.martdev.flickq.feature.booking.presentation.bookingGraph
 import com.martdev.flickq.feature.movie.presentation.MovieGraphRoute
 import com.martdev.flickq.feature.movie.presentation.movieGraph
 import com.martdev.flickq.feature.showtime.presentation.ShowtimeListRoute
@@ -28,7 +30,7 @@ import com.martdev.flickq.feature.showtime.presentation.showtimeGraph
 import kotlinx.serialization.Serializable
 
 @Serializable
-private data class BookingRoute(val showtimeId: Long)
+private data class PaymentRoute(val reservationId: Long)
 
 @Composable
 fun FlickQApp() {
@@ -49,18 +51,27 @@ fun FlickQApp() {
             )
             showtimeGraph(
                 navController = navController,
-                onPickShowtime = { showtimeId -> navController.navigate(BookingRoute(showtimeId)) }
+                onPickShowtime = { showtimeId -> navController.navigate(SeatSelectionRoute(showtimeId)) }
             )
-            composable<BookingRoute> { backStackEntry ->
-                val route = backStackEntry.toRoute<BookingRoute>()
-                BookingPlaceholder(showtimeId = route.showtimeId)
+            bookingGraph(
+                navController = navController,
+                onProceedToPayment = { reservationId -> navController.navigate(PaymentRoute(reservationId)) },
+                onExitToBrowse = {
+                    navController.navigate(MovieGraphRoute) {
+                        popUpTo(MovieGraphRoute) { inclusive = true }
+                    }
+                }
+            )
+            composable<PaymentRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<PaymentRoute>()
+                PaymentPlaceholder(reservationId = route.reservationId)
             }
         }
     }
 }
 
 @Composable
-private fun BookingPlaceholder(showtimeId: Long) {
+private fun PaymentPlaceholder(reservationId: Long) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -69,13 +80,13 @@ private fun BookingPlaceholder(showtimeId: Long) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Seat selection",
+            text = "Payment",
             color = FlickQColors.Gold,
             fontSize = 28.sp,
             fontWeight = FontWeight.Black
         )
         Text(
-            text = "COMING SOON · SHOWTIME #$showtimeId",
+            text = "COMING SOON · RESERVATION #$reservationId",
             color = Color.White.copy(alpha = 0.5f),
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
