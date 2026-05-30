@@ -18,17 +18,27 @@ import androidx.navigation.compose.rememberNavController
 import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.FlickQTheme
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
+import com.martdev.flickq.feature.auth.presentation.AuthGraphRoute
+import com.martdev.flickq.feature.auth.presentation.authGraph
 import kotlinx.serialization.Serializable
 
 @Serializable
-private data object HomeRoute
+private data object MoviesRoute
 
 @Composable
 fun FlickQApp() {
     FlickQTheme {
         val navController = rememberNavController()
-        NavHost(navController = navController, startDestination = HomeRoute) {
-            composable<HomeRoute> {
+        NavHost(navController = navController, startDestination = AuthGraphRoute) {
+            authGraph(
+                navController = navController,
+                onAuthenticated = {
+                    navController.navigate(MoviesRoute) {
+                        popUpTo(AuthGraphRoute) { inclusive = true }
+                    }
+                }
+            )
+            composable<MoviesRoute> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -44,7 +54,7 @@ fun FlickQApp() {
                         letterSpacing = 4.sp
                     )
                     Text(
-                        text = "BOOK YOUR SEAT",
+                        text = "MOVIES COMING SOON",
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,

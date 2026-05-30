@@ -56,6 +56,8 @@ kotlin {
             implementation(projects.core.data)
             implementation(projects.core.presentation)
             implementation(projects.core.designSystem)
+            implementation(projects.feature.auth.data)
+            implementation(projects.feature.auth.presentation)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
