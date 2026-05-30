@@ -1,0 +1,18 @@
+package com.martdev.flickq.di
+
+import com.martdev.flickq.core.data.coreDataModule
+import org.koin.core.context.startKoin
+import org.koin.dsl.KoinAppDeclaration
+
+/**
+ * Starts Koin with every client module. Called once per platform (Android Application,
+ * iOS MainViewController, web main). Feature modules are added here as they come online.
+ */
+fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
+    startKoin {
+        appDeclaration()
+        modules(
+            coreDataModule
+        )
+    }
+}

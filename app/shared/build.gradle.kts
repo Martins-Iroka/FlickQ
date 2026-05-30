@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -49,7 +50,13 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
         }
         commonMain.dependencies {
-//            api(projects.core)
+            api(projects.core.api)
+            api(projects.core.domain)
+            implementation(projects.core.common)
+            implementation(projects.core.data)
+            implementation(projects.core.presentation)
+            implementation(projects.core.designSystem)
+
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -58,6 +65,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.navigation.compose)
+            implementation(libs.bundles.client.koin.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
