@@ -9,7 +9,9 @@ import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
 import io.ktor.client.network.sockets.ConnectTimeoutException
@@ -92,10 +94,91 @@ suspend inline fun <reified Request> HttpClient.postForStatus(
     } catch (e: SocketTimeoutException) {
         return Result.Error(DataError.Network.REQUEST_TIMEOUT)
     } catch (e: Exception) {
-        val name = e::class.simpleName.orEmpty() + (e.cause?.let { it::class.simpleName.orEmpty() } ?: "")
-        val offline = listOf("UnresolvedAddress", "UnknownHost", "ConnectException", "Network")
-            .any { name.contains(it, ignoreCase = true) }
-        return Result.Error(if (offline) DataError.Network.NO_INTERNET else DataError.Network.UNKNOWN)
+        return Result.Error(networkErrorFor(e))
+    }
+    return if (response.status.value in 200..299) Result.Success(Unit) else responseToResult(response)
+}
+
+/**
+ * POSTs to [route] with **no request body** and resolves to [Unit] on any 2xx without reading
+ * the response body — for body-less admin actions whose success payload is irrelevant (e.g.
+ * `admin/reservation/populate-seats/{id}`). Non-2xx maps through [responseToResult].
+ */
+suspend fun HttpClient.postForStatusNoBody(
+    route: String
+): Result<Unit, DataError.Network> {
+    val response = try {
+        post { url(constructRoute(route)) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: HttpRequestTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: ConnectTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: SocketTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: Exception) {
+        return Result.Error(networkErrorFor(e))
+    }
+    return if (response.status.value in 200..299) Result.Success(Unit) else responseToResult(response)
+}
+
+/** PUTs [body] and unwraps the `DataResponse<Response>` envelope (e.g. `admin/movie/update-movie/{id}`). */
+suspend inline fun <reified Request, reified Response : Any> HttpClient.putData(
+    route: String,
+    body: Request
+): Result<Response, DataError.Network> =
+    safeCall<DataResponse<Response>> {
+        put {
+            url(constructRoute(route))
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+    }.map { it.data }
+
+/**
+ * PATCHes and unwraps the `DataResponse<Response>` envelope. [body] is optional — many admin
+ * PATCHes carry no payload (e.g. `admin/reservation/cancel/{id}`), where only the path matters
+ * and the server returns the mutated resource.
+ */
+suspend inline fun <reified Request, reified Response : Any> HttpClient.patchData(
+    route: String,
+    body: Request? = null
+): Result<Response, DataError.Network> =
+    safeCall<DataResponse<Response>> {
+        patch {
+            url(constructRoute(route))
+            if (body != null) {
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+    }.map { it.data }
+
+/**
+ * DELETEs [route] and resolves to [Unit] on any 2xx (the admin deletes return **204 No Content**)
+ * without reading a body. Non-2xx maps through [responseToResult] — notably a 409 when the
+ * resource is still referenced (a movie/room/showtime in use) surfaces as [DataError.Network.CONFLICT].
+ */
+suspend fun HttpClient.deleteForStatus(
+    route: String,
+    queryParameters: Map<String, Any?> = emptyMap()
+): Result<Unit, DataError.Network> {
+    val response = try {
+        delete {
+            url(constructRoute(route))
+            queryParameters.forEach { (key, value) -> parameter(key, value) }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: HttpRequestTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: ConnectTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: SocketTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: Exception) {
+        return Result.Error(networkErrorFor(e))
     }
     return if (response.status.value in 200..299) Result.Success(Unit) else responseToResult(response)
 }
@@ -116,13 +199,7 @@ suspend inline fun <reified T> safeCall(
     } catch (e: SerializationException) {
         return Result.Error(DataError.Network.SERIALIZATION)
     } catch (e: Exception) {
-        // Connectivity failures (DNS/unresolved host/refused) surface as platform-specific
-        // exceptions with no common supertype; match by name so "offline" reads as
-        // NO_INTERNET rather than a generic UNKNOWN.
-        val name = e::class.simpleName.orEmpty() + (e.cause?.let { it::class.simpleName.orEmpty() } ?: "")
-        val offline = listOf("UnresolvedAddress", "UnknownHost", "ConnectException", "Network")
-            .any { name.contains(it, ignoreCase = true) }
-        return Result.Error(if (offline) DataError.Network.NO_INTERNET else DataError.Network.UNKNOWN)
+        return Result.Error(networkErrorFor(e))
     }
     return responseToResult(response)
 }
@@ -147,6 +224,18 @@ suspend inline fun <reified T> responseToResult(
         in 500..599 -> Result.Error(DataError.Network.SERVER_ERROR)
         else -> Result.Error(DataError.Network.UNKNOWN)
     }
+}
+
+/**
+ * Connectivity failures (DNS/unresolved host/refused) surface as platform-specific exceptions
+ * with no common supertype; match by class name so "offline" reads as [DataError.Network.NO_INTERNET]
+ * rather than a generic [DataError.Network.UNKNOWN].
+ */
+fun networkErrorFor(e: Exception): DataError.Network {
+    val name = e::class.simpleName.orEmpty() + (e.cause?.let { it::class.simpleName.orEmpty() } ?: "")
+    val offline = listOf("UnresolvedAddress", "UnknownHost", "ConnectException", "Network")
+        .any { name.contains(it, ignoreCase = true) }
+    return if (offline) DataError.Network.NO_INTERNET else DataError.Network.UNKNOWN
 }
 
 fun constructRoute(route: String): String = when {

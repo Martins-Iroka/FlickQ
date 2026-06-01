@@ -32,6 +32,7 @@ kotlin {
             implementation(projects.core.data)
             implementation(projects.core.api)
             implementation(libs.ktor.client.core)
+            implementation(libs.kotlin.datetime)
             implementation(libs.koin.core)
         }
         commonTest.dependencies {

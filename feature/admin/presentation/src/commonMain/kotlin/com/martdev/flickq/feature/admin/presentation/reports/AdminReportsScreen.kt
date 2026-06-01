@@ -2,7 +2,6 @@ package com.martdev.flickq.feature.admin.presentation.reports
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,19 +10,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.martdev.flickq.core.designsystem.FlickQButton
+import com.martdev.flickq.core.designsystem.AdminError
+import com.martdev.flickq.core.designsystem.AdminLoading
+import com.martdev.flickq.core.designsystem.AdminScaffold
 import com.martdev.flickq.core.designsystem.FlickQColors
-import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
 import com.martdev.flickq.report.model.CapacityReport
 import com.martdev.flickq.report.model.CapacityRow
 import com.martdev.flickq.report.model.RevenueReport
@@ -32,51 +30,29 @@ import kotlin.math.roundToInt
 
 @Composable
 fun AdminReportsRoot(
+    onBack: () -> Unit,
     viewModel: AdminReportsViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    AdminReportsScreen(state = state, onAction = viewModel::onAction)
+    AdminReportsScreen(state = state, onAction = viewModel::onAction, onBack = onBack)
 }
 
 @Composable
 fun AdminReportsScreen(
     state: AdminReportsState,
-    onAction: (AdminReportsAction) -> Unit
+    onAction: (AdminReportsAction) -> Unit,
+    onBack: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier.fillMaxSize().background(RoomBackgroundBrush)
-    ) {
+    AdminScaffold(title = "Reports", onBack = onBack) {
         when {
-            state.isLoading -> CircularProgressIndicator(
-                color = FlickQColors.Gold,
-                modifier = Modifier.align(Alignment.Center)
-            )
+            state.isLoading -> AdminLoading()
 
-            state.error != null -> Column(
-                modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = "Couldn't load reports", color = FlickQColors.Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(text = state.error.asString(), color = FlickQColors.Error, modifier = Modifier.padding(top = 8.dp))
-                FlickQButton(
-                    text = "Retry",
-                    onClick = { onAction(AdminReportsAction.OnRetry) },
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-            }
+            state.error != null -> AdminError(message = state.error.asString(), onRetry = { onAction(AdminReportsAction.OnRetry) })
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item {
-                    Text(
-                        text = "Dashboard",
-                        color = FlickQColors.Gold,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                }
                 state.revenue?.let { revenue -> item { RevenueCard(revenue) } }
                 state.capacity?.let { capacity ->
                     item { CapacityCard(capacity) }
