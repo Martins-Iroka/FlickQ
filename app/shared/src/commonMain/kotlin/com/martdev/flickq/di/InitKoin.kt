@@ -1,6 +1,7 @@
 package com.martdev.flickq.di
 
 import com.martdev.flickq.core.data.coreDataModule
+import com.martdev.flickq.core.data.platformDataModule
 import com.martdev.flickq.feature.auth.data.authDataModule
 import com.martdev.flickq.feature.auth.presentation.authPresentationModule
 import com.martdev.flickq.feature.movie.data.movieDataModule
@@ -22,6 +23,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
     startKoin {
         appDeclaration()
         modules(
+            platformDataModule(),
             coreDataModule,
             authDataModule,
             authPresentationModule,

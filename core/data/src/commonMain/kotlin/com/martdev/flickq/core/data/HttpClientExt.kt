@@ -10,6 +10,9 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -54,8 +57,22 @@ suspend inline fun <reified T> safeCall(
         execute()
     } catch (e: CancellationException) {
         throw e
+    } catch (e: HttpRequestTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: ConnectTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: SocketTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: SerializationException) {
+        return Result.Error(DataError.Network.SERIALIZATION)
     } catch (e: Exception) {
-        return Result.Error(DataError.Network.UNKNOWN)
+        // Connectivity failures (DNS/unresolved host/refused) surface as platform-specific
+        // exceptions with no common supertype; match by name so "offline" reads as
+        // NO_INTERNET rather than a generic UNKNOWN.
+        val name = e::class.simpleName.orEmpty() + (e.cause?.let { it::class.simpleName.orEmpty() } ?: "")
+        val offline = listOf("UnresolvedAddress", "UnknownHost", "ConnectException", "Network")
+            .any { name.contains(it, ignoreCase = true) }
+        return Result.Error(if (offline) DataError.Network.NO_INTERNET else DataError.Network.UNKNOWN)
     }
     return responseToResult(response)
 }
@@ -83,7 +100,7 @@ suspend inline fun <reified T> responseToResult(
 }
 
 fun constructRoute(route: String): String = when {
-    route.contains(BASE_URL) -> route
-    route.startsWith("/") -> "$BASE_URL$route"
-    else -> "$BASE_URL/$route"
+    route.contains(AppConfig.BASE_URL) -> route
+    route.startsWith("/") -> "${AppConfig.BASE_URL}$route"
+    else -> "${AppConfig.BASE_URL}/$route"
 }
