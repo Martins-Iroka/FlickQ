@@ -29,8 +29,17 @@ kotlin {
             implementation(projects.feature.movie.domain)
             implementation(projects.core.common)
             implementation(projects.core.domain)
+            implementation(projects.core.data)
+            implementation(projects.core.api)
+            implementation(libs.ktor.client.core)
             implementation(libs.kotlin.datetime)
             implementation(libs.koin.core)
+        }
+        commonTest.dependencies {
+            implementation(libs.bundles.client.test)
+            implementation(libs.ktor.client.mock)
+            implementation(libs.ktor.client.contentNegotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
     }
 }

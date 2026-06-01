@@ -5,12 +5,18 @@ import com.martdev.flickq.auth.model.LoginResult
 import com.martdev.flickq.auth.model.OtpResendResult
 import com.martdev.flickq.auth.model.RegistrationResult
 import com.martdev.flickq.auth.model.VerificationInput
+import com.martdev.flickq.core.common.EmptyResult
 import com.martdev.flickq.core.common.Result
 
 interface AuthRepository {
     suspend fun register(credentials: Credentials): Result<RegistrationResult, AuthError>
 
-    suspend fun verifyOtp(input: VerificationInput): Result<LoginResult, AuthError>
+    /**
+     * Activates the account for the given code. The backend's `verify-user` returns an empty
+     * 200 and issues **no** session — verification and login are separate steps — so the user
+     * is sent to log in afterwards. Hence [EmptyResult] rather than a [LoginResult].
+     */
+    suspend fun verifyOtp(input: VerificationInput): EmptyResult<AuthError>
 
     suspend fun login(credentials: Credentials): Result<LoginResult, AuthError>
 

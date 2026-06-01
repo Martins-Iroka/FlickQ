@@ -2,6 +2,8 @@ package com.martdev.flickq.core.data
 
 import com.martdev.flickq.core.common.DataError
 import com.martdev.flickq.core.common.Result
+import com.martdev.flickq.core.common.map
+import com.martdev.flickq.shared.DataResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -48,6 +50,54 @@ suspend inline fun <reified Response : Any> HttpClient.deleteResult(
         url(constructRoute(route))
         queryParameters.forEach { (key, value) -> parameter(key, value) }
     }
+}
+
+// --- DataResponse helpers ------------------------------------------------------------
+// The backend wraps every success body in `{ "data": ... }` (see [DataResponse]). These
+// request the envelope and unwrap `.data`, so real data sources deal in payloads directly.
+
+suspend inline fun <reified Response : Any> HttpClient.getData(
+    route: String,
+    queryParameters: Map<String, Any?> = emptyMap()
+): Result<Response, DataError.Network> =
+    getResult<DataResponse<Response>>(route, queryParameters).map { it.data }
+
+suspend inline fun <reified Request, reified Response : Any> HttpClient.postData(
+    route: String,
+    body: Request
+): Result<Response, DataError.Network> =
+    postResult<Request, DataResponse<Response>>(route, body).map { it.data }
+
+/**
+ * POSTs [body] and resolves to [Unit] on any 2xx **without reading the response body** —
+ * for endpoints whose success is an empty 200 (e.g. `verify-user`, which only activates the
+ * account). Non-2xx maps through [responseToResult]; transport failures map like [safeCall].
+ */
+suspend inline fun <reified Request> HttpClient.postForStatus(
+    route: String,
+    body: Request
+): Result<Unit, DataError.Network> {
+    val response = try {
+        post {
+            url(constructRoute(route))
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: HttpRequestTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: ConnectTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: SocketTimeoutException) {
+        return Result.Error(DataError.Network.REQUEST_TIMEOUT)
+    } catch (e: Exception) {
+        val name = e::class.simpleName.orEmpty() + (e.cause?.let { it::class.simpleName.orEmpty() } ?: "")
+        val offline = listOf("UnresolvedAddress", "UnknownHost", "ConnectException", "Network")
+            .any { name.contains(it, ignoreCase = true) }
+        return Result.Error(if (offline) DataError.Network.NO_INTERNET else DataError.Network.UNKNOWN)
+    }
+    return if (response.status.value in 200..299) Result.Success(Unit) else responseToResult(response)
 }
 
 suspend inline fun <reified T> safeCall(

@@ -50,7 +50,12 @@ fun NavGraphBuilder.authGraph(
             OtpVerifyRoot(
                 emailId = route.emailId,
                 registrationToken = route.registrationToken,
-                onAuthenticated = onAuthenticated
+                // Verification issues no session — return to login so the user signs in.
+                onVerified = {
+                    navController.navigate(LoginRoute) {
+                        popUpTo(LoginRoute) { inclusive = true }
+                    }
+                }
             )
         }
     }

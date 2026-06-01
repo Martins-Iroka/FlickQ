@@ -32,14 +32,14 @@ import org.koin.core.parameter.parametersOf
 fun OtpVerifyRoot(
     emailId: String,
     registrationToken: String,
-    onAuthenticated: () -> Unit,
+    onVerified: () -> Unit,
     viewModel: OtpVerifyViewModel = koinViewModel { parametersOf(emailId, registrationToken) }
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
-            OtpVerifyEvent.Authenticated -> onAuthenticated()
+            OtpVerifyEvent.Verified -> onVerified()
         }
     }
 

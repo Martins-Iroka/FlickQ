@@ -37,13 +37,15 @@ class FakeAuthDataSource(
         )
     }
 
-    override suspend fun verifyOtp(input: VerificationInput): Result<LoginResult, AuthError> {
+    override suspend fun verifyOtp(input: VerificationInput): Result<Unit, AuthError> {
         val account = accounts[input.emailId] ?: return Result.Error(AuthError.UNKNOWN)
         if (input.code != VALID_OTP) {
             return Result.Error(AuthError.INVALID_OTP)
         }
+        // Mirrors the real backend: verification activates the account but issues no session;
+        // the user logs in afterwards.
         account.verified = true
-        return issueSession(input.emailId)
+        return Result.Success(Unit)
     }
 
     override suspend fun login(credentials: Credentials): Result<LoginResult, AuthError> {

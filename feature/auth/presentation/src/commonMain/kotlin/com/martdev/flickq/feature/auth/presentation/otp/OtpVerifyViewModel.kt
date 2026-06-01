@@ -33,7 +33,8 @@ sealed interface OtpVerifyAction {
 }
 
 sealed interface OtpVerifyEvent {
-    data object Authenticated : OtpVerifyEvent
+    /** The account is verified; the user must now log in (verification issues no session). */
+    data object Verified : OtpVerifyEvent
 }
 
 class OtpVerifyViewModel(
@@ -77,7 +78,7 @@ class OtpVerifyViewModel(
             )
                 .onSuccess {
                     _state.update { it.copy(isLoading = false) }
-                    _events.send(OtpVerifyEvent.Authenticated)
+                    _events.send(OtpVerifyEvent.Verified)
                 }
                 .onFailure { error ->
                     _state.update { it.copy(isLoading = false, error = error.toUiText()) }
