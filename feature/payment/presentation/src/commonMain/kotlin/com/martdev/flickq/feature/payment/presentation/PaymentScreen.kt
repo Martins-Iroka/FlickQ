@@ -80,6 +80,36 @@ fun PaymentScreen(
                 }
             }
 
+            state.phase == PaymentPhase.READY_TO_PAY -> Column(
+                modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Ready to pay",
+                    color = FlickQColors.Gold,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    text = "You'll be taken to a secure checkout to complete your payment, then we'll confirm it automatically.",
+                    color = FlickQColors.GoldHighlight,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
+                )
+                FlickQButton(
+                    text = "Proceed to payment",
+                    onClick = { onAction(PaymentAction.OnProceedToPayment) },
+                    modifier = Modifier.fillMaxWidth().width(320.dp)
+                )
+                TextButton(
+                    onClick = { onAction(PaymentAction.OnBackClick) },
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text(text = "Back to ticket", color = FlickQColors.GoldHighlight)
+                }
+            }
+
             state.phase == PaymentPhase.CONFIRMED -> Column(
                 modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally

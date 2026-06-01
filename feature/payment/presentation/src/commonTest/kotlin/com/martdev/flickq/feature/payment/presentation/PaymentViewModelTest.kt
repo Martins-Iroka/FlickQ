@@ -95,22 +95,35 @@ class PaymentViewModelTest {
     )
 
     @Test
-    fun `happy path opens the authorization url then verifies into confirmed`() = runTest {
+    fun `a real authorization url stops at ready-to-pay without opening or polling`() = runTest {
         val repo = FakePaymentRepository()
         val opener = RecordingUrlOpener()
 
-        val state = viewModel(repo, opener).state.value
+        val vm = viewModel(repo, opener)
 
-        assertThat(state.phase).isEqualTo(PaymentPhase.CONFIRMED)
-        assertThat(state.error).isNull()
-        assertThat(state.reference).isEqualTo("REF-1")
-        assertThat(state.amountLabel).isEqualTo("₦7,000")
+        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.READY_TO_PAY)
+        assertThat(vm.state.value.reference).isEqualTo("REF-1")
+        assertThat(opener.opened).isEmpty()
+        assertThat(repo.verifyCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `proceeding opens the authorization url then verifies into confirmed`() = runTest {
+        val repo = FakePaymentRepository()
+        val opener = RecordingUrlOpener()
+        val vm = viewModel(repo, opener)
+
+        vm.onAction(PaymentAction.OnProceedToPayment)
+
+        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.CONFIRMED)
+        assertThat(vm.state.value.error).isNull()
+        assertThat(vm.state.value.amountLabel).isEqualTo("₦7,000")
         assertThat(repo.lastReservationId).isEqualTo(42L)
         assertThat(opener.opened).containsExactly("https://checkout.paystack.com/REF-1")
     }
 
     @Test
-    fun `a null authorization url skips the browser hand-off`() = runTest {
+    fun `a null authorization url skips the browser hand-off and confirms immediately`() = runTest {
         val repo = FakePaymentRepository(authorizationUrl = null)
         val opener = RecordingUrlOpener()
 
@@ -125,18 +138,20 @@ class PaymentViewModelTest {
         val repo = FakePaymentRepository().apply {
             verifyStatuses = listOf(PaymentStatus.PENDING, PaymentStatus.PENDING, PaymentStatus.SUCCESS)
         }
+        val vm = viewModel(repo)
 
-        val state = viewModel(repo).state.value
+        vm.onAction(PaymentAction.OnProceedToPayment)
 
-        assertThat(state.phase).isEqualTo(PaymentPhase.CONFIRMED)
+        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.CONFIRMED)
         assertThat(repo.verifyCount).isEqualTo(3)
     }
 
     @Test
     fun `a terminal failed status surfaces an error and stops polling`() = runTest {
         val repo = FakePaymentRepository().apply { verifyStatuses = listOf(PaymentStatus.FAILED) }
-
         val vm = viewModel(repo)
+
+        vm.onAction(PaymentAction.OnProceedToPayment)
 
         assertThat(vm.state.value.error).isNotNull()
         assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.AWAITING_PAYMENT)
@@ -158,8 +173,9 @@ class PaymentViewModelTest {
     @Test
     fun `verify that never resolves surfaces an error after exhausting attempts`() = runTest {
         val repo = FakePaymentRepository().apply { verifyStatuses = listOf(PaymentStatus.PENDING) }
-
         val vm = viewModel(repo, maxPollAttempts = 3)
+
+        vm.onAction(PaymentAction.OnProceedToPayment)
 
         assertThat(vm.state.value.error).isNotNull()
         assertThat(repo.verifyCount).isEqualTo(3)
@@ -168,8 +184,9 @@ class PaymentViewModelTest {
     @Test
     fun `persistent verify errors surface after exhausting attempts`() = runTest {
         val repo = FakePaymentRepository().apply { verifyStatuses = listOf(null) }
-
         val vm = viewModel(repo, maxPollAttempts = 3)
+
+        vm.onAction(PaymentAction.OnProceedToPayment)
 
         assertThat(vm.state.value.error).isNotNull()
         assertThat(repo.verifyCount).isEqualTo(3)
@@ -179,6 +196,7 @@ class PaymentViewModelTest {
     fun `retry after an unresolved poll re-polls without re-initializing`() = runTest {
         val repo = FakePaymentRepository().apply { verifyStatuses = listOf(PaymentStatus.PENDING) }
         val vm = viewModel(repo, maxPollAttempts = 2)
+        vm.onAction(PaymentAction.OnProceedToPayment)
         assertThat(vm.state.value.error).isNotNull()
 
         repo.verifyStatuses = listOf(PaymentStatus.SUCCESS)
@@ -190,7 +208,8 @@ class PaymentViewModelTest {
 
     @Test
     fun `retry after an initialize failure re-initializes`() = runTest {
-        val repo = FakePaymentRepository().apply { initializeFails = true }
+        // null authorization url so the re-initialized flow confirms without a proceed tap.
+        val repo = FakePaymentRepository(authorizationUrl = null).apply { initializeFails = true }
         val vm = viewModel(repo)
         assertThat(vm.state.value.error).isNotNull()
 
