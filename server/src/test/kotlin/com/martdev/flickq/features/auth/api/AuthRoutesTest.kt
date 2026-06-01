@@ -9,6 +9,7 @@ import com.martdev.flickq.auth.request.RefreshTokenRequest
 import com.martdev.flickq.auth.request.ResendOTPRequest
 import com.martdev.flickq.auth.request.UserLoginRequest
 import com.martdev.flickq.auth.request.UserVerificationRequest
+import com.martdev.flickq.config.CookieConfig
 import com.martdev.flickq.config.JWTConfig
 import com.martdev.flickq.features.auth.domain.service.UserService
 import com.martdev.flickq.shared.domain.exception.BadRequestException
@@ -17,8 +18,10 @@ import com.martdev.flickq.shared.domain.exception.NotFoundException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import com.martdev.flickq.utils.clientConfiguration
 import com.martdev.flickq.utils.testAppConfiguration
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.testing.testApplication
@@ -31,6 +34,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.koin.dsl.module
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @ExtendWith(MockKExtension::class)
 class AuthRoutesTest {
@@ -39,11 +44,13 @@ class AuthRoutesTest {
     private lateinit var service: UserService
 
     private val jwtConfig = JWTConfig("test", 15, "iss", "aud")
+    private val cookieConfig = CookieConfig(secure = true, sameSite = "Strict")
 
     private val testModule by lazy {
         module {
             single<UserService> { service }
             single { jwtConfig }
+            single { cookieConfig }
         }
     }
 
@@ -236,6 +243,83 @@ class AuthRoutesTest {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `POST login sets a Secure HttpOnly SameSite refresh-token cookie`() = testApplication {
+        coEvery { service.loginUser(any()) } returns LoginResult(
+            userId = 1L,
+            accessToken = "access",
+            refreshToken = "refresh-cookie-value",
+        )
+        application { configure() }
+        val client = clientConfiguration()
+
+        val response = client.post("/authentication/login") {
+            setBody(UserLoginRequest(email = "user@example.com", password = "Password123!"))
+        }
+
+        val setCookie = response.headers[HttpHeaders.SetCookie]
+        assertNotNull(setCookie)
+        assertTrue(setCookie.contains("refresh_token=refresh-cookie-value"))
+        assertTrue(setCookie.contains("HttpOnly", ignoreCase = true))
+        assertTrue(setCookie.contains("Secure", ignoreCase = true))
+        assertTrue(setCookie.contains("SameSite=Strict"))
+    }
+
+    @Test
+    fun `POST refresh-token reads the token from the cookie when no body is sent`() = testApplication {
+        coEvery { service.refreshToken("cookie-refresh") } returns RefreshResult(
+            accessToken = "new-access",
+            refreshToken = "rotated-refresh",
+        )
+        application { configure() }
+        val client = clientConfiguration()
+
+        val response = client.post("/authentication/refresh-token") {
+            header(HttpHeaders.Cookie, "refresh_token=cookie-refresh")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { service.refreshToken("cookie-refresh") }
+        // The rotated token is written back to the cookie.
+        assertTrue(response.headers[HttpHeaders.SetCookie]?.contains("refresh_token=rotated-refresh") == true)
+    }
+
+    @Test
+    fun `POST refresh-token returns 401 when neither body nor cookie carries a token`() = testApplication {
+        application { configure() }
+        val client = clientConfiguration()
+
+        val response = client.post("/authentication/refresh-token")
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `POST logout revokes the cookie token and expires the cookie`() = testApplication {
+        coJustRun { service.logout(any()) }
+        application { configure() }
+        val client = clientConfiguration()
+
+        val response = client.post("/authentication/logout") {
+            header(HttpHeaders.Cookie, "refresh_token=cookie-refresh")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { service.logout("cookie-refresh") }
+        assertTrue(response.headers[HttpHeaders.SetCookie]?.contains("Max-Age=0") == true)
+    }
+
+    @Test
+    fun `POST logout returns 200 and skips revocation when no token is present`() = testApplication {
+        application { configure() }
+        val client = clientConfiguration()
+
+        val response = client.post("/authentication/logout")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify(exactly = 0) { service.logout(any()) }
     }
 
     @Test

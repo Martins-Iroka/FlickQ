@@ -173,6 +173,12 @@ class UserServiceImpl(
         }
     }
 
+    override suspend fun logout(refreshToken: String) {
+        // Idempotent: revoking an unknown/already-revoked token is a successful no-op, so a
+        // double logout or a stale cookie doesn't error. Revocation infra is shared with refresh.
+        repository.revokeRefreshToken(sha256Hex(refreshToken))
+    }
+
     override suspend fun deleteExpiredRefreshToken() {
         repository.deleteExpiredRefreshToken()
     }

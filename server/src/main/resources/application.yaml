@@ -34,3 +34,7 @@ jwt:
 cors:
   allowedHosts: ${CORS_ALLOWED_HOSTS:-}
   allowAnyHost: ${CORS_ALLOW_ANY_HOST:-false}
+
+cookie:
+  secure: ${COOKIE_SECURE:-true}
+  sameSite: ${COOKIE_SAME_SITE:-Strict}

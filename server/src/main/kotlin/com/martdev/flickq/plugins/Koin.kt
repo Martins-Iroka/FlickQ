@@ -1,5 +1,6 @@
 package com.martdev.flickq.plugins
 
+import com.martdev.flickq.config.CookieConfig
 import com.martdev.flickq.config.CorsConfig
 import com.martdev.flickq.config.DatabaseConfig
 import com.martdev.flickq.config.JWTConfig
@@ -19,6 +20,7 @@ fun Application.configureKoin() {
         single { StytchConfig.fromEnvironment(environment) }
         single { PaystackConfig.fromEnvironment(environment) }
         single { CorsConfig.fromEnvironment(environment) }
+        single { CookieConfig.fromEnvironment(environment) }
     }
 
     install(Koin) {

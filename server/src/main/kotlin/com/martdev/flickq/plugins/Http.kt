@@ -23,6 +23,10 @@ fun Application.configureHttp() {
         allowMethod(HttpMethod.Patch)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        // Required for the web refresh-token cookie to ride along on cross-origin requests
+        // (Decision #2). Browsers reject credentials with a wildcard origin, so the web apps must
+        // be served from explicit `cors.allowedHosts` — `allowAnyHost` (dev only) can't carry cookies.
+        allowCredentials = true
         if (corsConfig.allowAnyHost) {
             anyHost()
         } else {
