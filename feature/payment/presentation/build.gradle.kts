@@ -44,6 +44,10 @@ kotlin {
             implementation(libs.navigation.compose)
             implementation(libs.bundles.client.koin.compose)
         }
+        androidMain.dependencies {
+            implementation(libs.koin.android)
+            implementation(libs.androidx.browser)
+        }
         commonTest.dependencies {
             implementation(libs.bundles.client.test)
         }

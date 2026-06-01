@@ -36,7 +36,9 @@ class FakePaymentDataSource : PaymentRepository {
             reference = reference,
             amount = amount,
             status = PaymentStatus.PENDING,
-            authorizationUrl = "https://checkout.paystack.com/$reference",
+            // No real gateway on the fake: a null authorization url tells the ViewModel to
+            // skip the browser hand-off and go straight to (immediately succeeding) verify.
+            authorizationUrl = null,
             accessCode = "acc_$reference",
         )
         payments[reference] = payment

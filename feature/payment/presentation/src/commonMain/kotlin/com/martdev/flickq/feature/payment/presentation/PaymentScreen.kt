@@ -119,7 +119,8 @@ fun PaymentScreen(
                 Text(
                     text = when (state.phase) {
                         PaymentPhase.INITIALIZING -> "Initializing payment…"
-                        else -> "Confirming payment…"
+                        PaymentPhase.AWAITING_PAYMENT -> "Complete payment in your browser — we'll confirm automatically…"
+                        PaymentPhase.CONFIRMED -> "Confirming payment…"
                     },
                     color = FlickQColors.GoldHighlight,
                     fontSize = 14.sp,
