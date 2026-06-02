@@ -64,8 +64,9 @@ object HttpClientFactory {
                             markAsRefreshTokenRequest()
                             contentType(ContentType.Application.Json)
                             // Native sends the stored refresh token; on web it is null and the
-                            // server reads it from the httpOnly cookie instead (see Part E — the
-                            // js engine must be configured to include credentials for that to work).
+                            // server reads it from the httpOnly cookie instead (Part E). The web
+                            // engines force `credentials: 'include'` for API-origin calls (see the
+                            // js/wasmJs PlatformDataModule shim) so that cookie rides along.
                             if (refresh != null) setBody(RefreshTokenRequest(refresh))
                         }
                         if (response.status.isSuccess()) {

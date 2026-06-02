@@ -16,4 +16,19 @@ object AppConfig {
     const val USE_FAKES: Boolean = true
 
     const val BASE_URL: String = "http://localhost:8080/api/v1"
+
+    /**
+     * Scheme + host + port of [BASE_URL] with the path stripped (e.g. `http://localhost:8080`).
+     * The web engines use it to scope the credentials shim to API calls only (see
+     * `PlatformDataModule` js/wasmJs actuals) so cross-origin image/CDN loads stay untouched.
+     */
+    val BASE_ORIGIN: String = run {
+        val schemeEnd = BASE_URL.indexOf("://")
+        if (schemeEnd < 0) {
+            BASE_URL
+        } else {
+            val pathStart = BASE_URL.indexOf('/', startIndex = schemeEnd + 3)
+            if (pathStart < 0) BASE_URL else BASE_URL.substring(0, pathStart)
+        }
+    }
 }
