@@ -36,7 +36,11 @@ object HttpClientFactory {
         // DTOs use kotlin.time.Instant, which carries its own serializer — no module needed.
     }
 
-    fun create(engine: HttpClientEngine, tokenStorage: TokenStorage): HttpClient {
+    fun create(
+        engine: HttpClientEngine,
+        tokenStorage: TokenStorage,
+        sessionManager: SessionManager,
+    ): HttpClient {
         return HttpClient(engine) {
             install(ContentNegotiation) {
                 json(json)
@@ -74,8 +78,10 @@ object HttpClientFactory {
                             tokenStorage.saveTokens(tokens.accessToken, tokens.refreshToken)
                             BearerTokens(tokens.accessToken, tokens.refreshToken)
                         } else {
-                            // Refresh failed (expired/revoked) — drop tokens so the app logs out.
+                            // Refresh failed (expired/revoked) — drop tokens and signal the app to
+                            // route back to login (SessionManager is observed by the root nav).
                             tokenStorage.clear()
+                            sessionManager.notifyExpired()
                             null
                         }
                     }
