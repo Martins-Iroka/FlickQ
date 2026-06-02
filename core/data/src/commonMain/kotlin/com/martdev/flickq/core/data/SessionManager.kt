@@ -5,10 +5,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 /**
- * App-wide signal that the session ended unexpectedly — the refresh token was rejected
- * (expired/revoked), so the user must re-authenticate. The shared `HttpClient`'s refresh
- * path calls [notifyExpired] after clearing tokens; the root composables observe [events]
- * and route back to login, clearing the back stack.
+ * App-wide signal that the session ended — either unexpectedly ([notifyExpired], when the
+ * refresh token was rejected) or deliberately ([notifyLoggedOut], on user logout). Either way
+ * the user must land on login: the shared `HttpClient`'s refresh path calls [notifyExpired]
+ * after clearing tokens, the logout flow calls [notifyLoggedOut], and the root composables
+ * observe [events] and route back to login, clearing the back stack.
  *
  * [notifyExpired] is non-suspending (`tryEmit`) so it can fire from Ktor's `refreshTokens`
  * lambda without a coroutine scope; `extraBufferCapacity = 1` lets the emit land even when
@@ -22,6 +23,10 @@ class SessionManager {
     fun notifyExpired() {
         _events.tryEmit(SessionEvent.Expired)
     }
+
+    fun notifyLoggedOut() {
+        _events.tryEmit(SessionEvent.LoggedOut)
+    }
 }
 
-enum class SessionEvent { Expired }
+enum class SessionEvent { Expired, LoggedOut }

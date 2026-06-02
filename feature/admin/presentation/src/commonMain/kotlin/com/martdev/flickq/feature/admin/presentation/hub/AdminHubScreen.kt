@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.martdev.flickq.core.designsystem.AdminScaffold
 import com.martdev.flickq.core.designsystem.FlickQColors
+import com.martdev.flickq.core.designsystem.RowAction
+import org.koin.compose.viewmodel.koinViewModel
 
 /** The admin landing hub: a list of cards that fan out to each management area. */
 @Composable
@@ -27,8 +29,12 @@ fun AdminHubScreen(
     onOpenRooms: () -> Unit,
     onOpenShowtimes: () -> Unit,
     onOpenReservations: () -> Unit,
+    viewModel: AdminHubViewModel = koinViewModel(),
 ) {
-    AdminScaffold(title = "FlickQ Admin") {
+    AdminScaffold(
+        title = "FlickQ Admin",
+        actions = { RowAction(label = "Log out", onClick = { viewModel.logout() }, tint = FlickQColors.Error) },
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

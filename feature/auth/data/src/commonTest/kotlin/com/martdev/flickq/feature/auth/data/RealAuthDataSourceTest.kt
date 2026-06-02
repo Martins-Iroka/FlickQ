@@ -2,6 +2,7 @@ package com.martdev.flickq.feature.auth.data
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import com.martdev.flickq.auth.model.Credentials
 import com.martdev.flickq.auth.model.VerificationInput
 import com.martdev.flickq.core.common.Result
@@ -17,6 +18,7 @@ import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
@@ -122,5 +124,49 @@ class RealAuthDataSourceTest {
             .login(Credentials("fan@flickq.com", "wrong"))
 
         assertThat((result as? Result.Error)?.error).isEqualTo(AuthError.INVALID_CREDENTIALS)
+    }
+
+    @Test
+    fun `logout posts the stored refresh token (native) and clears local tokens`() = runTest {
+        var path = ""
+        var body = ""
+        val storage = InMemoryTokenStorage().apply { saveTokens("access-1", "refresh-1") }
+        val client = jsonClient { request ->
+            path = request.url.encodedPath
+            body = (request.body as? TextContent)?.text.orEmpty()
+            respond(content = "", status = HttpStatusCode.OK)
+        }
+
+        val result = RealAuthDataSource(client, storage).logout()
+
+        assertThat(result).isEqualTo(Result.Success(Unit))
+        assertThat(path.endsWith("/authentication/logout")).isEqualTo(true)
+        assertThat(body.contains("refresh-1")).isEqualTo(true)
+        assertThat(storage.getAccessToken()).isNull()
+        assertThat(storage.getRefreshToken()).isNull()
+    }
+
+    @Test
+    fun `logout clears local tokens even when the server call fails`() = runTest {
+        val storage = InMemoryTokenStorage().apply { saveTokens("access-1", "refresh-1") }
+        val client = jsonClient { respond(content = "", status = HttpStatusCode.InternalServerError) }
+
+        RealAuthDataSource(client, storage).logout()
+
+        assertThat(storage.getAccessToken()).isNull()
+        assertThat(storage.getRefreshToken()).isNull()
+    }
+
+    @Test
+    fun `logout with no stored token still hits the endpoint (web cookie flow)`() = runTest {
+        var path = ""
+        val client = jsonClient { request ->
+            path = request.url.encodedPath
+            respond(content = "", status = HttpStatusCode.OK)
+        }
+
+        RealAuthDataSource(client, InMemoryTokenStorage()).logout()
+
+        assertThat(path.endsWith("/authentication/logout")).isEqualTo(true)
     }
 }

@@ -49,6 +49,8 @@ private class FakeAuthRepository(
 
     override suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError> =
         Result.Error(AuthError.UNKNOWN)
+
+    override suspend fun logout(): EmptyResult<AuthError> = Result.Success(Unit)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

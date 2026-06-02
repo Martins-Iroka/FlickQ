@@ -10,5 +10,6 @@ import org.koin.dsl.module
 val authPresentationModule = module {
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
+    viewModelOf(::LogoutViewModel)
     viewModel { params -> OtpVerifyViewModel(params.get(), params.get(), get()) }
 }

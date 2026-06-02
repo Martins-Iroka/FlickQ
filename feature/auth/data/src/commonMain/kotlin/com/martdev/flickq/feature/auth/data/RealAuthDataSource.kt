@@ -6,6 +6,7 @@ import com.martdev.flickq.auth.model.OtpResendResult
 import com.martdev.flickq.auth.model.RegistrationResult
 import com.martdev.flickq.auth.model.VerificationInput
 import com.martdev.flickq.auth.request.CreateUserRequest
+import com.martdev.flickq.auth.request.RefreshTokenRequest
 import com.martdev.flickq.auth.request.ResendOTPRequest
 import com.martdev.flickq.auth.request.UserLoginRequest
 import com.martdev.flickq.auth.request.UserVerificationRequest
@@ -18,6 +19,7 @@ import com.martdev.flickq.core.data.JwtDecoder
 import com.martdev.flickq.core.data.TokenStorage
 import com.martdev.flickq.core.data.postData
 import com.martdev.flickq.core.data.postForStatus
+import com.martdev.flickq.core.data.postForStatusNoBody
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import io.ktor.client.HttpClient
@@ -87,6 +89,20 @@ class RealAuthDataSource(
             )
             is Result.Error -> Result.Error(AuthError.UNKNOWN)
         }
+
+    override suspend fun logout(): Result<Unit, AuthError> {
+        // Best-effort server revoke: native sends the stored refresh token in the body; on web it
+        // is null and the browser's httpOnly cookie carries it. Clear local tokens regardless so
+        // logout always succeeds locally even if the network call fails.
+        val refresh = tokenStorage.getRefreshToken()
+        if (refresh != null) {
+            client.postForStatus("/authentication/logout", RefreshTokenRequest(refresh))
+        } else {
+            client.postForStatusNoBody("/authentication/logout")
+        }
+        tokenStorage.clear()
+        return Result.Success(Unit)
+    }
 }
 
 // Server returns 400 for a duplicate email on register.

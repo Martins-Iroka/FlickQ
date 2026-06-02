@@ -25,12 +25,14 @@ data class MovieDetailRoute(val movieId: Long)
  */
 fun NavGraphBuilder.movieGraph(
     navController: NavController,
-    onViewShowtimes: (Long) -> Unit
+    onViewShowtimes: (Long) -> Unit,
+    onLogout: () -> Unit,
 ) {
     navigation<MovieGraphRoute>(startDestination = MovieListRoute) {
         composable<MovieListRoute> {
             MovieListRoot(
-                onMovieClick = { movieId -> navController.navigate(MovieDetailRoute(movieId)) }
+                onMovieClick = { movieId -> navController.navigate(MovieDetailRoute(movieId)) },
+                onLogout = onLogout,
             )
         }
         composable<MovieDetailRoute> { backStackEntry ->

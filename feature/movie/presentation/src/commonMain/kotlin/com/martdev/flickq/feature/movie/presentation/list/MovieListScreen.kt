@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,6 +40,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun MovieListRoot(
     onMovieClick: (Long) -> Unit,
+    onLogout: () -> Unit,
     viewModel: MovieListViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -48,20 +51,32 @@ fun MovieListRoot(
         }
     }
 
-    MovieListScreen(state = state, onAction = viewModel::onAction)
+    MovieListScreen(state = state, onAction = viewModel::onAction, onLogout = onLogout)
 }
 
 @Composable
 fun MovieListScreen(
     state: MovieListState,
-    onAction: (MovieListAction) -> Unit
+    onAction: (MovieListAction) -> Unit,
+    onLogout: () -> Unit = {},
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(RoomBackgroundBrush)
     ) {
-        when {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text(text = "FlickQ", color = FlickQColors.Gold, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            TextButton(onClick = onLogout) {
+                Text(text = "Log out", color = FlickQColors.GoldHighlight, fontSize = 13.sp)
+            }
+        }
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when {
             state.isLoading -> CircularProgressIndicator(
                 color = FlickQColors.Gold,
                 modifier = Modifier.align(Alignment.Center)
@@ -110,6 +125,7 @@ fun MovieListScreen(
                     }
                 }
             }
+        }
         }
     }
 }

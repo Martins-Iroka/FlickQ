@@ -68,6 +68,11 @@ class FakeAuthDataSource(
         )
     }
 
+    override suspend fun logout(): Result<Unit, AuthError> {
+        tokenStorage.clear()
+        return Result.Success(Unit)
+    }
+
     private suspend fun issueSession(email: String): Result<LoginResult, AuthError> {
         val userId = userIdSeq++
         val accessToken = "access-token-$email"

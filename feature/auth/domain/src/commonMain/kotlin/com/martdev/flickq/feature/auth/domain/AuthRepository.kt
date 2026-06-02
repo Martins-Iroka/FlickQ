@@ -21,4 +21,11 @@ interface AuthRepository {
     suspend fun login(credentials: Credentials): Result<LoginResult, AuthError>
 
     suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError>
+
+    /**
+     * Ends the session: best-effort revokes the refresh token server-side and always clears the
+     * local tokens. Returns [EmptyResult] success even if the network call fails — a user must be
+     * able to log out regardless of connectivity.
+     */
+    suspend fun logout(): EmptyResult<AuthError>
 }
