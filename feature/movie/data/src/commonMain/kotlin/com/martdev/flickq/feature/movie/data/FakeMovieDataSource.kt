@@ -76,8 +76,8 @@ class FakeMovieDataSource : MovieRepository {
         )
     )
 
-    override suspend fun getMovies(): Result<List<Movie>, DataError> =
-        Result.Success(catalog)
+    override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> =
+        Result.Success(catalog.drop(offset).take(limit))
 
     override suspend fun getMovieById(id: Long): Result<Movie, DataError> =
         catalog.firstOrNull { it.id == id }

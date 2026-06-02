@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -90,6 +91,23 @@ fun MovieListScreen(
                         movie = movie,
                         onClick = { onAction(MovieListAction.OnMovieClick(movie.id)) }
                     )
+                }
+                if (state.isLoadingMore || state.canLoadMore) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (state.isLoadingMore) {
+                                CircularProgressIndicator(color = FlickQColors.Gold)
+                            } else {
+                                FlickQButton(
+                                    text = "Load more",
+                                    onClick = { onAction(MovieListAction.OnLoadMore) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

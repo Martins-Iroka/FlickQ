@@ -18,12 +18,18 @@ import kotlinx.coroutines.launch
 
 data class MovieListState(
     val movies: List<MovieUi> = emptyList(),
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = false,      // first-page / full-screen load
+    val isLoadingMore: Boolean = false,  // appending a subsequent page
+    val endReached: Boolean = false,     // last page returned fewer than a full page
     val error: UiText? = null
-)
+) {
+    /** Show a "load more" affordance only when there's more to fetch and we're idle. */
+    val canLoadMore: Boolean get() = !isLoading && !isLoadingMore && !endReached && error == null
+}
 
 sealed interface MovieListAction {
     data class OnMovieClick(val movieId: Long) : MovieListAction
+    data object OnLoadMore : MovieListAction
     data object OnRetry : MovieListAction
 }
 
@@ -42,7 +48,7 @@ class MovieListViewModel(
     val events = _events.receiveAsFlow()
 
     init {
-        loadMovies()
+        loadFirstPage()
     }
 
     fun onAction(action: MovieListAction) {
@@ -51,22 +57,55 @@ class MovieListViewModel(
                 _events.send(MovieListEvent.NavigateToDetail(action.movieId))
             }
 
-            MovieListAction.OnRetry -> loadMovies()
+            MovieListAction.OnLoadMore -> loadMore()
+            MovieListAction.OnRetry -> loadFirstPage()
         }
     }
 
-    private fun loadMovies() {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
-            movieRepository.getMovies()
-                .onSuccess { movies ->
-                    _state.update {
-                        it.copy(isLoading = false, movies = movies.map { movie -> movie.toMovieUi() })
-                    }
+    private fun loadFirstPage() {
+        _state.update { it.copy(isLoading = true, isLoadingMore = false, error = null, endReached = false) }
+        viewModelScope.launch { fetchPage(replace = true) }
+    }
+
+    private fun loadMore() {
+        if (!_state.value.canLoadMore) return
+        _state.update { it.copy(isLoadingMore = true) }
+        viewModelScope.launch { fetchPage(replace = false) }
+    }
+
+    /**
+     * Fetches the page at the current offset. [replace] true seeds the first page (and shows the
+     * full-screen spinner); false appends. A short page (< [PAGE_SIZE]) means the catalog is
+     * exhausted. A load-more failure keeps the already-loaded movies and just stops appending, so
+     * the user can retry; only a first-page failure blocks the screen.
+     */
+    private suspend fun fetchPage(replace: Boolean) {
+        val offset = if (replace) 0 else _state.value.movies.size
+        movieRepository.getMovies(limit = PAGE_SIZE, offset = offset)
+            .onSuccess { page ->
+                val ui = page.map { it.toMovieUi() }
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        movies = if (replace) ui else it.movies + ui,
+                        endReached = page.size < PAGE_SIZE,
+                        error = null,
+                    )
                 }
-                .onFailure { error ->
-                    _state.update { it.copy(isLoading = false, error = error.toUiText()) }
+            }
+            .onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        error = if (replace) error.toUiText() else null,
+                    )
                 }
-        }
+            }
+    }
+
+    private companion object {
+        const val PAGE_SIZE = 20
     }
 }

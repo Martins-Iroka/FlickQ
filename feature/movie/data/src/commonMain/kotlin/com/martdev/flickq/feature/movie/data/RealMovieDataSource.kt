@@ -18,9 +18,11 @@ class RealMovieDataSource(
     private val client: HttpClient
 ) : MovieRepository {
 
-    override suspend fun getMovies(): Result<List<Movie>, DataError> =
-        client.getData<List<MovieListItemDTO>>("/movie/get-movies")
-            .map { items -> items.map { it.toMovie() } }
+    override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> =
+        client.getData<List<MovieListItemDTO>>(
+            "/movie/get-movies",
+            queryParameters = mapOf("limit" to limit, "offset" to offset),
+        ).map { items -> items.map { it.toMovie() } }
 
     override suspend fun getMovieById(id: Long): Result<Movie, DataError> =
         client.getData<MovieDTO>("/movie/get-movie-by-id/$id")
