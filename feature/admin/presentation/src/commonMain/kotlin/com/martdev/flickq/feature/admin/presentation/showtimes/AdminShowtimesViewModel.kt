@@ -35,6 +35,8 @@ private fun String.isInstant(): Boolean = runCatching { Instant.parse(this) }.is
 
 data class AdminShowtimesState(
     val isLoading: Boolean = true,
+    val isLoadingMore: Boolean = false,
+    val endReached: Boolean = false,
     val showtimes: List<Showtime> = emptyList(),
     val error: UiText? = null,
     val form: ShowtimeForm? = null,
@@ -44,10 +46,13 @@ data class AdminShowtimesState(
     val statusFor: Showtime? = null,
     val populatingFor: Showtime? = null,
     val message: UiText? = null,
-)
+) {
+    val canLoadMore: Boolean get() = !isLoading && !isLoadingMore && !endReached && error == null
+}
 
 sealed interface AdminShowtimesAction {
     data object OnRetry : AdminShowtimesAction
+    data object OnLoadMore : AdminShowtimesAction
     data object OnAddClick : AdminShowtimesAction
     data class OnEditClick(val showtime: Showtime) : AdminShowtimesAction
     data class OnMovieIdChange(val value: String) : AdminShowtimesAction
@@ -82,6 +87,7 @@ class AdminShowtimesViewModel(
     fun onAction(action: AdminShowtimesAction) {
         when (action) {
             AdminShowtimesAction.OnRetry -> load()
+            AdminShowtimesAction.OnLoadMore -> loadMore()
             AdminShowtimesAction.OnAddClick -> _state.update { it.copy(form = ShowtimeForm(), dialogError = null) }
             is AdminShowtimesAction.OnEditClick -> _state.update {
                 val s = action.showtime
@@ -116,11 +122,41 @@ class AdminShowtimesViewModel(
 
     private fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
-            catalog.getShowtimes()
-                .onSuccess { showtimes -> _state.update { it.copy(isLoading = false, showtimes = showtimes) } }
-                .onFailure { error -> _state.update { it.copy(isLoading = false, error = error.toUiText()) } }
+            _state.update { it.copy(isLoading = true, isLoadingMore = false, endReached = false, error = null) }
+            fetchPage(replace = true)
         }
+    }
+
+    private fun loadMore() {
+        if (!_state.value.canLoadMore) return
+        _state.update { it.copy(isLoadingMore = true) }
+        viewModelScope.launch { fetchPage(replace = false) }
+    }
+
+    /** Loads the page at the current offset; [replace] seeds the first page, otherwise appends. */
+    private suspend fun fetchPage(replace: Boolean) {
+        val offset = if (replace) 0 else _state.value.showtimes.size
+        catalog.getShowtimes(limit = PAGE_SIZE, offset = offset)
+            .onSuccess { page ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        showtimes = if (replace) page else it.showtimes + page,
+                        endReached = page.size < PAGE_SIZE,
+                        error = null,
+                    )
+                }
+            }
+            .onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        error = if (replace) error.toUiText() else null,
+                    )
+                }
+            }
     }
 
     private fun save() {
@@ -176,5 +212,9 @@ class AdminShowtimesViewModel(
                 .onSuccess { _state.update { it.copy(message = UiText.DynamicString("Seats populated for showtime ${target.id}.")) } }
                 .onFailure { error -> _state.update { it.copy(message = error.toUiText()) } }
         }
+    }
+
+    private companion object {
+        const val PAGE_SIZE = 50
     }
 }

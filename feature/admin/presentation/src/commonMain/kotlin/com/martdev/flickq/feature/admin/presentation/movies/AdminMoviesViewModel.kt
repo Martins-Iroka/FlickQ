@@ -33,6 +33,8 @@ data class MovieForm(
 
 data class AdminMoviesState(
     val isLoading: Boolean = true,
+    val isLoadingMore: Boolean = false,
+    val endReached: Boolean = false,
     val movies: List<Movie> = emptyList(),
     val genres: List<Genre> = emptyList(),
     val error: UiText? = null,
@@ -40,10 +42,13 @@ data class AdminMoviesState(
     val isSaving: Boolean = false,
     val dialogError: UiText? = null,
     val deleting: Movie? = null,
-)
+) {
+    val canLoadMore: Boolean get() = !isLoading && !isLoadingMore && !endReached && error == null
+}
 
 sealed interface AdminMoviesAction {
     data object OnRetry : AdminMoviesAction
+    data object OnLoadMore : AdminMoviesAction
     data object OnAddClick : AdminMoviesAction
     data class OnEditClick(val movie: Movie) : AdminMoviesAction
     data class OnTitleChange(val value: String) : AdminMoviesAction
@@ -71,6 +76,7 @@ class AdminMoviesViewModel(
     fun onAction(action: AdminMoviesAction) {
         when (action) {
             AdminMoviesAction.OnRetry -> load()
+            AdminMoviesAction.OnLoadMore -> loadMore()
             AdminMoviesAction.OnAddClick -> _state.update { it.copy(form = MovieForm(), dialogError = null) }
             is AdminMoviesAction.OnEditClick -> openEdit(action.movie.id)
             is AdminMoviesAction.OnTitleChange -> updateForm { it.copy(title = action.value) }
@@ -95,12 +101,44 @@ class AdminMoviesViewModel(
 
     private fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(isLoading = true, isLoadingMore = false, endReached = false, error = null) }
+            // Genres back the form's chips; fetched once alongside the first page.
             catalog.getGenres().onSuccess { genres -> _state.update { it.copy(genres = genres) } }
-            catalog.getMovies()
-                .onSuccess { movies -> _state.update { it.copy(isLoading = false, movies = movies) } }
-                .onFailure { error -> _state.update { it.copy(isLoading = false, error = error.toUiText()) } }
+            fetchPage(replace = true)
         }
+    }
+
+    private fun loadMore() {
+        if (!_state.value.canLoadMore) return
+        _state.update { it.copy(isLoadingMore = true) }
+        viewModelScope.launch { fetchPage(replace = false) }
+    }
+
+    /** Loads the page at the current offset; [replace] seeds the first page, otherwise appends. */
+    private suspend fun fetchPage(replace: Boolean) {
+        val offset = if (replace) 0 else _state.value.movies.size
+        catalog.getMovies(limit = PAGE_SIZE, offset = offset)
+            .onSuccess { page ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        movies = if (replace) page else it.movies + page,
+                        endReached = page.size < PAGE_SIZE,
+                        error = null,
+                    )
+                }
+            }
+            .onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        // A load-more failure keeps the loaded rows; only a first-page failure blocks.
+                        error = if (replace) error.toUiText() else null,
+                    )
+                }
+            }
     }
 
     private fun openEdit(id: Long) {
@@ -163,4 +201,8 @@ class AdminMoviesViewModel(
     private fun String.toLocalDateOrToday(): LocalDate =
         takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
             ?: Clock.System.now().toLocalDateTime(TimeZone.UTC).date
+
+    private companion object {
+        const val PAGE_SIZE = 50
+    }
 }

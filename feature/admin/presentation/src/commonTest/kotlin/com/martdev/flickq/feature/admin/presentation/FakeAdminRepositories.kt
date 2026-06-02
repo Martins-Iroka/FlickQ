@@ -22,7 +22,14 @@ class FakeAdminCatalogRepository : AdminCatalogRepository {
     var deleteGenreError: DataError? = null
     var createGenreCount = 0
 
-    override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> = Result.Success(emptyList())
+    /** Backing catalog for pagination tests; default empty keeps non-paging tests unaffected. */
+    var allMovies: List<Movie> = emptyList()
+    val moviePages = mutableListOf<Pair<Int, Int>>() // (limit, offset)
+
+    override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> {
+        moviePages += limit to offset
+        return Result.Success(allMovies.drop(offset).take(limit))
+    }
     override suspend fun getMovie(id: Long): Result<Movie, DataError> = Result.Error(DataError.Network.NOT_FOUND)
     override suspend fun createMovie(movie: Movie): EmptyResult<DataError> = Result.Success(Unit)
     override suspend fun updateMovie(movie: Movie): Result<Movie, DataError> = Result.Success(movie)

@@ -80,6 +80,9 @@ fun AdminShowtimesScreen(
                         RowAction(label = "Seats", onClick = { onAction(AdminShowtimesAction.OnPopulateClick(showtime)) })
                         RowAction(label = "Delete", onClick = { onAction(AdminShowtimesAction.OnDeleteClick(showtime)) }, tint = FlickQColors.Error)
                     },
+                    canLoadMore = state.canLoadMore,
+                    isLoadingMore = state.isLoadingMore,
+                    onLoadMore = { onAction(AdminShowtimesAction.OnLoadMore) },
                 )
             }
         }

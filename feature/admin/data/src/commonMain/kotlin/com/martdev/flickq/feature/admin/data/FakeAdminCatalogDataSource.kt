@@ -45,7 +45,7 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
     private fun now() = Clock.System.now()
 
     override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> =
-        Result.Success(movies.map { Movie(it.id, it.title, posterUrl = it.posterUrl) })
+        Result.Success(movies.drop(offset).take(limit).map { Movie(it.id, it.title, posterUrl = it.posterUrl) })
 
     override suspend fun getMovie(id: Long): Result<Movie, DataError> =
         movies.find { it.id == id }?.let { Result.Success(it) }
@@ -104,7 +104,7 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
         Result.Success(seats.map { it.copy(id = id()) })
 
     override suspend fun getShowtimes(limit: Int, offset: Int): Result<List<Showtime>, DataError> =
-        Result.Success(showtimes.toList())
+        Result.Success(showtimes.drop(offset).take(limit))
 
     override suspend fun createShowtime(showtime: Showtime): Result<Showtime, DataError> {
         val created = showtime.copy(id = id())

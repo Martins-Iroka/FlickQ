@@ -69,6 +69,9 @@ fun AdminMoviesScreen(
                     RowAction(label = "Edit", onClick = { onAction(AdminMoviesAction.OnEditClick(movie)) })
                     RowAction(label = "Delete", onClick = { onAction(AdminMoviesAction.OnDeleteClick(movie)) }, tint = FlickQColors.Error)
                 },
+                canLoadMore = state.canLoadMore,
+                isLoadingMore = state.isLoadingMore,
+                onLoadMore = { onAction(AdminMoviesAction.OnLoadMore) },
             )
         }
     }
