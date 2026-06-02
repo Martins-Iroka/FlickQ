@@ -26,6 +26,7 @@ private class FakePaymentRepository(
     private val authorizationUrl: String? = "https://checkout.paystack.com/REF-1",
 ) : PaymentRepository {
     var initializeFails = false
+    var initializeError: DataError = DataError.Network.SERVER_ERROR
     var initializeCount = 0
     var verifyCount = 0
     var lastReservationId: Long? = null
@@ -37,7 +38,7 @@ private class FakePaymentRepository(
         initializeCount++
         lastReservationId = reservationId
         return if (initializeFails) {
-            Result.Error(DataError.Network.SERVER_ERROR)
+            Result.Error(initializeError)
         } else {
             Result.Success(
                 Payment(
@@ -218,6 +219,36 @@ class PaymentViewModelTest {
 
         assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.CONFIRMED)
         assertThat(repo.initializeCount).isEqualTo(2)
+    }
+
+    @Test
+    fun `a 409 on initialize emits ReservationExpired instead of a payment error`() = runTest {
+        val repo = FakePaymentRepository().apply {
+            initializeFails = true
+            initializeError = DataError.Network.CONFLICT
+        }
+        val opener = RecordingUrlOpener()
+        val vm = viewModel(repo, opener)
+
+        vm.events.test {
+            assertThat(awaitItem()).isEqualTo(PaymentEvent.ReservationExpired)
+        }
+        // No "payment failed" error and no hand-off — the user is sent back to re-pick seats.
+        assertThat(vm.state.value.error).isNull()
+        assertThat(opener.opened).isEmpty()
+    }
+
+    @Test
+    fun `a 400 on initialize is also treated as an expired reservation`() = runTest {
+        val repo = FakePaymentRepository().apply {
+            initializeFails = true
+            initializeError = DataError.Network.BAD_REQUEST
+        }
+        val vm = viewModel(repo)
+
+        vm.events.test {
+            assertThat(awaitItem()).isEqualTo(PaymentEvent.ReservationExpired)
+        }
     }
 
     @Test

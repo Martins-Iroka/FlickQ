@@ -31,6 +31,7 @@ fun PaymentRoot(
     reservationId: Long,
     onDone: () -> Unit,
     onNavigateBack: () -> Unit,
+    onReservationExpired: () -> Unit,
     viewModel: PaymentViewModel = koinViewModel { parametersOf(reservationId) }
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -39,6 +40,7 @@ fun PaymentRoot(
         when (event) {
             PaymentEvent.Done -> onDone()
             PaymentEvent.NavigateBack -> onNavigateBack()
+            PaymentEvent.ReservationExpired -> onReservationExpired()
         }
     }
 

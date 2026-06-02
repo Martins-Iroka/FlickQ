@@ -40,6 +40,9 @@ sealed interface PaymentAction {
 sealed interface PaymentEvent {
     data object Done : PaymentEvent
     data object NavigateBack : PaymentEvent
+
+    /** The reservation can no longer be paid (expired/cancelled) — caller pops to seat selection. */
+    data object ReservationExpired : PaymentEvent
 }
 
 /**
@@ -135,10 +138,21 @@ class PaymentViewModel(
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.toUiText()) }
+                    // A reservation that expired or was cancelled can't be paid — the server
+                    // rejects the hand-off with 409/400. Don't show "payment failed" + retry
+                    // (retry would just fail again); send the user back to re-pick seats.
+                    if (error.isReservationNoLongerPayable()) {
+                        _events.send(PaymentEvent.ReservationExpired)
+                    } else {
+                        _state.update { it.copy(error = error.toUiText()) }
+                    }
                 }
         }
     }
+
+    // The reservation hold lapsed (expiresAt passed → seats released) or it was cancelled.
+    private fun DataError.isReservationNoLongerPayable(): Boolean =
+        this == DataError.Network.CONFLICT || this == DataError.Network.BAD_REQUEST
 
     private suspend fun pollUntilResolved(reference: String) {
         var lastError: DataError? = null

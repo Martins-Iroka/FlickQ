@@ -62,7 +62,14 @@ fun FlickQApp() {
                     navController.navigate(MovieGraphRoute) {
                         popUpTo(MovieGraphRoute) { inclusive = true }
                     }
-                }
+                },
+                // Hold lapsed (seats released) → the reservation and its on-stack seat selection
+                // are both stale, so start over at browse rather than land on a stale seat map.
+                onReservationExpired = {
+                    navController.navigate(MovieGraphRoute) {
+                        popUpTo(MovieGraphRoute) { inclusive = true }
+                    }
+                },
             )
         }
     }
