@@ -29,7 +29,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun RegisterRoot(
-    onRegistered: (emailId: String, registrationToken: String) -> Unit,
+    onRegistered: (email: String, emailId: String, registrationToken: String) -> Unit,
     onNavigateToLogin: () -> Unit,
     viewModel: RegisterViewModel = koinViewModel()
 ) {
@@ -37,7 +37,7 @@ fun RegisterRoot(
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
-            is RegisterEvent.NavigateToOtp -> onRegistered(event.emailId, event.registrationToken)
+            is RegisterEvent.NavigateToOtp -> onRegistered(event.email, event.emailId, event.registrationToken)
             RegisterEvent.NavigateToLogin -> onNavigateToLogin()
         }
     }

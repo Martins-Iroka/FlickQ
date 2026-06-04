@@ -30,10 +30,11 @@ import org.koin.core.parameter.parametersOf
 
 @Composable
 fun OtpVerifyRoot(
+    email: String,
     emailId: String,
     registrationToken: String,
     onVerified: () -> Unit,
-    viewModel: OtpVerifyViewModel = koinViewModel { parametersOf(emailId, registrationToken) }
+    viewModel: OtpVerifyViewModel = koinViewModel { parametersOf(email, emailId, registrationToken) }
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 

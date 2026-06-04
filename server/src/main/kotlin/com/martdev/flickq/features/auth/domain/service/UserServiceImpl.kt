@@ -13,6 +13,7 @@ import com.martdev.flickq.features.auth.domain.security.Auth
 import com.martdev.flickq.features.auth.domain.security.OTPProvider
 import com.martdev.flickq.features.auth.domain.security.PasswordHasher
 import com.martdev.flickq.shared.domain.exception.BadRequestException
+import com.martdev.flickq.shared.domain.exception.ForbiddenException
 import com.martdev.flickq.shared.domain.exception.InternalServerException
 import com.martdev.flickq.shared.domain.exception.NotFoundException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
@@ -107,7 +108,7 @@ class UserServiceImpl(
 
                 if (!savedUser.isVerified) {
                     events.loginFailed("unverified")
-                    throw BadRequestException(invalidCredentialsMessage)
+                    throw ForbiddenException("Please verify your email before logging in.")
                 }
 
                 if (!passwordHasher.verifyPassword(credentials.password, savedUser.password)) {
@@ -129,14 +130,7 @@ class UserServiceImpl(
                             refreshToken = refreshToken,
                         )
                     }
-                    is DataResult.Failure.NotFound -> {
-                        events.loginFailed("user_disappeared")
-                        throw NotFoundException()
-                    }
-                    is DataResult.Failure.UniqueViolation,
-                    is DataResult.Failure.ForeignKeyViolation,
-                    is DataResult.Failure.Conflict,
-                    is DataResult.Failure.UnknownError -> {
+                    else -> {
                         events.loginFailed("internal_error")
                         throw InternalServerException()
                     }

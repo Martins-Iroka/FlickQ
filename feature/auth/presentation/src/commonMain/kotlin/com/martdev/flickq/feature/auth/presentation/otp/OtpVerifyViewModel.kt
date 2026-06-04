@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 
 data class OtpVerifyState(
     val email: String = "",
+    val emailId: String = "",
     val code: String = "",
     val isLoading: Boolean = false,
     val info: UiText? = null,
@@ -38,6 +39,7 @@ sealed interface OtpVerifyEvent {
 }
 
 class OtpVerifyViewModel(
+    private val email: String,
     private val emailId: String,
     registrationToken: String,
     private val authRepository: AuthRepository
@@ -45,7 +47,7 @@ class OtpVerifyViewModel(
 
     private var verificationToken: String = registrationToken
 
-    private val _state = MutableStateFlow(OtpVerifyState(email = emailId))
+    private val _state = MutableStateFlow(OtpVerifyState(email = email))
     val state = _state.asStateFlow()
 
     private val _events = Channel<OtpVerifyEvent>()
@@ -89,7 +91,7 @@ class OtpVerifyViewModel(
     private fun resend() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, info = null) }
-            authRepository.resendOtp(emailId)
+            authRepository.resendOtp(email)
                 .onSuccess { result ->
                     verificationToken = result.verificationToken
                     _state.update {

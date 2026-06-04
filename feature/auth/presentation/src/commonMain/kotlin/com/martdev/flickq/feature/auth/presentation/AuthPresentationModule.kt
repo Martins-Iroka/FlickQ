@@ -11,5 +11,5 @@ val authPresentationModule = module {
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
     viewModelOf(::LogoutViewModel)
-    viewModel { params -> OtpVerifyViewModel(params.get(), params.get(), get()) }
+    viewModel { params -> OtpVerifyViewModel(params.get(), params.get(), params.get(), get()) }
 }

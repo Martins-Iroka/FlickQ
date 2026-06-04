@@ -3,9 +3,11 @@ package com.martdev.flickq.feature.auth.presentation.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.auth.model.Credentials
+import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import com.martdev.flickq.feature.auth.presentation.isValidEmail
 import com.martdev.flickq.feature.auth.presentation.isValidPassword
@@ -38,6 +40,8 @@ sealed interface LoginAction {
 sealed interface LoginEvent {
     data object NavigateToRegister : LoginEvent
     data object Authenticated : LoginEvent
+    data class NavigateToVerify(val email: String, val emailId: String, val token: String) :
+        LoginEvent
 }
 
 class LoginViewModel(
@@ -56,7 +60,13 @@ class LoginViewModel(
                 _state.update { it.copy(email = action.email, emailError = false, error = null) }
 
             is LoginAction.OnPasswordChange ->
-                _state.update { it.copy(password = action.password, passwordError = false, error = null) }
+                _state.update {
+                    it.copy(
+                        password = action.password,
+                        passwordError = false,
+                        error = null
+                    )
+                }
 
             LoginAction.OnLoginClick -> login()
 
@@ -83,8 +93,28 @@ class LoginViewModel(
                     _events.send(LoginEvent.Authenticated)
                 }
                 .onFailure { error ->
+                    if (error == AuthError.EMAIL_NOT_VERIFIED) {
+                        resendOtp(current.email) {
+                            return@launch
+                        }
+                    }
                     _state.update { it.copy(isLoading = false, error = error.toUiText()) }
                 }
+        }
+    }
+
+    private suspend inline fun resendOtp(email: String, block: () -> Unit ) {
+        val resendOtp = authRepository.resendOtp(email)
+        if (resendOtp is Result.Success) {
+            _state.update { it.copy(isLoading = false) }
+            _events.send(
+                LoginEvent.NavigateToVerify(
+                    email,
+                    resendOtp.data.emailId,
+                    resendOtp.data.verificationToken
+                )
+            )
+            block()
         }
     }
 }

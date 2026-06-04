@@ -14,7 +14,7 @@ interface AuthRepository {
     /**
      * Activates the account for the given code. The backend's `verify-user` returns an empty
      * 200 and issues **no** session — verification and login are separate steps — so the user
-     * is sent to log in afterwards. Hence [EmptyResult] rather than a [LoginResult].
+     * is sent to log in afterward. Hence [EmptyResult] rather than a [LoginResult].
      */
     suspend fun verifyOtp(input: VerificationInput): EmptyResult<AuthError>
 

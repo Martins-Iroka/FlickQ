@@ -20,7 +20,7 @@ data object LoginRoute
 data object RegisterRoute
 
 @Serializable
-data class OtpVerifyRoute(val emailId: String, val registrationToken: String)
+data class OtpVerifyRoute(val email: String, val emailId: String, val registrationToken: String)
 
 /**
  * The auth feature's nav graph. [onAuthenticated] is the single cross-feature exit,
@@ -34,13 +34,16 @@ fun NavGraphBuilder.authGraph(
         composable<LoginRoute> {
             LoginRoot(
                 onAuthenticated = onAuthenticated,
-                onNavigateToRegister = { navController.navigate(RegisterRoute) }
+                onNavigateToRegister = { navController.navigate(RegisterRoute) },
+                onNavigateToVerify = { email, emailId, token->
+                    navController.navigate(OtpVerifyRoute(email, emailId, token))
+                }
             )
         }
         composable<RegisterRoute> {
             RegisterRoot(
-                onRegistered = { emailId, token ->
-                    navController.navigate(OtpVerifyRoute(emailId, token))
+                onRegistered = { email, emailId, token ->
+                    navController.navigate(OtpVerifyRoute(email, emailId, token))
                 },
                 onNavigateToLogin = { navController.popBackStack() }
             )
@@ -48,9 +51,9 @@ fun NavGraphBuilder.authGraph(
         composable<OtpVerifyRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<OtpVerifyRoute>()
             OtpVerifyRoot(
+                email = route.email,
                 emailId = route.emailId,
                 registrationToken = route.registrationToken,
-                // Verification issues no session — return to login so the user signs in.
                 onVerified = {
                     navController.navigate(LoginRoute) {
                         popUpTo(LoginRoute) { inclusive = true }

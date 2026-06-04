@@ -36,7 +36,7 @@ sealed interface RegisterAction {
 }
 
 sealed interface RegisterEvent {
-    data class NavigateToOtp(val emailId: String, val registrationToken: String) : RegisterEvent
+    data class NavigateToOtp(val email: String, val emailId: String, val registrationToken: String) : RegisterEvent
     data object NavigateToLogin : RegisterEvent
 }
 
@@ -82,6 +82,7 @@ class RegisterViewModel(
                     _state.update { it.copy(isLoading = false) }
                     _events.send(
                         RegisterEvent.NavigateToOtp(
+                            email = current.email,
                             emailId = result.emailId,
                             registrationToken = result.registrationToken
                         )

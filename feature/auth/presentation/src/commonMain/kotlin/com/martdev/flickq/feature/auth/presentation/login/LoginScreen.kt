@@ -31,6 +31,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun LoginRoot(
     onAuthenticated: () -> Unit,
     onNavigateToRegister: () -> Unit,
+    onNavigateToVerify: (email: String, emailId: String, token: String) -> Unit,
     viewModel: LoginViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -39,6 +40,7 @@ fun LoginRoot(
         when (event) {
             LoginEvent.Authenticated -> onAuthenticated()
             LoginEvent.NavigateToRegister -> onNavigateToRegister()
+            is LoginEvent.NavigateToVerify -> onNavigateToVerify(event.email, event.emailId, event.token)
         }
     }
 

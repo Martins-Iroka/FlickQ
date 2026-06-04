@@ -6,6 +6,9 @@ import com.martdev.flickq.core.common.map
 import com.martdev.flickq.shared.DataResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -14,9 +17,6 @@ import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
-import io.ktor.client.network.sockets.ConnectTimeoutException
-import io.ktor.client.network.sockets.SocketTimeoutException
-import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -87,11 +87,11 @@ suspend inline fun <reified Request> HttpClient.postForStatus(
         }
     } catch (e: CancellationException) {
         throw e
-    } catch (e: HttpRequestTimeoutException) {
+    } catch (_: HttpRequestTimeoutException) {
         return Result.Error(DataError.Network.REQUEST_TIMEOUT)
-    } catch (e: ConnectTimeoutException) {
+    } catch (_: ConnectTimeoutException) {
         return Result.Error(DataError.Network.REQUEST_TIMEOUT)
-    } catch (e: SocketTimeoutException) {
+    } catch (_: SocketTimeoutException) {
         return Result.Error(DataError.Network.REQUEST_TIMEOUT)
     } catch (e: Exception) {
         return Result.Error(networkErrorFor(e))
@@ -190,13 +190,13 @@ suspend inline fun <reified T> safeCall(
         execute()
     } catch (e: CancellationException) {
         throw e
-    } catch (e: HttpRequestTimeoutException) {
+    } catch (_: HttpRequestTimeoutException) {
         return Result.Error(DataError.Network.REQUEST_TIMEOUT)
-    } catch (e: ConnectTimeoutException) {
+    } catch (_: ConnectTimeoutException) {
         return Result.Error(DataError.Network.REQUEST_TIMEOUT)
-    } catch (e: SocketTimeoutException) {
+    } catch (_: SocketTimeoutException) {
         return Result.Error(DataError.Network.REQUEST_TIMEOUT)
-    } catch (e: SerializationException) {
+    } catch (_: SerializationException) {
         return Result.Error(DataError.Network.SERIALIZATION)
     } catch (e: Exception) {
         return Result.Error(networkErrorFor(e))
@@ -210,7 +210,7 @@ suspend inline fun <reified T> responseToResult(
     return when (response.status.value) {
         in 200..299 -> try {
             Result.Success(response.body<T>())
-        } catch (e: SerializationException) {
+        } catch (_: SerializationException) {
             Result.Error(DataError.Network.SERIALIZATION)
         }
         400 -> Result.Error(DataError.Network.BAD_REQUEST)

@@ -108,12 +108,14 @@ class RealAuthDataSource(
 // Server returns 400 for a duplicate email on register.
 private fun DataError.Network.toRegisterError(): AuthError = when (this) {
     DataError.Network.BAD_REQUEST, DataError.Network.CONFLICT -> AuthError.EMAIL_ALREADY_REGISTERED
+    DataError.Network.NO_INTERNET -> AuthError.NO_INTERNET
     else -> AuthError.UNKNOWN
 }
 
 // 400 = invalid/expired OTP, 404 = invalid/expired verification token.
 private fun DataError.Network.toVerifyError(): AuthError = when (this) {
     DataError.Network.BAD_REQUEST, DataError.Network.NOT_FOUND -> AuthError.INVALID_OTP
+    DataError.Network.NO_INTERNET -> AuthError.NO_INTERNET
     else -> AuthError.UNKNOWN
 }
 
@@ -122,5 +124,7 @@ private fun DataError.Network.toLoginError(): AuthError = when (this) {
     DataError.Network.BAD_REQUEST,
     DataError.Network.UNAUTHORIZED,
     DataError.Network.NOT_FOUND -> AuthError.INVALID_CREDENTIALS
+    DataError.Network.NO_INTERNET -> AuthError.NO_INTERNET
+    DataError.Network.FORBIDDEN -> AuthError.EMAIL_NOT_VERIFIED
     else -> AuthError.UNKNOWN
 }
