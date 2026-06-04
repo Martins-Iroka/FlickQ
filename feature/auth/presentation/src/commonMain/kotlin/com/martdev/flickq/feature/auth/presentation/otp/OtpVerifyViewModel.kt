@@ -53,6 +53,11 @@ class OtpVerifyViewModel(
     private val _events = Channel<OtpVerifyEvent>()
     val events = _events.receiveAsFlow()
 
+    init {
+        if (emailId.isEmpty() && verificationToken.isEmpty()) {
+            resendOTP()
+        }
+    }
     fun onAction(action: OtpVerifyAction) {
         when (action) {
             is OtpVerifyAction.OnCodeChange -> {
@@ -61,7 +66,7 @@ class OtpVerifyViewModel(
             }
 
             OtpVerifyAction.OnVerifyClick -> verify()
-            OtpVerifyAction.OnResendClick -> resend()
+            OtpVerifyAction.OnResendClick -> resendOTP()
         }
     }
 
@@ -88,7 +93,7 @@ class OtpVerifyViewModel(
         }
     }
 
-    private fun resend() {
+    private fun resendOTP() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null, info = null) }
             authRepository.resendOtp(email)

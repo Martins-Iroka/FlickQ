@@ -96,6 +96,8 @@ class AdminLoginViewModel(
             AuthError.EMAIL_ALREADY_REGISTERED -> "This email is already registered."
             AuthError.INVALID_OTP -> "Invalid verification code."
             AuthError.UNKNOWN -> "Something went wrong. Please try again."
+            AuthError.NO_INTERNET -> "No internet connection. Check your network and try again."
+            else -> ""
         }
     )
 }

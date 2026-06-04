@@ -35,8 +35,8 @@ fun NavGraphBuilder.authGraph(
             LoginRoot(
                 onAuthenticated = onAuthenticated,
                 onNavigateToRegister = { navController.navigate(RegisterRoute) },
-                onNavigateToVerify = { email, emailId, token->
-                    navController.navigate(OtpVerifyRoute(email, emailId, token))
+                onNavigateToVerify = { email->
+                    navController.navigate(OtpVerifyRoute(email, "", ""))
                 }
             )
         }
