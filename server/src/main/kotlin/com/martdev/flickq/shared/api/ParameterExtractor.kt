@@ -1,7 +1,7 @@
-package com.martdev.shared.api
+package com.martdev.flickq.shared.api
 
 import com.martdev.flickq.shared.domain.exception.BadRequestException
-import io.ktor.server.routing.*
+import io.ktor.server.routing.RoutingContext
 
 fun RoutingContext.getParameterFromPath(parameter: String): Long {
     return call.parameters[parameter]?.toLongOrNull() ?: throw BadRequestException("Invalid id")

@@ -7,7 +7,7 @@ import com.martdev.flickq.shared.api.AUTH_JWT
 import com.martdev.flickq.shared.api.DataResponse
 import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.shared.domain.exception.BadRequestException
-import com.martdev.shared.api.getLimitAndOffset
+import com.martdev.flickq.shared.api.getLimitAndOffset
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond

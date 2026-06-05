@@ -8,8 +8,8 @@ import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.showtime.ShowtimeDTO
 import com.martdev.flickq.showtime.UpdateShowtimeStatusRequest
 import com.martdev.flickq.showtime.model.ShowtimeStatus
-import com.martdev.shared.api.getLimitAndOffset
-import com.martdev.shared.api.getParameterFromPath
+import com.martdev.flickq.shared.api.getLimitAndOffset
+import com.martdev.flickq.shared.api.getParameterFromPath
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive

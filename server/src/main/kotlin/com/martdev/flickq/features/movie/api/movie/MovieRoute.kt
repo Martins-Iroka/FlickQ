@@ -8,9 +8,9 @@ import com.martdev.flickq.features.movie.domain.service.movie.MovieService
 import com.martdev.flickq.movie.MovieDTO
 import com.martdev.flickq.shared.api.AUTH_JWT
 import com.martdev.flickq.shared.api.DataResponse
+import com.martdev.flickq.shared.api.getLimitAndOffset
+import com.martdev.flickq.shared.api.getParameterFromPath
 import com.martdev.flickq.shared.api.withRole
-import com.martdev.shared.api.getLimitAndOffset
-import com.martdev.shared.api.getParameterFromPath
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
