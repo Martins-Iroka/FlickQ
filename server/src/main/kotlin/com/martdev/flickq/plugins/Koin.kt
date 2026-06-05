@@ -5,6 +5,7 @@ import com.martdev.flickq.config.CorsConfig
 import com.martdev.flickq.config.DatabaseConfig
 import com.martdev.flickq.config.JWTConfig
 import com.martdev.flickq.config.PaystackConfig
+import com.martdev.flickq.config.SeedConfig
 import com.martdev.flickq.config.StytchConfig
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -21,6 +22,7 @@ fun Application.configureKoin() {
         single { PaystackConfig.fromEnvironment(environment) }
         single { CorsConfig.fromEnvironment(environment) }
         single { CookieConfig.fromEnvironment(environment) }
+        single { SeedConfig.fromEnvironment() }
     }
 
     install(Koin) {
