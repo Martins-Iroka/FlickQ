@@ -28,7 +28,7 @@ fun MovieDTO.toMovie() = Movie(
     posterUrl = posterUrl,
     duration = duration,
     releasedDate = formatter.parse(releasedDate),
-    genres = genres.map { Genre(name = it.name) }
+    genres = genres.map { Genre(name = it.name, id = it.id) }
 )
 
 fun Genre.toGenreDto() = GenreDTO(

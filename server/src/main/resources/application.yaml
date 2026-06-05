@@ -1,9 +1,9 @@
 ktor:
   deployment:
-    port: 8080
+    port: 3000
   application:
     modules:
-      - com.martdev.ApplicationKt.module
+      - com.martdev.flickq.ApplicationKt.module
 
 database:
   address: ${DB_ADDR}

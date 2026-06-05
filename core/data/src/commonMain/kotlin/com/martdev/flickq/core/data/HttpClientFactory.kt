@@ -14,6 +14,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -51,7 +52,7 @@ object HttpClientFactory {
                 socketTimeoutMillis = 30_000
             }
             install(Logging) {
-                level = LogLevel.INFO
+                level = LogLevel.ALL
                 // Defence in depth: never let the access/refresh token reach logs.
                 sanitizeHeader { header -> header.equals(HttpHeaders.Authorization, ignoreCase = true) }
             }
@@ -89,6 +90,11 @@ object HttpClientFactory {
             }
             defaultRequest {
                 contentType(ContentType.Application.Json)
+                // Skip ngrok-free's browser interstitial (ERR_NGROK_6024). Without it ngrok serves
+                // an HTML warning page with no CORS headers, so the browser reports a CORS failure
+                // instead of reaching the backend. Harmless against non-ngrok hosts. Server CORS
+                // must allow this header (see configureHttp) or the preflight 403s.
+                header("ngrok-skip-browser-warning", "true")
             }
         }
     }

@@ -17,15 +17,21 @@ import org.koin.ktor.ext.inject
 fun Application.configureHttp() {
     val corsConfig by inject<CorsConfig>()
     install(CORS) {
-        allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
         allowMethod(HttpMethod.Patch)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        // Web/native clients send this to skip ngrok-free's browser interstitial; the preflight
+        // requests permission for it, so it must be allow-listed or the OPTIONS check 403s.
+        allowHeader("ngrok-skip-browser-warning")
         // Required for the web refresh-token cookie to ride along on cross-origin requests
         // (Decision #2). Browsers reject credentials with a wildcard origin, so the web apps must
         // be served from explicit `cors.allowedHosts` — `allowAnyHost` (dev only) can't carry cookies.
+        allowHost("localhost:8082")
+        allowHost("127.0.0.1:4040")
         allowCredentials = true
         if (corsConfig.allowAnyHost) {
             anyHost()

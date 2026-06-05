@@ -1,5 +1,9 @@
 package com.martdev.flickq.core.data
 
+import com.martdev.flickq.core.data.AppConfig.BASE_URL
+import com.martdev.flickq.core.data.AppConfig.USE_FAKES
+
+
 /**
  * Client-wide runtime configuration.
  *
@@ -13,9 +17,9 @@ package com.martdev.flickq.core.data
  * promoted to BuildKonfig flavors later without touching call sites.)
  */
 object AppConfig {
-    const val USE_FAKES: Boolean = true
+    const val USE_FAKES: Boolean = false
 
-    const val BASE_URL: String = "http://localhost:8080/api/v1"
+    const val BASE_URL: String = "https://finn-unsmitten-raeann.ngrok-free.dev/api/v1"
 
     /**
      * Scheme + host + port of [BASE_URL] with the path stripped (e.g. `http://localhost:8080`).
