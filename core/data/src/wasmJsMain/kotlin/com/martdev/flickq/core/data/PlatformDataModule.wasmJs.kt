@@ -25,19 +25,26 @@ actual fun platformDataModule(): Module = module {
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 private fun installApiCredentialsShim(origin: String): Unit = js(
+    // Wrapped in an IIFE so the whole thing is ONE expression: Kotlin/Wasm emits this js() body as
+    // an arrow function inside an object literal (`'name': (origin) => BODY,`), and a bare list of
+    // statements (with an early `return`) is not a valid arrow body. The IIFE makes it valid and
+    // also gives the early-`return` guard a function to return from. No trailing `;` — that would
+    // break the surrounding object literal. `origin` is the arrow param, captured by the IIFE.
     """
-    if (typeof globalThis === 'undefined' || !globalThis.fetch || globalThis.__flickqFetchPatched) return;
-    var original = globalThis.fetch.bind(globalThis);
-    globalThis.fetch = function (input, init) {
-        init = init || {};
-        if (init.credentials === undefined) {
-            var url = (typeof input === 'string') ? input : (input && input.url) || '';
-            if (origin && url.indexOf(origin) === 0) {
-                init.credentials = 'include';
+    (function () {
+        if (typeof globalThis === 'undefined' || !globalThis.fetch || globalThis.__flickqFetchPatched) return;
+        var original = globalThis.fetch.bind(globalThis);
+        globalThis.fetch = function (input, init) {
+            init = init || {};
+            if (init.credentials === undefined) {
+                var url = (typeof input === 'string') ? input : (input && input.url) || '';
+                if (origin && url.indexOf(origin) === 0) {
+                    init.credentials = 'include';
+                }
             }
-        }
-        return original(input, init);
-    };
-    globalThis.__flickqFetchPatched = true;
+            return original(input, init);
+        };
+        globalThis.__flickqFetchPatched = true;
+    })()
     """
 )
