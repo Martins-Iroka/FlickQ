@@ -10,7 +10,7 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.requestvalidation.RequestValidation
 import io.ktor.server.plugins.requestvalidation.ValidationResult
 
-private const val MIN_PASSWORD_LENGTH = 12
+private const val MIN_PASSWORD_LENGTH = 8
 private const val MAX_PASSWORD_LENGTH = 72
 
 private fun isStrongPassword(password: String): Boolean {

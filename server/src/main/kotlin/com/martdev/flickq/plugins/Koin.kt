@@ -7,6 +7,7 @@ import com.martdev.flickq.config.JWTConfig
 import com.martdev.flickq.config.PaystackConfig
 import com.martdev.flickq.config.SeedConfig
 import com.martdev.flickq.config.StytchConfig
+import com.martdev.flickq.shared.api.httpClientModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import org.koin.dsl.module
@@ -27,6 +28,6 @@ fun Application.configureKoin() {
 
     install(Koin) {
         slf4jLogger()
-        modules(com_martdev_flickq_AppModule, configModule)
+        modules(com_martdev_flickq_AppModule, configModule, httpClientModule)
     }
 }

@@ -13,6 +13,7 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -55,6 +56,11 @@ object HttpClientFactory {
                 level = LogLevel.ALL
                 // Defence in depth: never let the access/refresh token reach logs.
                 sanitizeHeader { header -> header.equals(HttpHeaders.Authorization, ignoreCase = true) }
+                logger = object : Logger {
+                    override fun log(message: String) {
+                        println(message)
+                    }
+                }
             }
             install(Auth) {
                 bearer {

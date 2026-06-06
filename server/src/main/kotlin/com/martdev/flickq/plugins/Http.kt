@@ -31,6 +31,7 @@ fun Application.configureHttp() {
         // (Decision #2). Browsers reject credentials with a wildcard origin, so the web apps must
         // be served from explicit `cors.allowedHosts` — `allowAnyHost` (dev only) can't carry cookies.
         allowHost("localhost:8082")
+        allowHost("localhost:8080")
         allowHost("127.0.0.1:4040")
         allowCredentials = true
         if (corsConfig.allowAnyHost) {
