@@ -5,11 +5,11 @@ import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.exception.ConflictException
 import com.martdev.flickq.shared.domain.exception.ForbiddenException
 import com.martdev.flickq.shared.domain.exception.InternalServerException
+import com.martdev.flickq.shared.domain.exception.NotFoundException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
-import com.martdev.flickq.shared.domain.exception.NotFoundException
 import io.ktor.server.plugins.requestvalidation.RequestValidationException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond

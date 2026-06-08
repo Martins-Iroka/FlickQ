@@ -5,10 +5,19 @@ import com.martdev.flickq.auth.request.RefreshTokenRequest
 import com.martdev.flickq.auth.request.ResendOTPRequest
 import com.martdev.flickq.auth.request.UserLoginRequest
 import com.martdev.flickq.auth.request.UserVerificationRequest
+import com.martdev.flickq.movie.GenreDTO
+import com.martdev.flickq.movie.MovieDTO
+import com.martdev.flickq.reservation.CreateReservationRequest
+import com.martdev.flickq.room.RoomDTO
+import com.martdev.flickq.room.SeatDTO
+import com.martdev.flickq.showtime.ShowtimeDTO
+import com.martdev.flickq.showtime.UpdateShowtimeStatusRequest
+import com.martdev.flickq.showtime.model.ShowtimeStatus
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.requestvalidation.RequestValidation
 import io.ktor.server.plugins.requestvalidation.ValidationResult
+import kotlin.enums.enumEntries
 
 private const val MIN_PASSWORD_LENGTH = 8
 private const val MAX_PASSWORD_LENGTH = 72
@@ -64,7 +73,7 @@ fun Application.configureRequestValidation() {
             } else ValidationResult.Valid
         }
 
-       /* validate<MovieDTO> { request ->
+        validate<MovieDTO> { request ->
             when {
                 request.title.isEmpty() -> invalidResponseResult("Title is required")
                 request.description.isEmpty() -> invalidResponseResult("Description is required")
@@ -107,7 +116,7 @@ fun Application.configureRequestValidation() {
                 request.movieId <= 0 -> invalidResponseResult("Invalid movie id")
                 request.roomId <= 0 -> invalidResponseResult("Invalid room id")
                 request.startsAt == null || request.endsAt == null -> invalidResponseResult("Invalid start at or end at")
-                request.startsAt >= request.endsAt -> invalidResponseResult("Start time can't be greater than end time")
+//                request.startsAt >= request.endsAt -> invalidResponseResult("Start time can't be greater than end time")
                 request.price <= 0 -> invalidResponseResult("Invalid price")
                 !isShowtimeStatusValid -> invalidResponseResult(showtimeStatusErrorMessage)
                 else -> ValidationResult.Valid
@@ -128,7 +137,7 @@ fun Application.configureRequestValidation() {
                 request.seatIds.size != request.seatIds.distinct().size -> invalidResponseResult("Duplicate seats in request")
                 else -> ValidationResult.Valid
             }
-        }*/
+        }
     }
 }
 

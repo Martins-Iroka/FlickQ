@@ -32,7 +32,7 @@ fun Application.configureHttp() {
         // be served from explicit `cors.allowedHosts` — `allowAnyHost` (dev only) can't carry cookies.
         allowHost("localhost:8082")
         allowHost("localhost:8080")
-        allowHost("127.0.0.1:4040")
+        allowHost("finn-unsmitten-raeann.ngrok-free.dev")
         allowCredentials = true
         if (corsConfig.allowAnyHost) {
             anyHost()
