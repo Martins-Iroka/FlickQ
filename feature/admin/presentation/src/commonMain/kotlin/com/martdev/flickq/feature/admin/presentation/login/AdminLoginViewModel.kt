@@ -68,7 +68,7 @@ class AdminLoginViewModel(
         if (!current.canSubmit) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            authRepository.login(Credentials(current.email.trim(), current.password))
+            authRepository.login(Credentials(current.email.trim(), current.password), true)
                 .onSuccess { result ->
                     if (JwtDecoder.decode(result.accessToken)?.isAdmin == true) {
                         _state.update { it.copy(isLoading = false) }

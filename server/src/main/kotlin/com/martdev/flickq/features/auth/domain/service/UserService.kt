@@ -10,7 +10,7 @@ import com.martdev.flickq.auth.model.VerificationInput
 interface UserService {
     suspend fun registerUser(credentials: Credentials): RegistrationResult
     suspend fun verifyUser(input: VerificationInput)
-    suspend fun loginUser(credentials: Credentials): LoginResult
+    suspend fun loginUser(credentials: Credentials, isAdmin: Boolean = false): LoginResult
     suspend fun refreshToken(refreshToken: String): RefreshResult
     suspend fun logout(refreshToken: String)
     suspend fun deleteExpiredRefreshToken()

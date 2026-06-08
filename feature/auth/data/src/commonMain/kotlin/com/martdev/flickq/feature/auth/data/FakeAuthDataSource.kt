@@ -7,6 +7,7 @@ import com.martdev.flickq.auth.model.RegistrationResult
 import com.martdev.flickq.auth.model.VerificationInput
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.core.data.TokenStorage
+import com.martdev.flickq.feature.auth.data.FakeAuthDataSource.Companion.VALID_OTP
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 
@@ -48,7 +49,10 @@ class FakeAuthDataSource(
         return Result.Success(Unit)
     }
 
-    override suspend fun login(credentials: Credentials): Result<LoginResult, AuthError> {
+    override suspend fun login(
+        credentials: Credentials,
+        isAdmin: Boolean
+    ): Result<LoginResult, AuthError> {
         val account = accounts[credentials.email]
         if (account == null || account.password != credentials.password) {
             return Result.Error(AuthError.INVALID_CREDENTIALS)

@@ -5,6 +5,7 @@ import com.martdev.flickq.auth.model.LoginResult
 import com.martdev.flickq.auth.model.OtpResendResult
 import com.martdev.flickq.auth.model.RefreshResult
 import com.martdev.flickq.auth.model.RegistrationResult
+import com.martdev.flickq.auth.model.Role
 import com.martdev.flickq.auth.model.UserData
 import com.martdev.flickq.auth.model.VerificationInput
 import com.martdev.flickq.features.auth.domain.observability.AuthEvents
@@ -89,7 +90,7 @@ class UserServiceImpl(
         }
     }
 
-    override suspend fun loginUser(credentials: Credentials): LoginResult {
+    override suspend fun loginUser(credentials: Credentials, isAdmin: Boolean): LoginResult {
         return when (val result = repository.getUserByEmail(credentials.email)) {
             is DataResult.Failure.NotFound -> {
                 events.loginFailed("unknown_email")
@@ -114,6 +115,13 @@ class UserServiceImpl(
                 if (!passwordHasher.verifyPassword(credentials.password, savedUser.password)) {
                     events.loginFailed("wrong_password")
                     throw BadRequestException(invalidCredentialsMessage)
+                }
+
+                if (isAdmin) {
+                    if (savedUser.role != Role.ADMIN) {
+                        events.loginFailed("not_admin")
+                        throw ForbiddenException("You do not have administrative privileges.")
+                    }
                 }
 
                 val accessToken = auth.generateAccessToken(savedUser.id.toString(), savedUser.role.name)

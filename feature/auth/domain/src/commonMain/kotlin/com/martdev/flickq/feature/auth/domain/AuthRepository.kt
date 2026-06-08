@@ -18,7 +18,7 @@ interface AuthRepository {
      */
     suspend fun verifyOtp(input: VerificationInput): EmptyResult<AuthError>
 
-    suspend fun login(credentials: Credentials): Result<LoginResult, AuthError>
+    suspend fun login(credentials: Credentials, isAdmin: Boolean = false): Result<LoginResult, AuthError>
 
     suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError>
 

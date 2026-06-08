@@ -59,9 +59,13 @@ class RealAuthDataSource(
             is Result.Error -> Result.Error(r.error.toVerifyError())
         }
 
-    override suspend fun login(credentials: Credentials): Result<LoginResult, AuthError> =
-        when (val r = client.postData<UserLoginRequest, UserLoginResponse>(
-            "/authentication/login",
+    override suspend fun login(
+        credentials: Credentials,
+        isAdmin: Boolean
+    ): Result<LoginResult, AuthError> {
+        val path = if (isAdmin) "/authentication/admin/login" else "/authentication/login"
+        return when (val r = client.postData<UserLoginRequest, UserLoginResponse>(
+            path,
             UserLoginRequest(email = credentials.email, password = credentials.password)
         )) {
             is Result.Success -> {
@@ -78,6 +82,7 @@ class RealAuthDataSource(
             }
             is Result.Error -> Result.Error(r.error.toLoginError())
         }
+    }
 
     override suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError> =
         when (val r = client.postData<ResendOTPRequest, ResendOTPResponse>(

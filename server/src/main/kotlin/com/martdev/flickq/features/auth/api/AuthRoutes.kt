@@ -82,6 +82,18 @@ fun Route.authRoutes() {
             }
         }
 
+        rateLimit(RateLimitName("login")) {
+            post("/admin/login") {
+                val request = call.receive<UserLoginRequest>().toCredentials()
+                val response = service.loginUser(request, true).toUserLoginResponse()
+                // Native clients read the refresh token from the body; web ignores it and relies on
+                // this httpOnly cookie instead (XSS-safe — JS can't read it).
+                call.setRefreshTokenCookie(response.refreshToken, cookieConfig)
+                val dataResponse = DataResponse(response)
+                call.respond(status = HttpStatusCode.OK, dataResponse)
+            }
+        }
+
         /**
          * Tag: authentication
          *

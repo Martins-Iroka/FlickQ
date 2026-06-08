@@ -35,7 +35,10 @@ private class FakeAuthRepository : AuthRepository {
     override suspend fun verifyOtp(input: VerificationInput): Result<Unit, AuthError> =
         Result.Success(Unit)
 
-    override suspend fun login(credentials: Credentials): Result<LoginResult, AuthError> =
+    override suspend fun login(
+        credentials: Credentials,
+        isAdmin: Boolean
+    ): Result<LoginResult, AuthError> =
         loginResult
 
     override suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError> =

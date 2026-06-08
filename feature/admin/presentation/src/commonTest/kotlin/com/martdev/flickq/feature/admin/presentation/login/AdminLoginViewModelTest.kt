@@ -43,7 +43,10 @@ private class FakeAuthRepository(
     override suspend fun verifyOtp(input: VerificationInput): EmptyResult<AuthError> =
         Result.Error(AuthError.UNKNOWN)
 
-    override suspend fun login(credentials: Credentials): Result<LoginResult, AuthError> =
+    override suspend fun login(
+        credentials: Credentials,
+        isAdmin: Boolean
+    ): Result<LoginResult, AuthError> =
         if (loginFails) Result.Error(AuthError.INVALID_CREDENTIALS)
         else Result.Success(LoginResult(userId = 7, accessToken = accessToken, refreshToken = "refresh"))
 
