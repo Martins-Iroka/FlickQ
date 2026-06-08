@@ -11,5 +11,6 @@ fun AuthError.toUiText(): UiText = UiText.DynamicString(
         AuthError.UNKNOWN -> "Something went wrong. Please try again."
         AuthError.NO_INTERNET -> "No internet connection. Check your network and try again."
         AuthError.EMAIL_NOT_VERIFIED -> "Please verify your email. Check your inbox for the code."
+        AuthError.TIMEOUT -> "Timeout. Please try again."
     }
 )

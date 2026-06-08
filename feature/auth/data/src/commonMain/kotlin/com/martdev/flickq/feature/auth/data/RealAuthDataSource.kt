@@ -114,6 +114,7 @@ class RealAuthDataSource(
 private fun DataError.Network.toRegisterError(): AuthError = when (this) {
     DataError.Network.BAD_REQUEST, DataError.Network.CONFLICT -> AuthError.EMAIL_ALREADY_REGISTERED
     DataError.Network.NO_INTERNET -> AuthError.NO_INTERNET
+    DataError.Network.REQUEST_TIMEOUT -> AuthError.TIMEOUT
     else -> AuthError.UNKNOWN
 }
 
@@ -121,6 +122,7 @@ private fun DataError.Network.toRegisterError(): AuthError = when (this) {
 private fun DataError.Network.toVerifyError(): AuthError = when (this) {
     DataError.Network.BAD_REQUEST, DataError.Network.NOT_FOUND -> AuthError.INVALID_OTP
     DataError.Network.NO_INTERNET -> AuthError.NO_INTERNET
+    DataError.Network.REQUEST_TIMEOUT -> AuthError.TIMEOUT
     else -> AuthError.UNKNOWN
 }
 
@@ -131,5 +133,6 @@ private fun DataError.Network.toLoginError(): AuthError = when (this) {
     DataError.Network.NOT_FOUND -> AuthError.INVALID_CREDENTIALS
     DataError.Network.NO_INTERNET -> AuthError.NO_INTERNET
     DataError.Network.FORBIDDEN -> AuthError.EMAIL_NOT_VERIFIED
+    DataError.Network.REQUEST_TIMEOUT -> AuthError.TIMEOUT
     else -> AuthError.UNKNOWN
 }

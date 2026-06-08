@@ -8,5 +8,6 @@ enum class AuthError : Error {
     INVALID_OTP,
     NO_INTERNET,
     EMAIL_NOT_VERIFIED,
-    UNKNOWN
+    UNKNOWN,
+    TIMEOUT
 }
