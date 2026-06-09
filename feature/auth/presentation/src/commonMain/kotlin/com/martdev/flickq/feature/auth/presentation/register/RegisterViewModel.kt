@@ -6,6 +6,7 @@ import com.martdev.flickq.auth.model.Credentials
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import com.martdev.flickq.feature.auth.presentation.isValidEmail
 import com.martdev.flickq.feature.auth.presentation.isValidPassword
@@ -88,8 +89,8 @@ class RegisterViewModel(
                         )
                     )
                 }
-                .onFailure { error ->
-                    _state.update { it.copy(isLoading = false, error = error.toUiText()) }
+                .onFailure { error, message ->
+                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }

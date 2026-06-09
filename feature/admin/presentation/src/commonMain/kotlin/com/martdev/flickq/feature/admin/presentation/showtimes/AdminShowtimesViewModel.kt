@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.admin.domain.AdminCatalogRepository
 import com.martdev.flickq.feature.admin.domain.AdminReservationRepository
@@ -148,12 +149,12 @@ class AdminShowtimesViewModel(
                     )
                 }
             }
-            .onFailure { error ->
+            .onFailure { error, message ->
                 _state.update {
                     it.copy(
                         isLoading = false,
                         isLoadingMore = false,
-                        error = if (replace) error.toUiText() else null,
+                        error = if (replace) resolveErrorText(message, error.toUiText()) else null,
                     )
                 }
             }
@@ -180,7 +181,7 @@ class AdminShowtimesViewModel(
                     _state.update { it.copy(isSaving = false, form = null) }
                     load()
                 }
-                .onFailure { error -> _state.update { it.copy(isSaving = false, dialogError = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(isSaving = false, dialogError = resolveErrorText(message, error.toUiText())) } }
         }
     }
 
@@ -190,7 +191,7 @@ class AdminShowtimesViewModel(
             _state.update { it.copy(deleting = null) }
             catalog.deleteShowtime(target.id)
                 .onSuccess { load() }
-                .onFailure { error -> _state.update { it.copy(error = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) } }
         }
     }
 
@@ -200,7 +201,7 @@ class AdminShowtimesViewModel(
             _state.update { it.copy(statusFor = null) }
             catalog.updateShowtimeStatus(target.id, status)
                 .onSuccess { load() }
-                .onFailure { error -> _state.update { it.copy(message = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(message = resolveErrorText(message, error.toUiText())) } }
         }
     }
 
@@ -210,7 +211,7 @@ class AdminShowtimesViewModel(
             _state.update { it.copy(populatingFor = null) }
             reservations.populateSeats(target.id)
                 .onSuccess { _state.update { it.copy(message = UiText.DynamicString("Seats populated for showtime ${target.id}.")) } }
-                .onFailure { error -> _state.update { it.copy(message = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(message = resolveErrorText(message, error.toUiText())) } }
         }
     }
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.booking.domain.BookingRepository
 import com.martdev.flickq.feature.booking.presentation.formatNaira
@@ -80,7 +81,10 @@ class TicketViewModel(
                     _state.update { it.copy(isLoading = false, ticket = result.data.toTicketUi(labels)) }
                 }
                 is Result.Error -> _state.update {
-                    it.copy(isLoading = false, error = result.error.toUiText())
+                    it.copy(
+                        isLoading = false,
+                        error = resolveErrorText(result.message, result.error.toUiText()),
+                    )
                 }
             }
         }

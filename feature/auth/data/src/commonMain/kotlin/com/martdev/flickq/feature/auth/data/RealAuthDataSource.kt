@@ -43,7 +43,7 @@ class RealAuthDataSource(
             is Result.Success -> Result.Success(
                 RegistrationResult(emailId = r.data.emailId, registrationToken = r.data.token)
             )
-            is Result.Error -> Result.Error(r.error.toRegisterError())
+            is Result.Error -> Result.Error(r.error.toRegisterError(), r.message)
         }
 
     override suspend fun verifyOtp(input: VerificationInput): Result<Unit, AuthError> =
@@ -56,7 +56,7 @@ class RealAuthDataSource(
             )
         )) {
             is Result.Success -> Result.Success(Unit)
-            is Result.Error -> Result.Error(r.error.toVerifyError())
+            is Result.Error -> Result.Error(r.error.toVerifyError(), r.message)
         }
 
     override suspend fun login(
@@ -80,7 +80,7 @@ class RealAuthDataSource(
                     )
                 )
             }
-            is Result.Error -> Result.Error(r.error.toLoginError())
+            is Result.Error -> Result.Error(r.error.toLoginError(), r.message)
         }
     }
 
@@ -92,7 +92,7 @@ class RealAuthDataSource(
             is Result.Success -> Result.Success(
                 OtpResendResult(emailId = r.data.emailId, verificationToken = r.data.verificationToken)
             )
-            is Result.Error -> Result.Error(AuthError.UNKNOWN)
+            is Result.Error -> Result.Error(AuthError.UNKNOWN, r.message)
         }
 
     override suspend fun logout(): Result<Unit, AuthError> {

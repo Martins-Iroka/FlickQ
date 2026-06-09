@@ -8,6 +8,7 @@ import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.data.JwtDecoder
 import com.martdev.flickq.core.data.TokenStorage
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import kotlinx.coroutines.channels.Channel
@@ -84,8 +85,8 @@ class AdminLoginViewModel(
                         }
                     }
                 }
-                .onFailure { error ->
-                    _state.update { it.copy(isLoading = false, error = error.toUiText()) }
+                .onFailure { error, message ->
+                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }

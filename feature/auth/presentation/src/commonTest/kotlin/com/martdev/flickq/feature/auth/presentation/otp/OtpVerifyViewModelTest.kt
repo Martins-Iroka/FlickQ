@@ -13,6 +13,7 @@ import com.martdev.flickq.auth.model.OtpResendResult
 import com.martdev.flickq.auth.model.RegistrationResult
 import com.martdev.flickq.auth.model.VerificationInput
 import com.martdev.flickq.core.common.Result
+import com.martdev.flickq.core.presentation.UiText
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import kotlinx.coroutines.Dispatchers
@@ -122,6 +123,20 @@ class OtpVerifyViewModelTest {
 
         assertThat(viewModel.state.value.error).isNotNull()
         assertThat(viewModel.state.value.isLoading).isFalse()
+    }
+
+    @Test
+    fun `failed verification prefers the server-supplied message`() = runTest {
+        val repo = FakeAuthRepository().apply {
+            verifyResult = Result.Error(AuthError.INVALID_OTP, "Invalid or expired OTP")
+        }
+        val viewModel = viewModel(repo)
+        viewModel.onAction(OtpVerifyAction.OnCodeChange("123456"))
+
+        viewModel.onAction(OtpVerifyAction.OnVerifyClick)
+
+        assertThat(viewModel.state.value.error)
+            .isEqualTo(UiText.DynamicString("Invalid or expired OTP"))
     }
 
     @Test

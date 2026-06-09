@@ -6,6 +6,7 @@ import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.designsystem.SeatLayout
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.booking.domain.BookingRepository
 import com.martdev.flickq.feature.booking.domain.SeatMap
@@ -90,8 +91,8 @@ class SeatSelectionViewModel(
                     _state.update { it.copy(isReserving = false) }
                     _events.send(SeatSelectionEvent.ReservationCreated(reservation.id))
                 }
-                .onFailure { error ->
-                    _state.update { it.copy(isReserving = false, error = error.toUiText()) }
+                .onFailure { error, message ->
+                    _state.update { it.copy(isReserving = false, error = resolveErrorText(message, error.toUiText())) }
                     // Someone may have taken a seat — refresh the map, keeping the error visible.
                     loadSeatMap(clearError = false)
                 }
@@ -116,8 +117,8 @@ class SeatSelectionViewModel(
                         )
                     }
                 }
-                .onFailure { error ->
-                    _state.update { it.copy(isLoading = false, error = error.toUiText()) }
+                .onFailure { error, message ->
+                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }

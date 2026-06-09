@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.movie.domain.MovieRepository
 import com.martdev.flickq.feature.movie.presentation.MovieUi
@@ -94,12 +95,12 @@ class MovieListViewModel(
                     )
                 }
             }
-            .onFailure { error ->
+            .onFailure { error, message ->
                 _state.update {
                     it.copy(
                         isLoading = false,
                         isLoadingMore = false,
-                        error = if (replace) error.toUiText() else null,
+                        error = if (replace) resolveErrorText(message, error.toUiText()) else null,
                     )
                 }
             }

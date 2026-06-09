@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.admin.domain.AdminCatalogRepository
 import com.martdev.flickq.room.model.Room
@@ -93,7 +94,7 @@ class AdminRoomsViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             catalog.getRooms()
                 .onSuccess { rooms -> _state.update { it.copy(isLoading = false, rooms = rooms) } }
-                .onFailure { error -> _state.update { it.copy(isLoading = false, error = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) } }
         }
     }
 
@@ -114,7 +115,7 @@ class AdminRoomsViewModel(
                     _state.update { it.copy(isSaving = false, form = null) }
                     load()
                 }
-                .onFailure { error -> _state.update { it.copy(isSaving = false, dialogError = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(isSaving = false, dialogError = resolveErrorText(message, error.toUiText())) } }
         }
     }
 
@@ -124,7 +125,7 @@ class AdminRoomsViewModel(
             _state.update { it.copy(deleting = null) }
             catalog.deleteRoom(target.id)
                 .onSuccess { load() }
-                .onFailure { error -> _state.update { it.copy(error = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) } }
         }
     }
 
@@ -144,7 +145,7 @@ class AdminRoomsViewModel(
                 .onSuccess { created ->
                     _state.update { it.copy(message = UiText.DynamicString("Created ${created.size} seats for ${room.name}.")) }
                 }
-                .onFailure { error -> _state.update { it.copy(message = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(message = resolveErrorText(message, error.toUiText())) } }
         }
     }
 

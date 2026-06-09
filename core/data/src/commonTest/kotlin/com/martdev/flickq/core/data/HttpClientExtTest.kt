@@ -2,6 +2,7 @@ package com.martdev.flickq.core.data
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import com.martdev.flickq.core.common.DataError
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.movie.GenreDTO
@@ -103,6 +104,47 @@ class HttpClientExtTest {
         val result = client.deleteForStatus("/admin/room/delete-room/2")
 
         assertThat((result as? Result.Error)?.error).isEqualTo(DataError.Network.CONFLICT)
+    }
+
+    @Test
+    fun `a 4xx response surfaces the server error message`() = runTest {
+        val client = jsonClient { jsonOk("""{"error":"Duplicate email"}""", HttpStatusCode.BadRequest) }
+
+        val result = client.getResult<GenreDTO>("/authentication/register")
+
+        val error = result as? Result.Error ?: fail("expected error, was $result")
+        assertThat(error.error).isEqualTo(DataError.Network.BAD_REQUEST)
+        assertThat(error.message).isEqualTo("Duplicate email")
+    }
+
+    @Test
+    fun `a 5xx response keeps a null message so the curated copy wins`() = runTest {
+        val client = jsonClient {
+            jsonOk("""{"error":"Internal server error"}""", HttpStatusCode.InternalServerError)
+        }
+
+        val result = client.getResult<GenreDTO>("/movie/list")
+
+        val error = result as? Result.Error ?: fail("expected error, was $result")
+        assertThat(error.error).isEqualTo(DataError.Network.SERVER_ERROR)
+        assertThat(error.message).isNull()
+    }
+
+    @Test
+    fun `a 4xx with a non-ErrorResponse body falls back to a null message`() = runTest {
+        val client = jsonClient {
+            respond(
+                content = "<html>not found</html>",
+                status = HttpStatusCode.NotFound,
+                headers = headersOf(HttpHeaders.ContentType, "text/html"),
+            )
+        }
+
+        val result = client.getResult<GenreDTO>("/movie/9999")
+
+        val error = result as? Result.Error ?: fail("expected error, was $result")
+        assertThat(error.error).isEqualTo(DataError.Network.NOT_FOUND)
+        assertThat(error.message).isNull()
     }
 
     @Test

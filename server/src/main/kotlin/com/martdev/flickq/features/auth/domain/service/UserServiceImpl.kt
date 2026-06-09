@@ -59,7 +59,6 @@ class UserServiceImpl(
                 val (emailId, error) = otpProvider.sendVerificationCode(saved.email)
                 if (error.isNotEmpty()) {
                     events.otpSendFailed()
-                    throw InternalServerException("Failed to send OTP")
                 }
                 events.registerSucceeded(saved.id)
                 RegistrationResult(emailId = emailId, registrationToken = plainToken)
@@ -200,7 +199,7 @@ class UserServiceImpl(
                 val (emailId, error) = otpProvider.sendVerificationCode(savedUser.email)
                 if (error.isNotEmpty()) {
                     events.otpSendFailed()
-                    throw InternalServerException("Failed to resend OTP")
+                    throw InternalServerException("Failed to resend OTP. Please try again")
                 }
 
                 val plainToken = UUID.randomUUID().toString()

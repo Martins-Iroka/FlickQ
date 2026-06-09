@@ -6,6 +6,7 @@ import com.martdev.flickq.auth.model.Credentials
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import com.martdev.flickq.feature.auth.presentation.isValidEmail
@@ -91,7 +92,7 @@ class LoginViewModel(
                     _state.update { it.copy(isLoading = false) }
                     _events.send(LoginEvent.Authenticated)
                 }
-                .onFailure { error ->
+                .onFailure { error, message ->
                     if (error == AuthError.EMAIL_NOT_VERIFIED) {
                         _state.update { it.copy(isLoading = false) }
                         _events.send(
@@ -100,7 +101,9 @@ class LoginViewModel(
                             )
                         )
                     }
-                    _state.update { it.copy(isLoading = false, error = error.toUiText()) }
+                    _state.update {
+                        it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText()))
+                    }
                 }
         }
     }

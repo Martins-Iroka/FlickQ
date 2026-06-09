@@ -127,7 +127,7 @@ class RealAuthDataSourceTest {
     }
 
     @Test
-    fun `logout posts the stored refresh token (native) and clears local tokens`() = runTest {
+    fun `logout posts the stored refresh token on native and clears local tokens`() = runTest {
         var path = ""
         var body = ""
         val storage = InMemoryTokenStorage().apply { saveTokens("access-1", "refresh-1") }
@@ -158,7 +158,7 @@ class RealAuthDataSourceTest {
     }
 
     @Test
-    fun `logout with no stored token still hits the endpoint (web cookie flow)`() = runTest {
+    fun `logout with no stored token still hits the endpoint via the web cookie flow`() = runTest {
         var path = ""
         val client = jsonClient { request ->
             path = request.url.encodedPath

@@ -4,6 +4,7 @@ import com.martdev.flickq.core.common.DataError
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.core.common.map
 import com.martdev.flickq.shared.DataResponse
+import com.martdev.flickq.shared.ErrorResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.network.sockets.ConnectTimeoutException
@@ -207,20 +208,33 @@ suspend inline fun <reified T> safeCall(
 suspend inline fun <reified T> responseToResult(
     response: HttpResponse
 ): Result<T, DataError.Network> {
-    return when (response.status.value) {
+    val status = response.status.value
+    // Surface the server's message for client errors only. The body may be absent or not an
+    // ErrorResponse (e.g. an HTML error page), so decoding is best-effort. 5xx and other statuses
+    // keep a null message so the curated client copy wins.
+    val serverMessage = if (status in 400..499) {
+        try {
+            response.body<ErrorResponse>().error.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
+        }
+    } else {
+        null
+    }
+    return when (status) {
         in 200..299 -> try {
             Result.Success(response.body<T>())
         } catch (_: SerializationException) {
             Result.Error(DataError.Network.SERIALIZATION)
         }
-        400 -> Result.Error(DataError.Network.BAD_REQUEST)
-        401 -> Result.Error(DataError.Network.UNAUTHORIZED)
-        403 -> Result.Error(DataError.Network.FORBIDDEN)
-        404 -> Result.Error(DataError.Network.NOT_FOUND)
-        408 -> Result.Error(DataError.Network.REQUEST_TIMEOUT)
-        409 -> Result.Error(DataError.Network.CONFLICT)
-        413 -> Result.Error(DataError.Network.PAYLOAD_TOO_LARGE)
-        429 -> Result.Error(DataError.Network.TOO_MANY_REQUESTS)
+        400 -> Result.Error(DataError.Network.BAD_REQUEST, serverMessage)
+        401 -> Result.Error(DataError.Network.UNAUTHORIZED, serverMessage)
+        403 -> Result.Error(DataError.Network.FORBIDDEN, serverMessage)
+        404 -> Result.Error(DataError.Network.NOT_FOUND, serverMessage)
+        408 -> Result.Error(DataError.Network.REQUEST_TIMEOUT, serverMessage)
+        409 -> Result.Error(DataError.Network.CONFLICT, serverMessage)
+        413 -> Result.Error(DataError.Network.PAYLOAD_TOO_LARGE, serverMessage)
+        429 -> Result.Error(DataError.Network.TOO_MANY_REQUESTS, serverMessage)
         in 500..599 -> Result.Error(DataError.Network.SERVER_ERROR)
         else -> Result.Error(DataError.Network.UNKNOWN)
     }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.admin.domain.AdminPaymentRepository
 import com.martdev.flickq.feature.admin.domain.AdminReservationRepository
@@ -64,9 +65,9 @@ class AdminReservationDetailViewModel(
                     payments.getPaymentsByReservation(reservationId)
                         .onSuccess { list -> _state.update { it.copy(payments = list) } }
                         // A payment lookup failure shouldn't blank the reservation; surface it inline.
-                        .onFailure { error -> _state.update { it.copy(message = error.toUiText()) } }
+                        .onFailure { error, message -> _state.update { it.copy(message = resolveErrorText(message, error.toUiText())) } }
                 }
-                .onFailure { error -> _state.update { it.copy(isLoading = false, error = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) } }
         }
     }
 
@@ -78,7 +79,7 @@ class AdminReservationDetailViewModel(
                 .onSuccess { reservation ->
                     _state.update { it.copy(isCancelling = false, reservation = reservation, message = UiText.DynamicString("Reservation cancelled.")) }
                 }
-                .onFailure { error -> _state.update { it.copy(isCancelling = false, message = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(isCancelling = false, message = resolveErrorText(message, error.toUiText())) } }
         }
     }
 }

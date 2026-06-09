@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.admin.domain.AdminReservationRepository
 import com.martdev.flickq.reservation.model.Reservation
@@ -43,7 +44,7 @@ class AdminReservationsViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             reservations.getReservations()
                 .onSuccess { list -> _state.update { it.copy(isLoading = false, reservations = list) } }
-                .onFailure { error -> _state.update { it.copy(isLoading = false, error = error.toUiText()) } }
+                .onFailure { error, message -> _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) } }
         }
     }
 }

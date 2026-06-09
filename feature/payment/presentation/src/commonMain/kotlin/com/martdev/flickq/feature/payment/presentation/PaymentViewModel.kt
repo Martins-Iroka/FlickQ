@@ -7,6 +7,7 @@ import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.payment.domain.PaymentRepository
 import com.martdev.flickq.payment.model.PaymentStatus
@@ -137,14 +138,14 @@ class PaymentViewModel(
                         pollUntilResolved(initiated.reference)
                     }
                 }
-                .onFailure { error ->
+                .onFailure { error, message ->
                     // A reservation that expired or was cancelled can't be paid — the server
                     // rejects the hand-off with 409/400. Don't show "payment failed" + retry
                     // (retry would just fail again); send the user back to re-pick seats.
                     if (error.isReservationNoLongerPayable()) {
                         _events.send(PaymentEvent.ReservationExpired)
                     } else {
-                        _state.update { it.copy(error = error.toUiText()) }
+                        _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) }
                     }
                 }
         }
@@ -156,11 +157,13 @@ class PaymentViewModel(
 
     private suspend fun pollUntilResolved(reference: String) {
         var lastError: DataError? = null
+        var lastMessage: String? = null
         repeat(maxPollAttempts) { attempt ->
             if (attempt > 0) delay(pollDelayMillis)
             when (val result = paymentRepository.verifyPayment(reference)) {
                 is Result.Success -> {
                     lastError = null
+                    lastMessage = null
                     val payment = result.data
                     when (payment.status) {
                         PaymentStatus.SUCCESS -> {
@@ -186,12 +189,15 @@ class PaymentViewModel(
                 }
                 // Verify can fail transiently while the gateway settles; keep polling and only
                 // surface the error if every attempt fails.
-                is Result.Error -> lastError = result.error
+                is Result.Error -> {
+                    lastError = result.error
+                    lastMessage = result.message
+                }
             }
         }
         _state.update {
             it.copy(
-                error = lastError?.toUiText()
+                error = lastError?.let { error -> resolveErrorText(lastMessage, error.toUiText()) }
                     ?: UiText.DynamicString("We couldn't confirm your payment yet. If you've completed it, tap retry.")
             )
         }
