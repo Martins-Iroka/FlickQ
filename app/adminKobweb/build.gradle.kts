@@ -36,8 +36,10 @@ kotlin {
             implementation(projects.feature.admin.presentationLogic)
             implementation(projects.feature.auth.data)
 
-            // koin-core only — NOT koin-compose-viewmodel (it pulls canvas compose.ui via
+            // Bare lifecycle (ViewModel + ViewModelStore for the page-scoped VM holder) and
+            // koin-core only — NOT the -compose variants (they pull canvas compose.ui via
             // lifecycle-viewmodel-compose). ViewModels are obtained via KoinPlatform.getKoin().
+            implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.koin.core)
         }
     }
