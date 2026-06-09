@@ -4,6 +4,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
+import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import com.martdev.flickq.feature.admin.presentation.genres.AdminGenresRoot
 import com.martdev.flickq.feature.admin.presentation.hub.AdminHubScreen
@@ -47,9 +48,20 @@ data object AdminReservationsRoute
 data class AdminReservationDetailRoute(val reservationId: Long)
 
 /**
+ * Placeholder origin for the admin deep links. On the web target, [bindToNavigation] only uses the
+ * path portion of these patterns to drive `window.location` (the host must be present to satisfy
+ * the deep-link URI parser but is otherwise ignored), so the address bar shows clean paths like
+ * `/dashboard` and `/reservations/42`. On native targets the deep links are simply unused.
+ */
+private const val ADMIN_URI = "https://finn-unsmitten-raeann.ngrok-free.dev"
+
+/**
  * The admin feature's nav graph: sign in (role-gated) → a dashboard hub that fans out to
  * reports and the catalog / reservation management screens. All screens reuse the slice-1
  * MVI + design-system patterns.
+ *
+ * Each destination declares a [navDeepLink] so that, on the web target, the browser address bar
+ * reflects the current screen (and reloads / pasted links resolve back to it).
  */
 fun NavGraphBuilder.adminGraph(navController: NavController) {
     navigation<AdminGraphRoute>(startDestination = AdminLoginRoute) {
