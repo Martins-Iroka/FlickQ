@@ -6,8 +6,8 @@ import com.martdev.flickq.features.movie.api.toMovieDto
 import com.martdev.flickq.features.movie.api.toMovieItemDto
 import com.martdev.flickq.features.movie.domain.service.movie.MovieService
 import com.martdev.flickq.movie.MovieDTO
+import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
-import com.martdev.flickq.shared.api.DataResponse
 import com.martdev.flickq.shared.api.getLimitAndOffset
 import com.martdev.flickq.shared.api.getParameterFromPath
 import com.martdev.flickq.shared.api.withRole

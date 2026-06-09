@@ -7,7 +7,7 @@ import com.martdev.flickq.auth.request.UserLoginRequest
 import com.martdev.flickq.auth.request.UserVerificationRequest
 import com.martdev.flickq.config.CookieConfig
 import com.martdev.flickq.features.auth.domain.service.UserService
-import com.martdev.flickq.shared.api.DataResponse
+import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.plugins.ratelimit.RateLimitName

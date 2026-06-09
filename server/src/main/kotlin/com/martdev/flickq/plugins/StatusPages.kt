@@ -1,6 +1,6 @@
 package com.martdev.flickq.plugins
 
-import com.martdev.flickq.shared.api.ErrorResponse
+import com.martdev.flickq.shared.ErrorResponse
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.exception.ConflictException
 import com.martdev.flickq.shared.domain.exception.ForbiddenException

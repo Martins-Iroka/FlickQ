@@ -3,8 +3,8 @@ package com.martdev.flickq.features.report.api
 import com.martdev.flickq.auth.model.Role
 import com.martdev.flickq.features.report.domain.service.ReportService
 import com.martdev.flickq.report.model.ReportBucketGranularity
+import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
-import com.martdev.flickq.shared.api.DataResponse
 import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.api.getLimitAndOffset

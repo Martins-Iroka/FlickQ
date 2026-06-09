@@ -4,8 +4,8 @@ import com.martdev.flickq.auth.model.Role
 import com.martdev.flickq.features.payment.domain.service.PaymentService
 import com.martdev.flickq.payment.InitializePaymentRequest
 import com.martdev.flickq.payment.PaymentCallbackResponse
+import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
-import com.martdev.flickq.shared.api.DataResponse
 import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.util.extractUserId

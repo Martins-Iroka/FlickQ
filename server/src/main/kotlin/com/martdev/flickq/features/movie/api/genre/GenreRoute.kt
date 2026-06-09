@@ -5,8 +5,8 @@ import com.martdev.flickq.features.movie.api.toGenre
 import com.martdev.flickq.features.movie.api.toGenreDto
 import com.martdev.flickq.features.movie.domain.service.genre.GenreService
 import com.martdev.flickq.movie.GenreDTO
+import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
-import com.martdev.flickq.shared.api.DataResponse
 import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.shared.api.getParameterFromPath
 import io.ktor.http.HttpStatusCode

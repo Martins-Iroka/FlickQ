@@ -3,8 +3,8 @@ package com.martdev.flickq.features.room.api
 import com.martdev.flickq.auth.model.Role
 import com.martdev.flickq.features.room.domain.service.RoomService
 import com.martdev.flickq.room.RoomDTO
+import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
-import com.martdev.flickq.shared.api.DataResponse
 import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.shared.api.getParameterFromPath
 import io.ktor.http.HttpStatusCode
