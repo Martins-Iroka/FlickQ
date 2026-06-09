@@ -30,7 +30,6 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.core.common)
             implementation(libs.compose.runtime)
-            implementation(libs.compose.components.resources)
             implementation(libs.androidx.lifecycle.runtimeCompose)
         }
     }

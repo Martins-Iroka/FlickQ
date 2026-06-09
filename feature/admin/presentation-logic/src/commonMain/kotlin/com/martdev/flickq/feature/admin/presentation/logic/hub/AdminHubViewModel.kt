@@ -1,4 +1,4 @@
-package com.martdev.flickq.feature.admin.presentation.hub
+package com.martdev.flickq.feature.admin.presentation.logic.hub
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

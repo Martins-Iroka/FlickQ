@@ -1,4 +1,4 @@
-package com.martdev.flickq.feature.admin.presentation.login
+package com.martdev.flickq.feature.admin.presentation.logic.login
 
 import app.cash.turbine.test
 import assertk.assertThat

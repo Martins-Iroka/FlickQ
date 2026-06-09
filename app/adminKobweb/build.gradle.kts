@@ -29,8 +29,16 @@ kotlin {
             implementation(libs.kobweb.silk)
             implementation(libs.silk.icons.fa)
 
-            // Spike: prove a 2.3.21-compiled shared klib is consumable from the Kobweb (Kotlin/JS) module.
+            // Reused (UI-agnostic) shared layers — NEVER :feature:admin:presentation /
+            // :core:design-system (those pull Compose-Multiplatform canvas UI).
             implementation(projects.core.data)
+            implementation(projects.core.presentation)
+            implementation(projects.feature.admin.presentationLogic)
+            implementation(projects.feature.auth.data)
+
+            // koin-core only — NOT koin-compose-viewmodel (it pulls canvas compose.ui via
+            // lifecycle-viewmodel-compose). ViewModels are obtained via KoinPlatform.getKoin().
+            implementation(libs.koin.core)
         }
     }
 }
