@@ -21,6 +21,7 @@ koin = "4.2.1"
 koin_annotation = "2.3.0"
 kotlin = "2.3.21"
 kotlin-wrappers = "2026.5.3"
+kobweb = "0.24.0"
 ktor = "3.4.2"
 logback = "1.5.32"
 material3 = "1.11.0-alpha07"
@@ -120,6 +121,10 @@ stytch = { module = "com.stytch.java:sdk", version.ref = "stytch" }
 testcontainers-junit5 = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainer" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainer" }
 wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
+compose-html-core = { module = "org.jetbrains.compose.html:html-core", version.ref = "composeMultiplatform" }
+kobweb-core = { module = "com.varabyte.kobweb:kobweb-core", version.ref = "kobweb" }
+kobweb-silk = { module = "com.varabyte.kobweb:kobweb-silk", version.ref = "kobweb" }
+silk-icons-fa = { module = "com.varabyte.kobwebx:silk-icons-fa", version.ref = "kobweb" }
 
 [bundles]
 client-ktor-libs = ["ktor-client-core", "ktor-client-contentNegotiation", "ktor-client-logging", "ktor-serialization-kotlinx-json",]
@@ -145,3 +150,4 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version = "2.3.8" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+kobwebApplication = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }

@@ -1,0 +1,12 @@
+site:
+  title: "FlickQ Admin"
+
+server:
+  port: 8083 # 8082 is taken by the legacy :app:adminWeb dev server
+  files:
+    dev:
+      contentRoot: "build/processedResources/js/main/public"
+      script: "build/kotlin-webpack/js/developmentExecutable/adminkobweb.js"
+    prod:
+      script: "build/kotlin-webpack/js/productionExecutable/adminkobweb.js"
+      siteRoot: ".kobweb/site"

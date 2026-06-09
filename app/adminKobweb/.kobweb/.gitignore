@@ -1,0 +1,4 @@
+# Kobweb generates everything here except the checked-in config.
+*
+!.gitignore
+!conf.yaml
