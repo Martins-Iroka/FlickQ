@@ -10,6 +10,8 @@ import com.martdev.flickq.core.data.TokenStorage
 import com.martdev.flickq.feature.auth.data.FakeAuthDataSource.Companion.VALID_OTP
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
  * In-memory stand-in for the real auth backend. Accepts any registration, treats
@@ -22,7 +24,10 @@ class FakeAuthDataSource(
 
     private data class Account(val password: String, var verified: Boolean)
 
-    private val accounts = mutableMapOf<String, Account>()
+    // Seed a known admin so the admin app is demoable on fakes (no admin registration UI exists).
+    private val accounts = mutableMapOf(
+        SEED_ADMIN_EMAIL to Account(SEED_ADMIN_PASSWORD, verified = true),
+    )
     private var userIdSeq = 1L
 
     override suspend fun register(credentials: Credentials): Result<RegistrationResult, AuthError> {
@@ -57,7 +62,7 @@ class FakeAuthDataSource(
         if (account == null || account.password != credentials.password) {
             return Result.Error(AuthError.INVALID_CREDENTIALS)
         }
-        return issueSession(credentials.email)
+        return issueSession(credentials.email, isAdmin)
     }
 
     override suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError> {
@@ -77,9 +82,11 @@ class FakeAuthDataSource(
         return Result.Success(Unit)
     }
 
-    private suspend fun issueSession(email: String): Result<LoginResult, AuthError> {
+    private suspend fun issueSession(email: String, isAdmin: Boolean = false): Result<LoginResult, AuthError> {
         val userId = userIdSeq++
-        val accessToken = "access-token-$email"
+        // Issue a real (signature-less) JWT so JwtDecoder can read the role — the admin app gates
+        // entry on the ADMIN claim. Mirrors the shape of the backend's tokens.
+        val accessToken = fakeJwt(userId, role = if (isAdmin) "ADMIN" else "USER")
         val refreshToken = "refresh-token-$email"
         tokenStorage.saveTokens(accessToken = accessToken, refreshToken = refreshToken)
         return Result.Success(
@@ -91,7 +98,16 @@ class FakeAuthDataSource(
         )
     }
 
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun fakeJwt(userId: Long, role: String): String {
+        val payload = """{"userId":"$userId","role":"$role"}"""
+        val body = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(payload.encodeToByteArray())
+        return "header.$body.signature"
+    }
+
     companion object {
         const val VALID_OTP = "123456"
+        const val SEED_ADMIN_EMAIL = "admin@flickq.com"
+        const val SEED_ADMIN_PASSWORD = "admin123"
     }
 }
