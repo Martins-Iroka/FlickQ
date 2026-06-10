@@ -1,4 +1,5 @@
 import com.varabyte.kobweb.gradle.application.util.configAsKobwebApplication
+import kotlinx.html.link
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -13,6 +14,16 @@ kobweb {
     app {
         index {
             description.set("FlickQ Admin")
+            // CineAdmin type system: Inter (UI) + Montserrat (headings).
+            head.add {
+                link(rel = "preconnect", href = "https://fonts.googleapis.com")
+                link(
+                    rel = "stylesheet",
+                    href = "https://fonts.googleapis.com/css2?" +
+                        "family=Inter:wght@400;500;600;700&" +
+                        "family=Montserrat:wght@600;700&display=swap",
+                )
+            }
         }
     }
 }

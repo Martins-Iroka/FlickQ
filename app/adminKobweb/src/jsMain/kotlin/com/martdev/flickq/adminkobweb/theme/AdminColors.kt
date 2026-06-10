@@ -24,6 +24,16 @@ object AdminColors {
 
     val Heading = Color.rgb(0xd4e4fa)
     val Body = Color.rgb(0xe9bcb6)
+    val BodyStrong = Color.rgb(0xffdad5)
     val Muted = Color.rgb(0x8a93a2)
     val White = Color.rgb(0xffffff)
+
+    /** Neutral chip / secondary-button / avatar fill. */
+    val Chip = Color.rgb(0x273647)
+
+    /** Selected nav-link background: 10%-opacity red wash. */
+    val PrimaryWash = Primary.copyf(alpha = 0.1f)
+    val SuccessWash = Success.copyf(alpha = 0.1f)
+    val AmberWash = Amber.copyf(alpha = 0.2f)
+    val SuccessChip = Success.copyf(alpha = 0.2f)
 }
