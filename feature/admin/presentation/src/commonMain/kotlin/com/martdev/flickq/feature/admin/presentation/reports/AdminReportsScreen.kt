@@ -22,6 +22,9 @@ import com.martdev.flickq.core.designsystem.AdminError
 import com.martdev.flickq.core.designsystem.AdminLoading
 import com.martdev.flickq.core.designsystem.AdminScaffold
 import com.martdev.flickq.core.designsystem.FlickQColors
+import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsAction
+import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsState
+import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsViewModel
 import com.martdev.flickq.report.model.CapacityReport
 import com.martdev.flickq.report.model.CapacityRow
 import com.martdev.flickq.report.model.RevenueReport
@@ -44,10 +47,11 @@ fun AdminReportsScreen(
     onBack: () -> Unit,
 ) {
     AdminScaffold(title = "Reports", onBack = onBack) {
+        val error = state.error
         when {
             state.isLoading -> AdminLoading()
 
-            state.error != null -> AdminError(message = state.error.asString(), onRetry = { onAction(AdminReportsAction.OnRetry) })
+            error != null -> AdminError(message = error.asString(), onRetry = { onAction(AdminReportsAction.OnRetry) })
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(24.dp),

@@ -43,8 +43,10 @@ kotlin {
             // Reused (UI-agnostic) shared layers — NEVER :feature:admin:presentation /
             // :core:design-system (those pull Compose-Multiplatform canvas UI).
             implementation(projects.core.data)
+            implementation(projects.core.domain)
             implementation(projects.core.presentation)
             implementation(projects.feature.admin.presentationLogic)
+            implementation(projects.feature.admin.data)
             implementation(projects.feature.auth.data)
 
             // Bare lifecycle (ViewModel + ViewModelStore for the page-scoped VM holder) and

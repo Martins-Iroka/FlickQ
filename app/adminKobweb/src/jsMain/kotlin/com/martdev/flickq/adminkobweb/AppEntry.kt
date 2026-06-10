@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.core.data.coreDataModule
 import com.martdev.flickq.core.data.platformDataModule
+import com.martdev.flickq.feature.admin.data.adminDataModule
 import com.martdev.flickq.feature.admin.presentation.logic.adminPresentationLogicModule
 import com.martdev.flickq.feature.auth.data.authDataModule
 import com.varabyte.kobweb.compose.ui.Modifier
@@ -30,6 +31,7 @@ fun initKobweb(@Suppress("UNUSED_PARAMETER") ctx: InitKobwebContext) {
                 platformDataModule(),
                 coreDataModule,
                 authDataModule,
+                adminDataModule,
                 adminPresentationLogicModule,
             )
         }

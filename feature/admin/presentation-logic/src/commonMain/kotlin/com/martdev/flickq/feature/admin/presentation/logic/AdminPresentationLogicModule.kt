@@ -2,6 +2,7 @@ package com.martdev.flickq.feature.admin.presentation.logic
 
 import com.martdev.flickq.feature.admin.presentation.logic.hub.AdminHubViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -14,4 +15,5 @@ import org.koin.dsl.module
 val adminPresentationLogicModule = module {
     viewModelOf(::AdminLoginViewModel)
     viewModelOf(::AdminHubViewModel)
+    viewModelOf(::AdminReportsViewModel)
 }
