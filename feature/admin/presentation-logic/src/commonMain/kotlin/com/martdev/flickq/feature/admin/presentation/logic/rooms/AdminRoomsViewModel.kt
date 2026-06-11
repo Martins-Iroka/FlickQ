@@ -1,4 +1,4 @@
-package com.martdev.flickq.feature.admin.presentation.rooms
+package com.martdev.flickq.feature.admin.presentation.logic.rooms
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,6 +24,21 @@ data class RoomForm(
     val isValid: Boolean get() = name.isNotBlank() && (rows.toIntOrNull() ?: 0) > 0 && (columns.toIntOrNull() ?: 0) > 0
 }
 
+/**
+ * A single room opened in the detail view, with its seat inventory loaded lazily. The Kobweb
+ * admin renders this as the "Room Detail" page (stats cards, seat-map grid, inventory table);
+ * the legacy Compose admin doesn't use it.
+ */
+data class RoomDetail(
+    val room: Room,
+    val seats: List<Seat> = emptyList(),
+    val isLoadingSeats: Boolean = true,
+    val seatsError: UiText? = null,
+) {
+    /** Derived room status: seats exist once they've been generated. */
+    val hasSeats: Boolean get() = seats.isNotEmpty()
+}
+
 data class AdminRoomsState(
     val isLoading: Boolean = true,
     val rooms: List<Room> = emptyList(),
@@ -34,6 +49,7 @@ data class AdminRoomsState(
     val deleting: Room? = null,
     val seatingFor: Room? = null,
     val message: UiText? = null,
+    val detail: RoomDetail? = null,
 )
 
 sealed interface AdminRoomsAction {
@@ -52,6 +68,11 @@ sealed interface AdminRoomsAction {
     data object OnConfirmGenerateSeats : AdminRoomsAction
     data object OnDismissGenerateSeats : AdminRoomsAction
     data object OnDismissMessage : AdminRoomsAction
+
+    // --- Detail view (Kobweb) ---------------------------------------------------------
+    data class OnRoomClick(val room: Room) : AdminRoomsAction
+    data object OnCloseDetail : AdminRoomsAction
+    data object OnRetrySeats : AdminRoomsAction
 }
 
 class AdminRoomsViewModel(
@@ -82,6 +103,9 @@ class AdminRoomsViewModel(
             AdminRoomsAction.OnConfirmGenerateSeats -> generateSeats()
             AdminRoomsAction.OnDismissGenerateSeats -> _state.update { it.copy(seatingFor = null) }
             AdminRoomsAction.OnDismissMessage -> _state.update { it.copy(message = null) }
+            is AdminRoomsAction.OnRoomClick -> openDetail(action.room)
+            AdminRoomsAction.OnCloseDetail -> _state.update { it.copy(detail = null) }
+            AdminRoomsAction.OnRetrySeats -> _state.value.detail?.let { loadSeats(it.room) }
         }
     }
 
@@ -111,8 +135,12 @@ class AdminRoomsViewModel(
             _state.update { it.copy(isSaving = true, dialogError = null) }
             val result = if (form.editingId == null) catalog.createRoom(room) else catalog.updateRoom(room)
             result
-                .onSuccess {
-                    _state.update { it.copy(isSaving = false, form = null) }
+                .onSuccess { saved ->
+                    // If the saved room is the one open in detail, reflect the edit there too.
+                    _state.update { s ->
+                        val detail = s.detail?.takeIf { it.room.id == saved.id }?.copy(room = saved) ?: s.detail
+                        s.copy(isSaving = false, form = null, detail = detail)
+                    }
                     load()
                 }
                 .onFailure { error, message -> _state.update { it.copy(isSaving = false, dialogError = resolveErrorText(message, error.toUiText())) } }
@@ -122,7 +150,8 @@ class AdminRoomsViewModel(
     private fun delete() {
         val target = _state.value.deleting ?: return
         viewModelScope.launch {
-            _state.update { it.copy(deleting = null) }
+            // Leaving the detail view too if we just deleted the room it was showing.
+            _state.update { it.copy(deleting = null, detail = it.detail?.takeIf { d -> d.room.id != target.id }) }
             catalog.deleteRoom(target.id)
                 .onSuccess { load() }
                 .onFailure { error, message -> _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) } }
@@ -144,8 +173,26 @@ class AdminRoomsViewModel(
             catalog.createSeats(seats)
                 .onSuccess { created ->
                     _state.update { it.copy(message = UiText.DynamicString("Created ${created.size} seats for ${room.name}.")) }
+                    // Refresh the inventory if this room is open in the detail view.
+                    if (_state.value.detail?.room?.id == room.id) loadSeats(room)
                 }
                 .onFailure { error, message -> _state.update { it.copy(message = resolveErrorText(message, error.toUiText())) } }
+        }
+    }
+
+    private fun openDetail(room: Room) {
+        _state.update { it.copy(detail = RoomDetail(room = room, isLoadingSeats = true)) }
+        loadSeats(room)
+    }
+
+    private fun loadSeats(room: Room) {
+        viewModelScope.launch {
+            _state.update { it.copy(detail = it.detail?.copy(isLoadingSeats = true, seatsError = null)) }
+            catalog.getSeats(room.id)
+                .onSuccess { seats -> _state.update { it.copy(detail = it.detail?.copy(isLoadingSeats = false, seats = seats)) } }
+                .onFailure { error, message ->
+                    _state.update { it.copy(detail = it.detail?.copy(isLoadingSeats = false, seatsError = resolveErrorText(message, error.toUiText()))) }
+                }
         }
     }
 

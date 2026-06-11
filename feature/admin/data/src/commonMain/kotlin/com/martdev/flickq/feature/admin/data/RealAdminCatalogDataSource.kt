@@ -82,6 +82,9 @@ class RealAdminCatalogDataSource(
     override suspend fun deleteRoom(id: Long): EmptyResult<DataError> =
         httpClient.deleteForStatus("/admin/room/delete-room/$id")
 
+    override suspend fun getSeats(roomId: Long): Result<List<Seat>, DataError> =
+        httpClient.getData<List<SeatDTO>>("/seat/get-seats-by-room-id/$roomId").map { list -> list.map { it.toSeat() } }
+
     override suspend fun createSeats(seats: List<Seat>): Result<List<Seat>, DataError> =
         httpClient.postData<List<SeatDTO>, List<SeatDTO>>("/admin/seat/create-seats", seats.map { it.toDto() })
             .map { list -> list.map { it.toSeat() } }

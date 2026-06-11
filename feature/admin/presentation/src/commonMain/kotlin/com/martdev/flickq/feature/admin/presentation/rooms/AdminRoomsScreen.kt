@@ -25,6 +25,9 @@ import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.FlickQFormDialog
 import com.martdev.flickq.core.designsystem.FlickQTextField
 import com.martdev.flickq.core.designsystem.RowAction
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsAction
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsState
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -56,9 +59,10 @@ fun AdminRoomsScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
+            val error = state.error
             when {
                 state.isLoading -> AdminLoading()
-                state.error != null -> AdminError(message = state.error.asString(), onRetry = { onAction(AdminRoomsAction.OnRetry) })
+                error != null -> AdminError(message = error.asString(), onRetry = { onAction(AdminRoomsAction.OnRetry) })
                 state.rooms.isEmpty() -> AdminEmpty(message = "No rooms yet. Tap “+ Add” to create one.", modifier = Modifier.padding(24.dp))
                 else -> DataTable(
                     items = state.rooms,

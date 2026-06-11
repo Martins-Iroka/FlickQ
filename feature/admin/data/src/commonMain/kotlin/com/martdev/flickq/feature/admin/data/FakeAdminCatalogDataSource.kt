@@ -36,6 +36,32 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
     private val rooms = mutableListOf(
         Room(1, "Screen 1", 8, 10), Room(2, "Screen 2", 8, 10), Room(3, "Screen 3", 6, 10),
     )
+    // Seats per room. Screens 1 & 2 ship pre-generated; Screen 3 starts empty so the detail
+    // view can demo the "No Seats → Generate Seats → Seats Generated" flow.
+    private val seats = mutableListOf<Seat>().apply {
+        this += generateSeatsFor(rooms[0])
+        this += generateSeatsFor(rooms[1])
+    }
+
+    private fun generateSeatsFor(room: Room): List<Seat> = buildList {
+        repeat(room.rows) { rowIndex ->
+            val label = rowLabel(rowIndex)
+            repeat(room.columns) { columnIndex ->
+                add(Seat(id = id(), roomId = room.id, rowLabel = label, seatNumber = columnIndex + 1))
+            }
+        }
+    }
+
+    /** A, B, … Z, AA, AB, … for row indices beyond the alphabet. */
+    private fun rowLabel(index: Int): String {
+        var n = index
+        val sb = StringBuilder()
+        while (n >= 0) {
+            sb.append('A' + (n % 26))
+            n = n / 26 - 1
+        }
+        return sb.reverse().toString()
+    }
     private val showtimes = mutableListOf(
         Showtime(1, 1, 1, now(), now() + 2.hours, 3500, ShowtimeStatus.SCHEDULED),
         Showtime(2, 2, 2, now() + 1.days, now() + 1.days + 2.hours, 3000, ShowtimeStatus.SCHEDULED),
@@ -97,11 +123,21 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
 
     override suspend fun deleteRoom(id: Long): EmptyResult<DataError> {
         rooms.removeAll { it.id == id }
+        seats.removeAll { it.roomId == id }
         return Result.Success(Unit)
     }
 
-    override suspend fun createSeats(seats: List<Seat>): Result<List<Seat>, DataError> =
-        Result.Success(seats.map { it.copy(id = id()) })
+    override suspend fun getSeats(roomId: Long): Result<List<Seat>, DataError> =
+        Result.Success(seats.filter { it.roomId == roomId })
+
+    override suspend fun createSeats(seats: List<Seat>): Result<List<Seat>, DataError> {
+        // Regenerating replaces any existing seats for the affected room(s).
+        val roomIds = seats.map { it.roomId }.toSet()
+        this.seats.removeAll { it.roomId in roomIds }
+        val created = seats.map { it.copy(id = id()) }
+        this.seats += created
+        return Result.Success(created)
+    }
 
     override suspend fun getShowtimes(limit: Int, offset: Int): Result<List<Showtime>, DataError> =
         Result.Success(showtimes.drop(offset).take(limit))

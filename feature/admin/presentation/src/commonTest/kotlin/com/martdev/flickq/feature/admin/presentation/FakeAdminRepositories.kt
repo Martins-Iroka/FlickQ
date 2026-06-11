@@ -51,6 +51,7 @@ class FakeAdminCatalogRepository : AdminCatalogRepository {
     override suspend fun createRoom(room: Room): Result<Room, DataError> = Result.Success(room)
     override suspend fun updateRoom(room: Room): Result<Room, DataError> = Result.Success(room)
     override suspend fun deleteRoom(id: Long): EmptyResult<DataError> = Result.Success(Unit)
+    override suspend fun getSeats(roomId: Long): Result<List<Seat>, DataError> = Result.Success(emptyList())
     override suspend fun createSeats(seats: List<Seat>): Result<List<Seat>, DataError> = Result.Success(seats)
 
     override suspend fun getShowtimes(limit: Int, offset: Int): Result<List<Showtime>, DataError> = Result.Success(emptyList())

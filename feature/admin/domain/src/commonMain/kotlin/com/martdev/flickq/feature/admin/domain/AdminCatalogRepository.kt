@@ -36,6 +36,8 @@ interface AdminCatalogRepository {
     suspend fun createRoom(room: Room): Result<Room, DataError>
     suspend fun updateRoom(room: Room): Result<Room, DataError>
     suspend fun deleteRoom(id: Long): EmptyResult<DataError>
+    /** Existing seats for a room (reuses the public `/seat/get-seats-by-room-id` read endpoint). */
+    suspend fun getSeats(roomId: Long): Result<List<Seat>, DataError>
     /** Bulk-creates seats for a room (the only seat mutation the server exposes). */
     suspend fun createSeats(seats: List<Seat>): Result<List<Seat>, DataError>
 

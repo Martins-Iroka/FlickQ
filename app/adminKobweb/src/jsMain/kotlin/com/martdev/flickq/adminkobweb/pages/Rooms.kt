@@ -1,0 +1,831 @@
+package com.martdev.flickq.adminkobweb.pages
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.martdev.flickq.adminkobweb.components.AdminLayout
+import com.martdev.flickq.adminkobweb.components.AdminNav
+import com.martdev.flickq.adminkobweb.components.RequireAdmin
+import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
+import com.martdev.flickq.adminkobweb.theme.AdminColors
+import com.martdev.flickq.adminkobweb.theme.montserrat
+import com.martdev.flickq.core.presentation.UiText
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsAction
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsState
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.RoomDetail
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.RoomForm
+import com.martdev.flickq.room.model.Room
+import com.martdev.flickq.room.model.Seat
+import com.varabyte.kobweb.compose.css.Cursor
+import com.varabyte.kobweb.compose.css.FontWeight
+import com.varabyte.kobweb.compose.css.TextAlign
+import com.varabyte.kobweb.compose.foundation.layout.Arrangement
+import com.varabyte.kobweb.compose.foundation.layout.Box
+import com.varabyte.kobweb.compose.foundation.layout.Column
+import com.varabyte.kobweb.compose.foundation.layout.Row
+import com.varabyte.kobweb.compose.ui.Alignment
+import com.varabyte.kobweb.compose.ui.Modifier
+import com.varabyte.kobweb.compose.ui.graphics.Color
+import com.varabyte.kobweb.compose.ui.modifiers.backgroundColor
+import com.varabyte.kobweb.compose.ui.modifiers.border
+import com.varabyte.kobweb.compose.ui.modifiers.borderBottom
+import com.varabyte.kobweb.compose.ui.modifiers.borderRadius
+import com.varabyte.kobweb.compose.ui.modifiers.color
+import com.varabyte.kobweb.compose.ui.modifiers.cursor
+import com.varabyte.kobweb.compose.ui.modifiers.fillMaxWidth
+import com.varabyte.kobweb.compose.ui.modifiers.flexBasis
+import com.varabyte.kobweb.compose.ui.modifiers.flexGrow
+import com.varabyte.kobweb.compose.ui.modifiers.fontSize
+import com.varabyte.kobweb.compose.ui.modifiers.fontWeight
+import com.varabyte.kobweb.compose.ui.modifiers.height
+import com.varabyte.kobweb.compose.ui.modifiers.margin
+import com.varabyte.kobweb.compose.ui.modifiers.maxWidth
+import com.varabyte.kobweb.compose.ui.modifiers.minWidth
+import com.varabyte.kobweb.compose.ui.modifiers.onClick
+import com.varabyte.kobweb.compose.ui.modifiers.opacity
+import com.varabyte.kobweb.compose.ui.modifiers.padding
+import com.varabyte.kobweb.compose.ui.modifiers.size
+import com.varabyte.kobweb.compose.ui.modifiers.textAlign
+import com.varabyte.kobweb.compose.ui.modifiers.width
+import com.varabyte.kobweb.compose.ui.styleModifier
+import com.varabyte.kobweb.compose.ui.thenIf
+import com.varabyte.kobweb.silk.components.icons.fa.FaCheck
+import com.varabyte.kobweb.silk.components.icons.fa.FaDoorOpen
+import com.varabyte.kobweb.silk.components.icons.fa.FaPenToSquare
+import com.varabyte.kobweb.silk.components.icons.fa.FaPlus
+import com.varabyte.kobweb.silk.components.icons.fa.FaTrash
+import com.varabyte.kobweb.silk.components.text.SpanText
+import com.varabyte.kobweb.core.Page
+import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.css.LineStyle
+import org.jetbrains.compose.web.css.px
+import org.jetbrains.compose.web.dom.Input
+
+@Page
+@Composable
+fun RoomsPage() {
+    RequireAdmin {
+        AdminLayout(selected = AdminNav.Rooms, title = "Rooms") {
+            RoomsContent()
+        }
+    }
+}
+
+@Composable
+private fun RoomsContent() {
+    val vm = rememberAdminViewModel<AdminRoomsViewModel>()
+    val state by vm.state.collectAsState()
+    val onAction = vm::onAction
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        val form = state.form
+        val detail = state.detail
+        when {
+            form != null -> RoomFormView(state, form, onAction)
+            detail != null -> RoomDetailView(state, detail, onAction)
+            else -> RoomListView(state, onAction)
+        }
+        // Overlays sit above whichever view is showing.
+        state.deleting?.let { room -> DeleteConfirm(room, onAction) }
+        state.seatingFor?.let { room -> GenerateSeatsConfirm(room, onAction) }
+    }
+}
+
+// ---- List ---------------------------------------------------------------------------------
+
+@Composable
+private fun RoomListView(state: AdminRoomsState, onAction: (AdminRoomsAction) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().maxWidth(1280.px),
+        verticalArrangement = Arrangement.spacedBy(24.px),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            SpanText(
+                "Configure layout and seating capacity.",
+                Modifier.color(AdminColors.Body).fontSize(14.px),
+            )
+            PrimaryButton("Add Room") { onAction(AdminRoomsAction.OnAddClick) }
+        }
+
+        state.message?.let { msg ->
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .backgroundColor(AdminColors.SuccessWash)
+                    .border(1.px, LineStyle.Solid, AdminColors.Success)
+                    .borderRadius(8.px).padding(topBottom = 10.px, leftRight = 14.px),
+            ) {
+                SpanText(msg.plain(), Modifier.color(AdminColors.Success).fontSize(13.px))
+            }
+        }
+
+        val error = state.error
+        when {
+            state.isLoading -> StatusBox("Loading rooms…")
+            error != null -> ErrorBox(error) { onAction(AdminRoomsAction.OnRetry) }
+            state.rooms.isEmpty() -> StatusBox("No rooms yet. Tap “Add Room” to create one.")
+            else -> RoomTable(state, onAction)
+        }
+    }
+}
+
+@Composable
+private fun RoomTable(state: AdminRoomsState, onAction: (AdminRoomsAction) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(12.px),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .borderBottom(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+                .padding(topBottom = 16.px, leftRight = 20.px),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HeaderCell("Room Name", null)
+            HeaderCell("Layout", 140.px)
+            HeaderCell("Capacity", 120.px)
+            HeaderCell("Actions", 110.px)
+        }
+        state.rooms.forEach { room -> RoomRow(room, onAction) }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(topBottom = 16.px, leftRight = 20.px),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SpanText("Showing ${state.rooms.size} rooms", Modifier.color(AdminColors.Body).fontSize(13.px))
+        }
+    }
+}
+
+@Composable
+private fun RoomRow(room: Room, onAction: (AdminRoomsAction) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .borderBottom(1.px, LineStyle.Solid, AdminColors.Border)
+            .padding(topBottom = 12.px, leftRight = 20.px),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Cell(null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.px)) {
+                Box(
+                    modifier = Modifier.size(32.px).backgroundColor(AdminColors.Chip).borderRadius(8.px),
+                    contentAlignment = Alignment.Center,
+                ) { FaDoorOpen(Modifier.color(AdminColors.Body).fontSize(13.px)) }
+                SpanText(
+                    room.name,
+                    Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)
+                        .cursor(Cursor.Pointer).onClick { onAction(AdminRoomsAction.OnRoomClick(room)) },
+                )
+            }
+        }
+        Cell(140.px) {
+            SpanText("${room.rows} × ${room.columns}", Modifier.color(AdminColors.Body).fontSize(14.px))
+        }
+        Cell(120.px) {
+            SpanText("${room.rows * room.columns}", Modifier.color(AdminColors.Body).fontSize(14.px))
+        }
+        Cell(110.px) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.px), verticalAlignment = Alignment.CenterVertically) {
+                IconButton({ FaPenToSquare(it) }, AdminColors.Body) { onAction(AdminRoomsAction.OnEditClick(room)) }
+                IconButton({ FaTrash(it) }, AdminColors.Primary) { onAction(AdminRoomsAction.OnDeleteClick(room)) }
+            }
+        }
+    }
+}
+
+// ---- Create / Edit form (live preview) ----------------------------------------------------
+
+@Composable
+private fun RoomFormView(state: AdminRoomsState, form: RoomForm, onAction: (AdminRoomsAction) -> Unit) {
+    val editing = form.editingId != null
+    val rows = form.rows.toIntOrNull() ?: 0
+    val cols = form.columns.toIntOrNull() ?: 0
+    Column(
+        modifier = Modifier.fillMaxWidth().maxWidth(1280.px),
+        verticalArrangement = Arrangement.spacedBy(24.px),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.px)) {
+                SpanText(
+                    if (editing) "Edit Room" else "Create New Room",
+                    Modifier.montserrat().color(AdminColors.Heading).fontSize(30.px).fontWeight(FontWeight.Bold),
+                )
+                SpanText("Configure layout and seating capacity.", Modifier.color(AdminColors.Body).fontSize(14.px))
+            }
+            SecondaryButtonInline("← Back to Rooms") { onAction(AdminRoomsAction.OnDismissDialog) }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.px)) {
+            // Left: configuration.
+            Column(modifier = Modifier.flexGrow(1).flexBasis(0.px).minWidth(320.px)) {
+                FormCard("Room Configuration", { FaDoorOpen(it) }) {
+                    FieldLabel("ROOM NAME")
+                    TextField(form.name, "e.g., Theater 1 (IMAX)") { onAction(AdminRoomsAction.OnNameChange(it)) }
+                    Row(modifier = Modifier.fillMaxWidth().margin(top = 8.px), horizontalArrangement = Arrangement.spacedBy(16.px)) {
+                        Column(modifier = Modifier.flexGrow(1).flexBasis(0.px), verticalArrangement = Arrangement.spacedBy(8.px)) {
+                            FieldLabel("ROWS")
+                            TextField(form.rows, "10") { onAction(AdminRoomsAction.OnRowsChange(it)) }
+                        }
+                        Column(modifier = Modifier.flexGrow(1).flexBasis(0.px), verticalArrangement = Arrangement.spacedBy(8.px)) {
+                            FieldLabel("COLUMNS")
+                            TextField(form.columns, "12") { onAction(AdminRoomsAction.OnColumnsChange(it)) }
+                        }
+                    }
+                    // Total capacity.
+                    Row(
+                        modifier = Modifier.fillMaxWidth().margin(top = 8.px)
+                            .backgroundColor(AdminColors.Surface)
+                            .border(1.px, LineStyle.Solid, AdminColors.Border).borderRadius(8.px)
+                            .padding(topBottom = 14.px, leftRight = 16.px),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        SpanText("Total Capacity", Modifier.color(AdminColors.Body).fontSize(14.px))
+                        SpanText("${rows * cols}", Modifier.color(AdminColors.BodyStrong).fontSize(20.px).fontWeight(FontWeight.Bold))
+                    }
+                    state.dialogError?.let {
+                        SpanText(it.plain(), Modifier.color(AdminColors.Primary).fontSize(13.px).margin(top = 4.px))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().margin(top = 8.px),
+                        horizontalArrangement = Arrangement.spacedBy(12.px),
+                    ) {
+                        SecondaryButtonInline("Cancel") { onAction(AdminRoomsAction.OnDismissDialog) }
+                        SaveButton(
+                            label = if (state.isSaving) "Saving…" else "Save Room",
+                            enabled = form.isValid && !state.isSaving,
+                        ) { onAction(AdminRoomsAction.OnSave) }
+                    }
+                }
+            }
+            // Right: live preview.
+            Column(modifier = Modifier.flexGrow(2).flexBasis(0.px).minWidth(360.px)) {
+                LayoutPreviewCard(rows, cols)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LayoutPreviewCard(rows: Int, cols: Int) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(12.px).padding(24.px),
+        verticalArrangement = Arrangement.spacedBy(20.px),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.px)) {
+                FaDoorOpen(Modifier.color(AdminColors.Primary).fontSize(16.px))
+                SpanText("Live Layout Preview", Modifier.montserrat().color(AdminColors.Heading).fontSize(18.px).fontWeight(FontWeight.SemiBold))
+            }
+            LegendDot("Available", AdminColors.Chip)
+        }
+        ScreenBar()
+        if (rows in 1..40 && cols in 1..40) {
+            SeatGridPreview(rows, cols)
+        } else {
+            Box(modifier = Modifier.fillMaxWidth().height(200.px), contentAlignment = Alignment.Center) {
+                SpanText(
+                    if (rows <= 0 || cols <= 0) "Enter rows and columns to preview the layout."
+                    else "Layout too large to preview (max 40 × 40).",
+                    Modifier.color(AdminColors.Muted).fontSize(13.px),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeatGridPreview(rows: Int, cols: Int) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .backgroundColor(AdminColors.BgDeep).borderRadius(12.px).padding(20.px),
+        verticalArrangement = Arrangement.spacedBy(6.px),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        repeat(rows) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.px)) {
+                repeat(cols) {
+                    Box(modifier = Modifier.size(18.px).backgroundColor(AdminColors.Chip).borderRadius(4.px))
+                }
+            }
+        }
+    }
+}
+
+// ---- Detail (seat map + inventory) --------------------------------------------------------
+
+@Composable
+private fun RoomDetailView(state: AdminRoomsState, detail: RoomDetail, onAction: (AdminRoomsAction) -> Unit) {
+    val room = detail.room
+    Column(
+        modifier = Modifier.fillMaxWidth().maxWidth(1280.px),
+        verticalArrangement = Arrangement.spacedBy(20.px),
+    ) {
+        SpanText(
+            "← Back to Rooms",
+            Modifier.color(AdminColors.Body).fontSize(13.px).fontWeight(FontWeight.SemiBold)
+                .cursor(Cursor.Pointer).onClick { onAction(AdminRoomsAction.OnCloseDetail) },
+        )
+        // Header.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.px)) {
+                SpanText(room.name, Modifier.montserrat().color(AdminColors.Heading).fontSize(30.px).fontWeight(FontWeight.Bold))
+                SpanText("Room ID: RM-${room.id} • Standard Configuration", Modifier.color(AdminColors.Body).fontSize(14.px))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.px)) {
+                SecondaryButtonInline("Edit Room") { onAction(AdminRoomsAction.OnEditClick(room)) }
+                PrimaryButtonPlain("Generate Seats") { onAction(AdminRoomsAction.OnGenerateSeatsClick(room)) }
+            }
+        }
+
+        state.message?.let { msg ->
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .backgroundColor(AdminColors.SuccessWash)
+                    .border(1.px, LineStyle.Solid, AdminColors.Success)
+                    .borderRadius(8.px).padding(topBottom = 10.px, leftRight = 14.px),
+            ) { SpanText(msg.plain(), Modifier.color(AdminColors.Success).fontSize(13.px)) }
+        }
+
+        // Stat cards.
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.px)) {
+            StatCard("TOTAL ROWS", "${room.rows}")
+            StatCard("COLUMNS", "${room.columns}")
+            StatCard("TOTAL CAPACITY", "${room.rows * room.columns}")
+            StatusCard(detail)
+        }
+
+        // Seat map.
+        SeatMapCard(detail, onAction)
+
+        // Inventory.
+        SeatInventoryCard(detail)
+    }
+}
+
+@Composable
+private fun StatCard(label: String, value: String) {
+    Column(
+        modifier = Modifier.flexGrow(1).flexBasis(0.px)
+            .backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(12.px).padding(20.px),
+        verticalArrangement = Arrangement.spacedBy(8.px),
+    ) {
+        SpanText(label, Modifier.color(AdminColors.Muted).fontSize(11.px).fontWeight(FontWeight.SemiBold))
+        SpanText(value, Modifier.montserrat().color(AdminColors.BodyStrong).fontSize(28.px).fontWeight(FontWeight.Bold))
+    }
+}
+
+@Composable
+private fun StatusCard(detail: RoomDetail) {
+    Column(
+        modifier = Modifier.flexGrow(1).flexBasis(0.px)
+            .backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(12.px).padding(20.px),
+        verticalArrangement = Arrangement.spacedBy(8.px),
+    ) {
+        SpanText("STATUS", Modifier.color(AdminColors.Muted).fontSize(11.px).fontWeight(FontWeight.SemiBold))
+        val (label, tint) = when {
+            detail.isLoadingSeats -> "Loading…" to AdminColors.Muted
+            detail.hasSeats -> "Seats Generated" to AdminColors.Success
+            else -> "No Seats" to AdminColors.Amber
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.px), modifier = Modifier.margin(top = 6.px)) {
+            Box(Modifier.size(9.px).backgroundColor(tint).borderRadius(9999.px))
+            SpanText(label, Modifier.color(tint).fontSize(16.px).fontWeight(FontWeight.SemiBold))
+        }
+    }
+}
+
+@Composable
+private fun SeatMapCard(detail: RoomDetail, onAction: (AdminRoomsAction) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(12.px).padding(24.px),
+        verticalArrangement = Arrangement.spacedBy(20.px),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        ScreenBar()
+        val seatsError = detail.seatsError
+        when {
+            detail.isLoadingSeats -> StatusBox("Loading seats…")
+            seatsError != null -> ErrorBox(seatsError) { onAction(AdminRoomsAction.OnRetrySeats) }
+            detail.seats.isEmpty() -> Box(modifier = Modifier.fillMaxWidth().padding(32.px), contentAlignment = Alignment.Center) {
+                SpanText("No seats generated yet. Use “Generate Seats” to build the layout.", Modifier.color(AdminColors.Muted).fontSize(14.px))
+            }
+            else -> SeatMapGrid(detail.seats)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(24.px), verticalAlignment = Alignment.CenterVertically) {
+            LegendDot("Standard Seat", AdminColors.Chip)
+        }
+    }
+}
+
+@Composable
+private fun SeatMapGrid(seats: List<Seat>) {
+    // Group by row label, preserving generation order; sort seats within a row by number.
+    val byRow = seats.groupBy { it.rowLabel }
+    Column(verticalArrangement = Arrangement.spacedBy(8.px)) {
+        byRow.forEach { (label, rowSeats) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.px)) {
+                RowLabelBox(label)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.px)) {
+                    rowSeats.sortedBy { it.seatNumber }.forEach { seat -> SeatCell(seat.seatNumber) }
+                }
+                RowLabelBox(label)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowLabelBox(label: String) {
+    Box(modifier = Modifier.width(24.px), contentAlignment = Alignment.Center) {
+        SpanText(label, Modifier.color(AdminColors.Body).fontSize(13.px).fontWeight(FontWeight.SemiBold))
+    }
+}
+
+@Composable
+private fun SeatCell(number: Int) {
+    Box(
+        modifier = Modifier.size(26.px).backgroundColor(AdminColors.Chip).borderRadius(5.px),
+        contentAlignment = Alignment.Center,
+    ) {
+        SpanText("$number", Modifier.color(AdminColors.Muted).fontSize(10.px))
+    }
+}
+
+@Composable
+private fun SeatInventoryCard(detail: RoomDetail) {
+    if (detail.isLoadingSeats || detail.seats.isEmpty()) return
+
+    var query by remember { mutableStateOf("") }
+    var page by remember { mutableStateOf(0) }
+    val pageSize = 10
+
+    val filtered = remember(query, detail.seats) {
+        if (query.isBlank()) detail.seats
+        else detail.seats.filter { seat ->
+            val code = seatCode(seat)
+            query.lowercase() in code.lowercase() ||
+                query in seat.seatNumber.toString() ||
+                query.lowercase() in seat.rowLabel.lowercase()
+        }
+    }
+    val total = filtered.size
+    val lastPage = if (total == 0) 0 else (total - 1) / pageSize
+    val safePage = page.coerceIn(0, lastPage)
+    val start = safePage * pageSize
+    val visible = filtered.drop(start).take(pageSize)
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(12.px),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .borderBottom(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+                .padding(topBottom = 16.px, leftRight = 20.px),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            SpanText("Seat Inventory Reference", Modifier.montserrat().color(AdminColors.Heading).fontSize(18.px).fontWeight(FontWeight.SemiBold))
+            Box(modifier = Modifier.width(240.px)) {
+                Input(type = InputType.Text) {
+                    value(query)
+                    attr("placeholder", "Search seats…")
+                    attr("style", FIELD_CSS)
+                    onInput { query = it.value; page = 0 }
+                }
+            }
+        }
+        // Column header.
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .borderBottom(1.px, LineStyle.Solid, AdminColors.Border)
+                .padding(topBottom = 12.px, leftRight = 20.px),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HeaderCell("Row", 120.px)
+            HeaderCell("Seat Number", null)
+            HeaderCell("Seat Code", null)
+            HeaderCell("Type", null)
+            HeaderCell("Status", 120.px)
+        }
+        visible.forEach { seat -> SeatInventoryRow(seat) }
+        // Footer / pagination.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(topBottom = 16.px, leftRight = 20.px),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            val from = if (total == 0) 0 else start + 1
+            val to = start + visible.size
+            SpanText("Showing $from to $to of $total entries", Modifier.color(AdminColors.Body).fontSize(13.px))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.px), verticalAlignment = Alignment.CenterVertically) {
+                PagerButton("Prev", enabled = safePage > 0) { page = safePage - 1 }
+                SpanText("${safePage + 1} / ${lastPage + 1}", Modifier.color(AdminColors.Body).fontSize(13.px))
+                PagerButton("Next", enabled = safePage < lastPage) { page = safePage + 1 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeatInventoryRow(seat: Seat) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .borderBottom(1.px, LineStyle.Solid, AdminColors.Border)
+            .padding(topBottom = 12.px, leftRight = 20.px),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Cell(120.px) { SpanText(seat.rowLabel, Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
+        Cell(null) { SpanText("${seat.seatNumber}", Modifier.color(AdminColors.Body).fontSize(14.px)) }
+        Cell(null) { SpanText(seatCode(seat), Modifier.color(AdminColors.Body).fontSize(14.px)) }
+        Cell(null) { SpanText("Standard", Modifier.color(AdminColors.Body).fontSize(14.px)) }
+        Cell(120.px) {
+            Row(
+                modifier = Modifier.backgroundColor(AdminColors.SuccessChip).borderRadius(9999.px).padding(topBottom = 3.px, leftRight = 10.px),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SpanText("Active", Modifier.color(AdminColors.Success).fontSize(12.px).fontWeight(FontWeight.SemiBold))
+            }
+        }
+    }
+}
+
+// ---- Confirm overlays ---------------------------------------------------------------------
+
+@Composable
+private fun DeleteConfirm(room: Room, onAction: (AdminRoomsAction) -> Unit) {
+    Overlay {
+        SpanText("Delete room", Modifier.montserrat().color(AdminColors.Heading).fontSize(20.px).fontWeight(FontWeight.Bold))
+        SpanText(
+            "“${room.name}” will be removed. Rooms with scheduled showtimes can't be deleted.",
+            Modifier.color(AdminColors.Body).fontSize(14.px),
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.px)) {
+            Box(modifier = Modifier.flexGrow(1)) { SecondaryButton("Cancel") { onAction(AdminRoomsAction.OnDismissDelete) } }
+            Box(modifier = Modifier.flexGrow(1)) { PrimaryButton("Delete") { onAction(AdminRoomsAction.OnConfirmDelete) } }
+        }
+    }
+}
+
+@Composable
+private fun GenerateSeatsConfirm(room: Room, onAction: (AdminRoomsAction) -> Unit) {
+    Overlay {
+        SpanText("Generate seats", Modifier.montserrat().color(AdminColors.Heading).fontSize(20.px).fontWeight(FontWeight.Bold))
+        SpanText(
+            "This creates ${room.rows * room.columns} seats (${room.rows} × ${room.columns}) for “${room.name}”. Existing seats are replaced.",
+            Modifier.color(AdminColors.Body).fontSize(14.px),
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.px)) {
+            Box(modifier = Modifier.flexGrow(1)) { SecondaryButton("Cancel") { onAction(AdminRoomsAction.OnDismissGenerateSeats) } }
+            Box(modifier = Modifier.flexGrow(1)) { PrimaryButtonPlain("Generate") { onAction(AdminRoomsAction.OnConfirmGenerateSeats) } }
+        }
+    }
+}
+
+@Composable
+private fun Overlay(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .styleModifier {
+                property("position", "fixed")
+                property("inset", "0")
+                property("background", "rgba(1,15,31,0.7)")
+                property("z-index", "50")
+            }
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.maxWidth(440.px).fillMaxWidth()
+                .backgroundColor(AdminColors.SurfaceAlt)
+                .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+                .borderRadius(12.px).padding(24.px),
+            verticalArrangement = Arrangement.spacedBy(16.px),
+        ) { content() }
+    }
+}
+
+// ---- Shared bits --------------------------------------------------------------------------
+
+private typealias RoomCellWidth = org.jetbrains.compose.web.css.CSSNumericValue<out org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage>
+
+@Composable
+private fun HeaderCell(text: String, width: RoomCellWidth?) {
+    Cell(width) { SpanText(text, Modifier.color(AdminColors.Muted).fontSize(12.px).fontWeight(FontWeight.SemiBold)) }
+}
+
+@Composable
+private fun Cell(width: RoomCellWidth?, content: @Composable () -> Unit) {
+    val mod = if (width != null) Modifier.width(width) else Modifier.flexGrow(1).flexBasis(0.px)
+    Box(modifier = mod) { content() }
+}
+
+@Composable
+private fun ScreenBar() {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.px)) {
+        Box(
+            modifier = Modifier.fillMaxWidth().maxWidth(640.px).height(8.px)
+                .styleModifier {
+                    property("background", "linear-gradient(90deg, rgba(229,9,20,0) 0%, rgba(229,9,20,0.6) 50%, rgba(229,9,20,0) 100%)")
+                    property("border-radius", "9999px")
+                },
+        )
+        SpanText("SCREEN", Modifier.color(AdminColors.Muted).fontSize(11.px).fontWeight(FontWeight.SemiBold))
+    }
+}
+
+@Composable
+private fun LegendDot(label: String, fill: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.px)) {
+        Box(Modifier.size(14.px).backgroundColor(fill).borderRadius(4.px))
+        SpanText(label, Modifier.color(AdminColors.Body).fontSize(12.px))
+    }
+}
+
+@Composable
+private fun IconButton(icon: @Composable (Modifier) -> Unit, tint: Color, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.size(30.px).backgroundColor(AdminColors.Chip).borderRadius(8.px)
+            .cursor(Cursor.Pointer).onClick { onClick() },
+        contentAlignment = Alignment.Center,
+    ) { icon(Modifier.color(tint).fontSize(13.px)) }
+}
+
+@Composable
+private fun FormCard(title: String, icon: @Composable (Modifier) -> Unit, body: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(12.px).padding(24.px),
+        verticalArrangement = Arrangement.spacedBy(14.px),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().borderBottom(1.px, LineStyle.Solid, AdminColors.Border).padding(bottom = 14.px),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.px),
+        ) {
+            icon(Modifier.color(AdminColors.Primary).fontSize(16.px))
+            SpanText(title, Modifier.montserrat().color(AdminColors.Heading).fontSize(18.px).fontWeight(FontWeight.SemiBold))
+        }
+        body()
+    }
+}
+
+@Composable
+private fun FieldLabel(text: String) {
+    SpanText(text, Modifier.color(AdminColors.Muted).fontSize(11.px).fontWeight(FontWeight.SemiBold))
+}
+
+@Composable
+private fun TextField(value: String, placeholder: String, onValue: (String) -> Unit) {
+    Input(type = InputType.Text) {
+        value(value)
+        attr("placeholder", placeholder)
+        attr("style", FIELD_CSS)
+        onInput { onValue(it.value) }
+    }
+}
+
+@Composable
+private fun PrimaryButton(label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.backgroundColor(AdminColors.Primary).color(AdminColors.OnPrimary)
+            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
+            .cursor(Cursor.Pointer).onClick { onClick() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.px),
+    ) {
+        FaPlus(Modifier.color(AdminColors.OnPrimary).fontSize(13.px))
+        SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold))
+    }
+}
+
+/** Primary CTA without the leading plus icon (Generate, etc.). */
+@Composable
+private fun PrimaryButtonPlain(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.backgroundColor(AdminColors.Primary).color(AdminColors.OnPrimary)
+            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
+            .cursor(Cursor.Pointer).onClick { onClick() },
+        contentAlignment = Alignment.Center,
+    ) { SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
+}
+
+@Composable
+private fun SaveButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.backgroundColor(AdminColors.Primary).color(AdminColors.OnPrimary)
+            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
+            .thenIf(!enabled) { Modifier.opacity(0.5) }
+            .cursor(Cursor.Pointer)
+            .thenIf(enabled) { Modifier.onClick { onClick() } },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.px),
+    ) {
+        FaCheck(Modifier.color(AdminColors.OnPrimary).fontSize(13.px))
+        SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold))
+    }
+}
+
+@Composable
+private fun SecondaryButton(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.Chip)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
+            .cursor(Cursor.Pointer).onClick { onClick() },
+        contentAlignment = Alignment.Center,
+    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
+}
+
+/** Secondary button that hugs its label (for headers / inline rows). */
+@Composable
+private fun SecondaryButtonInline(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.backgroundColor(AdminColors.Chip)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
+            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
+            .cursor(Cursor.Pointer).onClick { onClick() },
+        contentAlignment = Alignment.Center,
+    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
+}
+
+@Composable
+private fun PagerButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.backgroundColor(AdminColors.Chip)
+            .border(1.px, LineStyle.Solid, AdminColors.Border)
+            .borderRadius(6.px).padding(topBottom = 6.px, leftRight = 12.px)
+            .thenIf(!enabled) { Modifier.opacity(0.4) }
+            .thenIf(enabled) { Modifier.cursor(Cursor.Pointer).onClick { onClick() } },
+        contentAlignment = Alignment.Center,
+    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(13.px)) }
+}
+
+@Composable
+private fun StatusBox(message: String) {
+    Box(modifier = Modifier.fillMaxWidth().padding(48.px), contentAlignment = Alignment.Center) {
+        SpanText(message, Modifier.color(AdminColors.Muted).fontSize(16.px).textAlign(TextAlign.Center))
+    }
+}
+
+@Composable
+private fun ErrorBox(error: UiText, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.SurfaceAlt)
+            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(12.px).padding(32.px),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.px),
+    ) {
+        SpanText(error.plain(), Modifier.color(AdminColors.Body).fontSize(14.px))
+        Box(modifier = Modifier.width(140.px)) { SecondaryButton("Retry", onRetry) }
+    }
+}
+
+// ---- helpers ------------------------------------------------------------------------------
+
+private fun seatCode(seat: Seat): String = "${seat.rowLabel}-${seat.seatNumber.toString().padStart(2, '0')}"
+
+private fun UiText.plain(): String = when (this) {
+    is UiText.DynamicString -> value
+}
+
+private const val FIELD_CSS =
+    "width:100%;box-sizing:border-box;background-color:#16273a;border:1px solid #30435a;" +
+        "border-radius:8px;padding:11px 13px;color:#e9bcb6;font-family:Inter,system-ui,sans-serif;" +
+        "font-size:14px;outline:none;"
