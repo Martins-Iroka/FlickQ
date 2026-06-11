@@ -29,6 +29,9 @@ import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.FlickQFormDialog
 import com.martdev.flickq.core.designsystem.FlickQTextField
 import com.martdev.flickq.core.designsystem.RowAction
+import com.martdev.flickq.feature.admin.presentation.logic.showtimes.AdminShowtimesAction
+import com.martdev.flickq.feature.admin.presentation.logic.showtimes.AdminShowtimesState
+import com.martdev.flickq.feature.admin.presentation.logic.showtimes.AdminShowtimesViewModel
 import com.martdev.flickq.showtime.model.ShowtimeStatus
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -61,9 +64,10 @@ fun AdminShowtimesScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
+            val error = state.error
             when {
                 state.isLoading -> AdminLoading()
-                state.error != null -> AdminError(message = state.error.asString(), onRetry = { onAction(AdminShowtimesAction.OnRetry) })
+                error != null -> AdminError(message = error.asString(), onRetry = { onAction(AdminShowtimesAction.OnRetry) })
                 state.showtimes.isEmpty() -> AdminEmpty(message = "No showtimes yet. Tap “+ Add” to schedule one.", modifier = Modifier.padding(24.dp))
                 else -> DataTable(
                     items = state.showtimes,
