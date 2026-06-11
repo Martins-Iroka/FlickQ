@@ -6,6 +6,8 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isTrue
 import com.martdev.flickq.feature.admin.presentation.FakeAdminCatalogRepository
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesAction
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesViewModel
 import com.martdev.flickq.movie.model.Movie
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

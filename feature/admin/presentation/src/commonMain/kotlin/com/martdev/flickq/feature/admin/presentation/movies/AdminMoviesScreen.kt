@@ -32,6 +32,9 @@ import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.FlickQFormDialog
 import com.martdev.flickq.core.designsystem.FlickQTextField
 import com.martdev.flickq.core.designsystem.RowAction
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesAction
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesState
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -54,9 +57,10 @@ fun AdminMoviesScreen(
         onBack = onBack,
         actions = { RowAction(label = "+ Add", onClick = { onAction(AdminMoviesAction.OnAddClick) }) },
     ) {
+        val error = state.error
         when {
             state.isLoading -> AdminLoading()
-            state.error != null -> AdminError(message = state.error.asString(), onRetry = { onAction(AdminMoviesAction.OnRetry) })
+            error != null -> AdminError(message = error.asString(), onRetry = { onAction(AdminMoviesAction.OnRetry) })
             state.movies.isEmpty() -> AdminEmpty(message = "No movies yet. Tap “+ Add” to create one.", modifier = Modifier.padding(24.dp))
             else -> DataTable(
                 items = state.movies,

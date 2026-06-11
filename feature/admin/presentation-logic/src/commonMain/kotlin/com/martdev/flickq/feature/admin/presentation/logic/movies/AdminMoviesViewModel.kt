@@ -1,4 +1,4 @@
-package com.martdev.flickq.feature.admin.presentation.movies
+package com.martdev.flickq.feature.admin.presentation.logic.movies
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

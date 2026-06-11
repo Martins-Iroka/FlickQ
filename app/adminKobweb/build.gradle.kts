@@ -54,6 +54,9 @@ kotlin {
             // lifecycle-viewmodel-compose). ViewModels are obtained via KoinPlatform.getKoin().
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.koin.core)
+            // Movie/Showtime models expose kotlinx-datetime types (LocalDate); core.domain pulls it
+            // via `implementation` so it doesn't leak to us — declare it directly for formatting.
+            implementation(libs.kotlin.datetime)
         }
     }
 }
