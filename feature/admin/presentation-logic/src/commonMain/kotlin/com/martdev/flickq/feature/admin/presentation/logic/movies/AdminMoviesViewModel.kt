@@ -43,6 +43,9 @@ data class AdminMoviesState(
     val isSaving: Boolean = false,
     val dialogError: UiText? = null,
     val deleting: Movie? = null,
+    // Non-null when the inline "add genre" input is open; holds its current text.
+    val newGenre: String? = null,
+    val isSavingGenre: Boolean = false,
 ) {
     val canLoadMore: Boolean get() = !isLoading && !isLoadingMore && !endReached && error == null
 }
@@ -58,6 +61,10 @@ sealed interface AdminMoviesAction {
     data class OnDurationChange(val value: String) : AdminMoviesAction
     data class OnReleasedDateChange(val value: String) : AdminMoviesAction
     data class OnToggleGenre(val genreId: Long) : AdminMoviesAction
+    data object OnAddGenreClick : AdminMoviesAction
+    data class OnNewGenreChange(val value: String) : AdminMoviesAction
+    data object OnSubmitGenre : AdminMoviesAction
+    data object OnCancelGenre : AdminMoviesAction
     data object OnSave : AdminMoviesAction
     data object OnDismissDialog : AdminMoviesAction
     data class OnDeleteClick(val movie: Movie) : AdminMoviesAction
@@ -78,7 +85,7 @@ class AdminMoviesViewModel(
         when (action) {
             AdminMoviesAction.OnRetry -> load()
             AdminMoviesAction.OnLoadMore -> loadMore()
-            AdminMoviesAction.OnAddClick -> _state.update { it.copy(form = MovieForm(), dialogError = null) }
+            AdminMoviesAction.OnAddClick -> _state.update { it.copy(form = MovieForm(), dialogError = null, newGenre = null) }
             is AdminMoviesAction.OnEditClick -> openEdit(action.movie.id)
             is AdminMoviesAction.OnTitleChange -> updateForm { it.copy(title = action.value) }
             is AdminMoviesAction.OnDescriptionChange -> updateForm { it.copy(description = action.value) }
@@ -88,8 +95,12 @@ class AdminMoviesViewModel(
             is AdminMoviesAction.OnToggleGenre -> updateForm { form ->
                 form.copy(genreIds = if (action.genreId in form.genreIds) form.genreIds - action.genreId else form.genreIds + action.genreId)
             }
+            AdminMoviesAction.OnAddGenreClick -> _state.update { it.copy(newGenre = "", dialogError = null) }
+            is AdminMoviesAction.OnNewGenreChange -> _state.update { it.copy(newGenre = action.value) }
+            AdminMoviesAction.OnSubmitGenre -> submitGenre()
+            AdminMoviesAction.OnCancelGenre -> _state.update { it.copy(newGenre = null) }
             AdminMoviesAction.OnSave -> save()
-            AdminMoviesAction.OnDismissDialog -> _state.update { it.copy(form = null, dialogError = null) }
+            AdminMoviesAction.OnDismissDialog -> _state.update { it.copy(form = null, dialogError = null, newGenre = null, isSavingGenre = false) }
             is AdminMoviesAction.OnDeleteClick -> _state.update { it.copy(deleting = action.movie) }
             AdminMoviesAction.OnConfirmDelete -> delete()
             AdminMoviesAction.OnDismissDelete -> _state.update { it.copy(deleting = null) }
@@ -158,6 +169,7 @@ class AdminMoviesViewModel(
                                 genreIds = movie.genres.map { g -> g.id }.toSet(),
                             ),
                             dialogError = null,
+                            newGenre = null,
                         )
                     }
                 }
@@ -186,6 +198,37 @@ class AdminMoviesViewModel(
                     load()
                 }
                 .onFailure { error, message -> _state.update { it.copy(isSaving = false, dialogError = resolveErrorText(message, error.toUiText())) } }
+        }
+    }
+
+    /**
+     * Creates a genre inline, then refetches the list to learn its server-assigned id and
+     * auto-selects it on the open form. [createGenre] returns no body, so we match by name.
+     */
+    private fun submitGenre() {
+        val name = _state.value.newGenre?.trim().orEmpty()
+        if (name.isBlank() || _state.value.isSavingGenre) return
+        viewModelScope.launch {
+            _state.update { it.copy(isSavingGenre = true, dialogError = null) }
+            catalog.createGenre(Genre(name = name))
+                .onSuccess {
+                    catalog.getGenres()
+                        .onSuccess { genres ->
+                            val created = genres.firstOrNull { it.name.equals(name, ignoreCase = true) }
+                            _state.update { s ->
+                                s.copy(
+                                    genres = genres,
+                                    isSavingGenre = false,
+                                    newGenre = null,
+                                    form = s.form?.let { f ->
+                                        if (created != null) f.copy(genreIds = f.genreIds + created.id) else f
+                                    },
+                                )
+                            }
+                        }
+                        .onFailure { error, message -> _state.update { it.copy(isSavingGenre = false, newGenre = null, dialogError = resolveErrorText(message, error.toUiText())) } }
+                }
+                .onFailure { error, message -> _state.update { it.copy(isSavingGenre = false, dialogError = resolveErrorText(message, error.toUiText())) } }
         }
     }
 

@@ -279,9 +279,15 @@ private fun MovieFormView(state: AdminMoviesState, form: MovieForm, onAction: (A
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         FieldLabel("GENRES")
-                        SpanText("Select multiple", Modifier.color(AdminColors.Muted).fontSize(12.px))
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.px)) {
+                            SpanText("Select multiple", Modifier.color(AdminColors.Muted).fontSize(12.px))
+                            AddGenreLink { onAction(AdminMoviesAction.OnAddGenreClick) }
+                        }
                     }
                     GenrePicker(state.genres, form.genreIds) { onAction(AdminMoviesAction.OnToggleGenre(it)) }
+                    state.newGenre?.let { name ->
+                        NewGenreRow(name, state.isSavingGenre, onAction)
+                    }
                 }
             }
             // Right column.
@@ -318,6 +324,46 @@ private fun GenrePicker(all: List<Genre>, selected: Set<Long>, onToggle: (Long) 
                 SpanText("No genres available.", Modifier.color(AdminColors.Muted).fontSize(13.px))
             }
         }
+    }
+}
+
+@Composable
+private fun AddGenreLink(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.cursor(Cursor.Pointer).onClick { onClick() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.px),
+    ) {
+        FaPlus(Modifier.color(AdminColors.Primary).fontSize(10.px))
+        SpanText("Add Genre", Modifier.color(AdminColors.Primary).fontSize(12.px).fontWeight(FontWeight.SemiBold))
+    }
+}
+
+@Composable
+private fun NewGenreRow(value: String, saving: Boolean, onAction: (AdminMoviesAction) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().margin(top = 8.px),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.px),
+    ) {
+        Box(modifier = Modifier.flexGrow(1)) {
+            Input(type = InputType.Text) {
+                value(value)
+                attr("placeholder", "New genre name")
+                attr("style", FIELD_CSS)
+                onInput { onAction(AdminMoviesAction.OnNewGenreChange(it.value)) }
+            }
+        }
+        SaveButton(
+            label = if (saving) "Adding…" else "Add",
+            enabled = value.isNotBlank() && !saving,
+        ) { onAction(AdminMoviesAction.OnSubmitGenre) }
+        SpanText(
+            "Cancel",
+            Modifier.color(AdminColors.Body).fontSize(14.px).fontWeight(FontWeight.SemiBold)
+                .cursor(Cursor.Pointer).padding(leftRight = 8.px)
+                .onClick { onAction(AdminMoviesAction.OnCancelGenre) },
+        )
     }
 }
 
