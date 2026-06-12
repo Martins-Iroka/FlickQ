@@ -8,11 +8,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.martdev.flickq.adminkobweb.components.AdminLayout
 import com.martdev.flickq.adminkobweb.components.AdminNav
+import com.martdev.flickq.adminkobweb.components.Cell
+import com.martdev.flickq.adminkobweb.components.ErrorBox
+import com.martdev.flickq.adminkobweb.components.FIELD_CSS
+import com.martdev.flickq.adminkobweb.components.FieldLabel
+import com.martdev.flickq.adminkobweb.components.FormCard
+import com.martdev.flickq.adminkobweb.components.HeaderCell
+import com.martdev.flickq.adminkobweb.components.IconButton
+import com.martdev.flickq.adminkobweb.components.Overlay
+import com.martdev.flickq.adminkobweb.components.PagerButton
+import com.martdev.flickq.adminkobweb.components.PrimaryButton
+import com.martdev.flickq.adminkobweb.components.PrimaryButtonPlain
 import com.martdev.flickq.adminkobweb.components.RequireAdmin
+import com.martdev.flickq.adminkobweb.components.SaveButton
+import com.martdev.flickq.adminkobweb.components.SecondaryButton
+import com.martdev.flickq.adminkobweb.components.SecondaryButtonInline
+import com.martdev.flickq.adminkobweb.components.StatusBox
+import com.martdev.flickq.adminkobweb.components.TextField
+import com.martdev.flickq.adminkobweb.components.plain
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
-import com.martdev.flickq.core.presentation.UiText
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsAction
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsState
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsViewModel
@@ -22,7 +38,6 @@ import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.room.model.Seat
 import com.varabyte.kobweb.compose.css.Cursor
 import com.varabyte.kobweb.compose.css.FontWeight
-import com.varabyte.kobweb.compose.css.TextAlign
 import com.varabyte.kobweb.compose.foundation.layout.Arrangement
 import com.varabyte.kobweb.compose.foundation.layout.Box
 import com.varabyte.kobweb.compose.foundation.layout.Column
@@ -46,17 +61,12 @@ import com.varabyte.kobweb.compose.ui.modifiers.margin
 import com.varabyte.kobweb.compose.ui.modifiers.maxWidth
 import com.varabyte.kobweb.compose.ui.modifiers.minWidth
 import com.varabyte.kobweb.compose.ui.modifiers.onClick
-import com.varabyte.kobweb.compose.ui.modifiers.opacity
 import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.compose.ui.modifiers.size
-import com.varabyte.kobweb.compose.ui.modifiers.textAlign
 import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
-import com.varabyte.kobweb.compose.ui.thenIf
-import com.varabyte.kobweb.silk.components.icons.fa.FaCheck
 import com.varabyte.kobweb.silk.components.icons.fa.FaDoorOpen
 import com.varabyte.kobweb.silk.components.icons.fa.FaPenToSquare
-import com.varabyte.kobweb.silk.components.icons.fa.FaPlus
 import com.varabyte.kobweb.silk.components.icons.fa.FaTrash
 import com.varabyte.kobweb.silk.components.text.SpanText
 import com.varabyte.kobweb.core.Page
@@ -616,43 +626,7 @@ private fun GenerateSeatsConfirm(room: Room, onAction: (AdminRoomsAction) -> Uni
     }
 }
 
-@Composable
-private fun Overlay(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .styleModifier {
-                property("position", "fixed")
-                property("inset", "0")
-                property("background", "rgba(1,15,31,0.7)")
-                property("z-index", "50")
-            }
-            .fillMaxWidth(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier.maxWidth(440.px).fillMaxWidth()
-                .backgroundColor(AdminColors.SurfaceAlt)
-                .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
-                .borderRadius(12.px).padding(24.px),
-            verticalArrangement = Arrangement.spacedBy(16.px),
-        ) { content() }
-    }
-}
-
-// ---- Shared bits --------------------------------------------------------------------------
-
-private typealias RoomCellWidth = org.jetbrains.compose.web.css.CSSNumericValue<out org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage>
-
-@Composable
-private fun HeaderCell(text: String, width: RoomCellWidth?) {
-    Cell(width) { SpanText(text, Modifier.color(AdminColors.Muted).fontSize(12.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-@Composable
-private fun Cell(width: RoomCellWidth?, content: @Composable () -> Unit) {
-    val mod = if (width != null) Modifier.width(width) else Modifier.flexGrow(1).flexBasis(0.px)
-    Box(modifier = mod) { content() }
-}
+// ---- Page-specific bits ---------------------------------------------------------------------
 
 @Composable
 private fun ScreenBar() {
@@ -676,156 +650,6 @@ private fun LegendDot(label: String, fill: Color) {
     }
 }
 
-@Composable
-private fun IconButton(icon: @Composable (Modifier) -> Unit, tint: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.size(30.px).backgroundColor(AdminColors.Chip).borderRadius(8.px)
-            .cursor(Cursor.Pointer).onClick { onClick() },
-        contentAlignment = Alignment.Center,
-    ) { icon(Modifier.color(tint).fontSize(13.px)) }
-}
-
-@Composable
-private fun FormCard(title: String, icon: @Composable (Modifier) -> Unit, body: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .backgroundColor(AdminColors.SurfaceAlt)
-            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
-            .borderRadius(12.px).padding(24.px),
-        verticalArrangement = Arrangement.spacedBy(14.px),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().borderBottom(1.px, LineStyle.Solid, AdminColors.Border).padding(bottom = 14.px),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.px),
-        ) {
-            icon(Modifier.color(AdminColors.Primary).fontSize(16.px))
-            SpanText(title, Modifier.montserrat().color(AdminColors.Heading).fontSize(18.px).fontWeight(FontWeight.SemiBold))
-        }
-        body()
-    }
-}
-
-@Composable
-private fun FieldLabel(text: String) {
-    SpanText(text, Modifier.color(AdminColors.Muted).fontSize(11.px).fontWeight(FontWeight.SemiBold))
-}
-
-@Composable
-private fun TextField(value: String, placeholder: String, onValue: (String) -> Unit) {
-    Input(type = InputType.Text) {
-        value(value)
-        attr("placeholder", placeholder)
-        attr("style", FIELD_CSS)
-        onInput { onValue(it.value) }
-    }
-}
-
-@Composable
-private fun PrimaryButton(label: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.backgroundColor(AdminColors.Primary).color(AdminColors.OnPrimary)
-            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
-            .cursor(Cursor.Pointer).onClick { onClick() },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.px),
-    ) {
-        FaPlus(Modifier.color(AdminColors.OnPrimary).fontSize(13.px))
-        SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold))
-    }
-}
-
-/** Primary CTA without the leading plus icon (Generate, etc.). */
-@Composable
-private fun PrimaryButtonPlain(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.backgroundColor(AdminColors.Primary).color(AdminColors.OnPrimary)
-            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
-            .cursor(Cursor.Pointer).onClick { onClick() },
-        contentAlignment = Alignment.Center,
-    ) { SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-@Composable
-private fun SaveButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.backgroundColor(AdminColors.Primary).color(AdminColors.OnPrimary)
-            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
-            .thenIf(!enabled) { Modifier.opacity(0.5) }
-            .cursor(Cursor.Pointer)
-            .thenIf(enabled) { Modifier.onClick { onClick() } },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.px),
-    ) {
-        FaCheck(Modifier.color(AdminColors.OnPrimary).fontSize(13.px))
-        SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold))
-    }
-}
-
-@Composable
-private fun SecondaryButton(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.Chip)
-            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
-            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
-            .cursor(Cursor.Pointer).onClick { onClick() },
-        contentAlignment = Alignment.Center,
-    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-/** Secondary button that hugs its label (for headers / inline rows). */
-@Composable
-private fun SecondaryButtonInline(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.backgroundColor(AdminColors.Chip)
-            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
-            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px)
-            .cursor(Cursor.Pointer).onClick { onClick() },
-        contentAlignment = Alignment.Center,
-    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-@Composable
-private fun PagerButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.backgroundColor(AdminColors.Chip)
-            .border(1.px, LineStyle.Solid, AdminColors.Border)
-            .borderRadius(6.px).padding(topBottom = 6.px, leftRight = 12.px)
-            .thenIf(!enabled) { Modifier.opacity(0.4) }
-            .thenIf(enabled) { Modifier.cursor(Cursor.Pointer).onClick { onClick() } },
-        contentAlignment = Alignment.Center,
-    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(13.px)) }
-}
-
-@Composable
-private fun StatusBox(message: String) {
-    Box(modifier = Modifier.fillMaxWidth().padding(48.px), contentAlignment = Alignment.Center) {
-        SpanText(message, Modifier.color(AdminColors.Muted).fontSize(16.px).textAlign(TextAlign.Center))
-    }
-}
-
-@Composable
-private fun ErrorBox(error: UiText, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.SurfaceAlt)
-            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(12.px).padding(32.px),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.px),
-    ) {
-        SpanText(error.plain(), Modifier.color(AdminColors.Body).fontSize(14.px))
-        Box(modifier = Modifier.width(140.px)) { SecondaryButton("Retry", onRetry) }
-    }
-}
-
 // ---- helpers ------------------------------------------------------------------------------
 
 private fun seatCode(seat: Seat): String = "${seat.rowLabel}-${seat.seatNumber.toString().padStart(2, '0')}"
-
-private fun UiText.plain(): String = when (this) {
-    is UiText.DynamicString -> value
-}
-
-private const val FIELD_CSS =
-    "width:100%;box-sizing:border-box;background-color:#16273a;border:1px solid #30435a;" +
-        "border-radius:8px;padding:11px 13px;color:#e9bcb6;font-family:Inter,system-ui,sans-serif;" +
-        "font-size:14px;outline:none;"

@@ -9,11 +9,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.martdev.flickq.adminkobweb.components.AdminLayout
 import com.martdev.flickq.adminkobweb.components.AdminNav
+import com.martdev.flickq.adminkobweb.components.Cell
+import com.martdev.flickq.adminkobweb.components.DotBadge
+import com.martdev.flickq.adminkobweb.components.ErrorBox
+import com.martdev.flickq.adminkobweb.components.FIELD_CSS
+import com.martdev.flickq.adminkobweb.components.FieldLabel
+import com.martdev.flickq.adminkobweb.components.FormCard
+import com.martdev.flickq.adminkobweb.components.HeaderCell
+import com.martdev.flickq.adminkobweb.components.IconButton
+import com.martdev.flickq.adminkobweb.components.Overlay
+import com.martdev.flickq.adminkobweb.components.PagerButton
+import com.martdev.flickq.adminkobweb.components.PrimaryButtonPlain
 import com.martdev.flickq.adminkobweb.components.RequireAdmin
+import com.martdev.flickq.adminkobweb.components.SecondaryButton
+import com.martdev.flickq.adminkobweb.components.StatusBox
+import com.martdev.flickq.adminkobweb.components.dispDate
+import com.martdev.flickq.adminkobweb.components.dispTime
+import com.martdev.flickq.adminkobweb.components.formatNaira
+import com.martdev.flickq.adminkobweb.components.groupDigits
+import com.martdev.flickq.adminkobweb.components.isoDay
+import com.martdev.flickq.adminkobweb.components.plain
+import com.martdev.flickq.adminkobweb.components.titlecaseWord
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
-import com.martdev.flickq.core.presentation.UiText
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailAction
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailState
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailViewModel
@@ -34,7 +53,6 @@ import com.varabyte.kobweb.compose.foundation.layout.Column
 import com.varabyte.kobweb.compose.foundation.layout.Row
 import com.varabyte.kobweb.compose.ui.Alignment
 import com.varabyte.kobweb.compose.ui.Modifier
-import com.varabyte.kobweb.compose.ui.graphics.Color
 import com.varabyte.kobweb.compose.ui.modifiers.backgroundColor
 import com.varabyte.kobweb.compose.ui.modifiers.border
 import com.varabyte.kobweb.compose.ui.modifiers.borderBottom
@@ -78,7 +96,6 @@ import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.url.URL
 import org.w3c.files.Blob
 import org.w3c.files.BlobPropertyBag
-import kotlin.time.Instant
 
 @Page
 @Composable
@@ -415,7 +432,7 @@ private fun DetailBody(state: AdminReservationDetailState, r: Reservation, onAct
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.px)) {
         // Left: general info (no user-lookup API exists — only the numeric user id is shown).
         Column(modifier = Modifier.flexGrow(1).flexBasis(0.px).minWidth(280.px)) {
-            DetailCard("General Info", { FaCircleInfo(it) }) {
+            FormCard("General Info", { FaCircleInfo(it) }) {
                 FieldLabel("USER / CUSTOMER")
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.px)) {
                     Avatar("U${r.userId.toString().takeLast(1)}")
@@ -442,7 +459,7 @@ private fun DetailBody(state: AdminReservationDetailState, r: Reservation, onAct
         }
         // Right: reserved seats.
         Column(modifier = Modifier.flexGrow(2).flexBasis(0.px).minWidth(380.px)) {
-            DetailCard("Reserved Seats", { FaCouch(it) }, badge = "${r.seats.size} Seats Total") {
+            FormCard("Reserved Seats", { FaCouch(it) }, badge = "${r.seats.size} Seats Total") {
                 Row(
                     modifier = Modifier.fillMaxWidth().borderBottom(1.px, LineStyle.Solid, AdminColors.Border).padding(bottom = 10.px),
                     verticalAlignment = Alignment.CenterVertically,
@@ -473,7 +490,7 @@ private fun DetailBody(state: AdminReservationDetailState, r: Reservation, onAct
     }
 
     // Payment history.
-    DetailCard("Payment History", { FaMoneyBill(it) }) {
+    FormCard("Payment History", { FaMoneyBill(it) }) {
         Row(
             modifier = Modifier.fillMaxWidth().borderBottom(1.px, LineStyle.Solid, AdminColors.Border).padding(bottom = 10.px),
             verticalAlignment = Alignment.CenterVertically,
@@ -499,7 +516,7 @@ private fun PaymentRow(p: Payment) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Cell(null) { SpanText(p.reference.ifBlank { "—" }, Modifier.color(AdminColors.Body).fontSize(14.px)) }
-        Cell(120.px) { SpanText(formatAmount(p.amount), Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
+        Cell(120.px) { SpanText(groupDigits(p.amount), Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
         Cell(130.px) { PaymentBadge(p.status) }
         Cell(200.px) { SpanText(p.gatewayResponse ?: "—", Modifier.color(AdminColors.Body).fontSize(13.px)) }
         Cell(130.px) { SpanText(p.paidAt?.let { "${dispDate(it)}, ${dispTime(it)}" } ?: "--", Modifier.color(AdminColors.Body).fontSize(13.px)) }
@@ -514,7 +531,7 @@ private fun CancelConfirm(onAction: (AdminReservationDetailAction) -> Unit) {
         SpanText("This releases the held seats and marks the reservation cancelled. This can't be undone.", Modifier.color(AdminColors.Body).fontSize(14.px))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.px)) {
             Box(modifier = Modifier.flexGrow(1)) { SecondaryButton("Keep reservation") { onAction(AdminReservationDetailAction.OnDismissCancel) } }
-            Box(modifier = Modifier.flexGrow(1)) { PrimaryButtonPlain("Cancel reservation") { onAction(AdminReservationDetailAction.OnConfirmCancel) } }
+            Box(modifier = Modifier.flexGrow(1)) { PrimaryButtonPlain("Cancel reservation", Modifier.fillMaxWidth()) { onAction(AdminReservationDetailAction.OnConfirmCancel) } }
         }
     }
 }
@@ -558,31 +575,7 @@ private fun SeatBadge(status: SeatStatus) {
     }
 }
 
-@Composable
-private fun DotBadge(text: String, bg: Color, fg: Color) {
-    Row(
-        modifier = Modifier.backgroundColor(bg).borderRadius(9999.px).padding(topBottom = 4.px, leftRight = 10.px),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.px),
-    ) {
-        Box(Modifier.size(7.px).backgroundColor(fg).borderRadius(9999.px))
-        SpanText(text, Modifier.color(fg).fontSize(11.px).fontWeight(FontWeight.SemiBold))
-    }
-}
-
-// ---- Shared bits --------------------------------------------------------------------------
-
-private typealias RvCellWidth = org.jetbrains.compose.web.css.CSSNumericValue<out org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage>
-
-@Composable
-private fun HeaderCell(text: String, width: RvCellWidth?) {
-    Cell(width) { SpanText(text, Modifier.color(AdminColors.Muted).fontSize(12.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-@Composable
-private fun Cell(width: RvCellWidth?, content: @Composable () -> Unit) {
-    val mod = if (width != null) Modifier.width(width) else Modifier.flexGrow(1).flexBasis(0.px)
-    Box(modifier = mod) { content() }
-}
+// ---- Page-specific bits ---------------------------------------------------------------------
 
 @Composable
 private fun Avatar(text: String) {
@@ -590,54 +583,6 @@ private fun Avatar(text: String) {
         modifier = Modifier.size(26.px).backgroundColor(AdminColors.Chip).borderRadius(9999.px),
         contentAlignment = Alignment.Center,
     ) { SpanText(text, Modifier.color(AdminColors.Muted).fontSize(10.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-@Composable
-private fun DetailCard(title: String, icon: @Composable (Modifier) -> Unit, badge: String? = null, body: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.SurfaceAlt)
-            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(12.px).padding(24.px),
-        verticalArrangement = Arrangement.spacedBy(14.px),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().borderBottom(1.px, LineStyle.Solid, AdminColors.Border).padding(bottom = 14.px),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.px)) {
-                icon(Modifier.color(AdminColors.Primary).fontSize(16.px))
-                SpanText(title, Modifier.montserrat().color(AdminColors.Heading).fontSize(18.px).fontWeight(FontWeight.SemiBold))
-            }
-            badge?.let {
-                Box(
-                    modifier = Modifier.backgroundColor(AdminColors.Chip).border(1.px, LineStyle.Solid, AdminColors.Border)
-                        .borderRadius(6.px).padding(topBottom = 4.px, leftRight = 10.px),
-                ) { SpanText(it, Modifier.color(AdminColors.Heading).fontSize(12.px).fontWeight(FontWeight.SemiBold)) }
-            }
-        }
-        body()
-    }
-}
-
-@Composable
-private fun FieldLabel(text: String) {
-    SpanText(text, Modifier.color(AdminColors.Muted).fontSize(11.px).fontWeight(FontWeight.SemiBold))
-}
-
-@Composable
-private fun Overlay(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier.styleModifier {
-            property("position", "fixed"); property("inset", "0")
-            property("background", "rgba(1,15,31,0.7)"); property("z-index", "50")
-        }.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier.maxWidth(440.px).fillMaxWidth().backgroundColor(AdminColors.SurfaceAlt)
-                .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(12.px).padding(24.px),
-            verticalArrangement = Arrangement.spacedBy(16.px),
-        ) { content() }
-    }
 }
 
 @Composable
@@ -677,69 +622,7 @@ private fun CancelButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     ) { SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
 }
 
-@Composable
-private fun PrimaryButtonPlain(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.Primary).color(AdminColors.OnPrimary)
-            .borderRadius(8.px).padding(topBottom = 11.px, leftRight = 18.px).cursor(Cursor.Pointer).onClick { onClick() },
-        contentAlignment = Alignment.Center,
-    ) { SpanText(label, Modifier.fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-@Composable
-private fun SecondaryButton(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.Chip)
-            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(8.px)
-            .padding(topBottom = 11.px, leftRight = 18.px).cursor(Cursor.Pointer).onClick { onClick() },
-        contentAlignment = Alignment.Center,
-    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold)) }
-}
-
-@Composable
-private fun IconButton(icon: @Composable (Modifier) -> Unit, tint: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.size(30.px).backgroundColor(AdminColors.Chip).borderRadius(8.px)
-            .cursor(Cursor.Pointer).onClick { it.stopPropagation(); onClick() },
-        contentAlignment = Alignment.Center,
-    ) { icon(Modifier.color(tint).fontSize(13.px)) }
-}
-
-@Composable
-private fun PagerButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.backgroundColor(AdminColors.Chip).border(1.px, LineStyle.Solid, AdminColors.Border)
-            .borderRadius(6.px).padding(topBottom = 6.px, leftRight = 12.px)
-            .thenIf(!enabled) { Modifier.opacity(0.4) }
-            .thenIf(enabled) { Modifier.cursor(Cursor.Pointer).onClick { onClick() } },
-        contentAlignment = Alignment.Center,
-    ) { SpanText(label, Modifier.color(AdminColors.Heading).fontSize(13.px)) }
-}
-
-@Composable
-private fun StatusBox(message: String) {
-    Box(modifier = Modifier.fillMaxWidth().padding(40.px), contentAlignment = Alignment.Center) {
-        SpanText(message, Modifier.color(AdminColors.Muted).fontSize(15.px))
-    }
-}
-
-@Composable
-private fun ErrorBox(error: UiText, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.SurfaceAlt)
-            .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(12.px).padding(32.px),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.px),
-    ) {
-        SpanText(error.plain(), Modifier.color(AdminColors.Body).fontSize(14.px))
-        Box(modifier = Modifier.width(140.px)) { SecondaryButton("Retry", onRetry) }
-    }
-}
-
 // ---- helpers ------------------------------------------------------------------------------
-
-private fun UiText.plain(): String = when (this) {
-    is UiText.DynamicString -> value
-}
 
 /** Client-side CSV of the currently filtered rows (a real export endpoint is a planned phase). */
 private fun exportCsv(state: AdminReservationsState, rows: List<Reservation>) {
@@ -770,35 +653,3 @@ private fun exportCsv(state: AdminReservationsState, rows: List<Reservation>) {
     URL.revokeObjectURL(url)
 }
 
-private val MONTHS = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-
-/** Instant → "yyyy-MM-dd" (UTC wall-clock), for date-range comparisons. */
-private fun isoDay(instant: Instant): String = instant.toString().take(10)
-
-/** Instant → "Nov 15, 2023" using the UTC wall-clock encoded in its ISO string. */
-private fun dispDate(instant: Instant): String {
-    val iso = instant.toString()
-    val parts = iso.take(10).split("-")
-    if (parts.size != 3) return iso.take(10)
-    val month = parts[1].toIntOrNull()?.let { MONTHS.getOrNull(it - 1) } ?: return iso.take(10)
-    return "$month ${parts[2]}, ${parts[0]}"
-}
-
-/** Instant → "19:00". */
-private fun dispTime(instant: Instant): String {
-    val iso = instant.toString()
-    return if (iso.length >= 16) iso.substring(11, 16) else ""
-}
-
-private fun formatNaira(amount: Long): String = "₦${formatAmount(amount)}"
-
-private fun formatAmount(amount: Long): String =
-    amount.toString().reversed().chunked(3).joinToString(",").reversed()
-
-private fun String.titlecaseWord(): String =
-    lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-
-private const val FIELD_CSS =
-    "width:100%;box-sizing:border-box;background-color:#16273a;border:1px solid #30435a;" +
-        "border-radius:8px;padding:11px 13px;color:#e9bcb6;font-family:Inter,system-ui,sans-serif;" +
-        "font-size:14px;outline:none;"
