@@ -24,6 +24,9 @@ import com.martdev.flickq.core.designsystem.AdminScaffold
 import com.martdev.flickq.core.designsystem.ConfirmDialog
 import com.martdev.flickq.core.designsystem.FlickQButton
 import com.martdev.flickq.core.designsystem.FlickQColors
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailAction
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailState
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailViewModel
 import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.reservation.model.Reservation
 import org.koin.compose.viewmodel.koinViewModel
@@ -46,17 +49,19 @@ fun AdminReservationDetailScreen(
     onBack: () -> Unit,
 ) {
     AdminScaffold(title = "Reservation", onBack = onBack) {
+        val error = state.error
+        val reservation = state.reservation
         when {
             state.isLoading -> AdminLoading()
-            state.error != null -> AdminError(message = state.error.asString(), onRetry = { onAction(AdminReservationDetailAction.OnRetry) })
-            state.reservation != null -> LazyColumn(
+            error != null -> AdminError(message = error.asString(), onRetry = { onAction(AdminReservationDetailAction.OnRetry) })
+            reservation != null -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 state.message?.let { message ->
                     item { Text(text = message.asString(), color = FlickQColors.GoldHighlight, fontSize = 13.sp) }
                 }
-                item { ReservationCard(state.reservation) }
+                item { ReservationCard(reservation) }
                 item {
                     Text(text = "Payments", color = FlickQColors.GoldHighlight, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }

@@ -4,13 +4,8 @@ import com.martdev.flickq.core.common.DataError
 import com.martdev.flickq.core.common.EmptyResult
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.feature.admin.domain.AdminCatalogRepository
-import com.martdev.flickq.feature.admin.domain.AdminPaymentRepository
-import com.martdev.flickq.feature.admin.domain.AdminReservationRepository
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
-import com.martdev.flickq.payment.model.Payment
-import com.martdev.flickq.reservation.model.Reservation
-import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.showtime.model.Showtime
@@ -60,37 +55,4 @@ class FakeAdminCatalogRepository : AdminCatalogRepository {
     override suspend fun deleteShowtime(id: Long): EmptyResult<DataError> = Result.Success(Unit)
     override suspend fun updateShowtimeStatus(id: Long, status: ShowtimeStatus): Result<Showtime, DataError> =
         Result.Success(Showtime(id = id, status = status))
-}
-
-class FakeAdminReservationRepository(
-    private var reservation: Reservation = Reservation(id = 5, showtimeId = 1, status = ReservationStatus.CONFIRMED, totalAmount = 7000),
-    private val getFails: Boolean = false,
-) : AdminReservationRepository {
-    var cancelCount = 0
-    var populateCount = 0
-
-    override suspend fun getReservations(limit: Int, offset: Int): Result<List<Reservation>, DataError> =
-        if (getFails) Result.Error(DataError.Network.UNKNOWN) else Result.Success(listOf(reservation))
-
-    override suspend fun getReservation(id: Long): Result<Reservation, DataError> =
-        if (getFails) Result.Error(DataError.Network.NOT_FOUND) else Result.Success(reservation)
-
-    override suspend fun cancelReservation(id: Long): Result<Reservation, DataError> {
-        cancelCount++
-        reservation = reservation.copy(status = ReservationStatus.CANCELLED)
-        return Result.Success(reservation)
-    }
-
-    override suspend fun populateSeats(showtimeId: Long): EmptyResult<DataError> {
-        populateCount++
-        return Result.Success(Unit)
-    }
-}
-
-class FakeAdminPaymentRepository(
-    private val payments: List<Payment> = emptyList(),
-    private val fails: Boolean = false,
-) : AdminPaymentRepository {
-    override suspend fun getPaymentsByReservation(reservationId: Long): Result<List<Payment>, DataError> =
-        if (fails) Result.Error(DataError.Network.UNKNOWN) else Result.Success(payments)
 }

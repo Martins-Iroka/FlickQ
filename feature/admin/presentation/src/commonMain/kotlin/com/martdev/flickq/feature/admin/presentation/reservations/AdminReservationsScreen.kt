@@ -13,6 +13,9 @@ import com.martdev.flickq.core.designsystem.AdminLoading
 import com.martdev.flickq.core.designsystem.AdminScaffold
 import com.martdev.flickq.core.designsystem.DataColumn
 import com.martdev.flickq.core.designsystem.DataTable
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationsAction
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationsState
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -33,9 +36,10 @@ fun AdminReservationsScreen(
     onOpenReservation: (Long) -> Unit,
 ) {
     AdminScaffold(title = "Reservations", onBack = onBack) {
+        val error = state.error
         when {
             state.isLoading -> AdminLoading()
-            state.error != null -> AdminError(message = state.error.asString(), onRetry = { onAction(AdminReservationsAction.OnRetry) })
+            error != null -> AdminError(message = error.asString(), onRetry = { onAction(AdminReservationsAction.OnRetry) })
             state.reservations.isEmpty() -> AdminEmpty(message = "No reservations yet.", modifier = Modifier.padding(24.dp))
             else -> DataTable(
                 items = state.reservations,

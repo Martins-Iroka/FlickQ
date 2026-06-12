@@ -4,8 +4,11 @@ import com.martdev.flickq.feature.admin.presentation.logic.hub.AdminHubViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationsViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.showtimes.AdminShowtimesViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -22,4 +25,7 @@ val adminPresentationLogicModule = module {
     viewModelOf(::AdminMoviesViewModel)
     viewModelOf(::AdminRoomsViewModel)
     viewModelOf(::AdminShowtimesViewModel)
+    viewModelOf(::AdminReservationsViewModel)
+    // Param-injected (the reservation id) — viewModelOf can't supply the Long.
+    viewModel { params -> AdminReservationDetailViewModel(params.get(), get(), get(), get()) }
 }
