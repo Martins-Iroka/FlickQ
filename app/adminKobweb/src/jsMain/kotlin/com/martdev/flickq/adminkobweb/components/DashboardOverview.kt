@@ -1,8 +1,15 @@
 package com.martdev.flickq.adminkobweb.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
+import com.martdev.flickq.feature.admin.presentation.logic.dashboard.AdminDashboardAction
+import com.martdev.flickq.feature.admin.presentation.logic.dashboard.AdminDashboardState
+import com.martdev.flickq.feature.admin.presentation.logic.dashboard.AdminDashboardViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.dashboard.UpcomingShowtimeItem
 import com.varabyte.kobweb.compose.css.Cursor
 import com.varabyte.kobweb.compose.css.FontWeight
 import com.varabyte.kobweb.compose.foundation.layout.Arrangement
@@ -18,19 +25,16 @@ import com.varabyte.kobweb.compose.ui.modifiers.borderRadius
 import com.varabyte.kobweb.compose.ui.modifiers.color
 import com.varabyte.kobweb.compose.ui.modifiers.cursor
 import com.varabyte.kobweb.compose.ui.modifiers.fillMaxWidth
-import com.varabyte.kobweb.compose.ui.modifiers.flexBasis
-import com.varabyte.kobweb.compose.ui.modifiers.flexGrow
 import com.varabyte.kobweb.compose.ui.modifiers.fontSize
 import com.varabyte.kobweb.compose.ui.modifiers.fontWeight
 import com.varabyte.kobweb.compose.ui.modifiers.height
 import com.varabyte.kobweb.compose.ui.modifiers.margin
 import com.varabyte.kobweb.compose.ui.modifiers.maxWidth
+import com.varabyte.kobweb.compose.ui.modifiers.onClick
 import com.varabyte.kobweb.compose.ui.modifiers.padding
-import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
-import com.varabyte.kobweb.silk.components.icons.fa.FaArrowTrendUp
-import com.varabyte.kobweb.silk.components.icons.fa.FaChair
+import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.silk.components.icons.fa.FaClock
 import com.varabyte.kobweb.silk.components.icons.fa.FaLocationDot
 import com.varabyte.kobweb.silk.components.icons.fa.FaMoneyBill
@@ -38,42 +42,54 @@ import com.varabyte.kobweb.silk.components.icons.fa.FaPlus
 import com.varabyte.kobweb.silk.components.icons.fa.FaTicket
 import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.css.LineStyle
-import org.jetbrains.compose.web.css.percent
 import org.jetbrains.compose.web.css.px
 
 /**
- * Dashboard landing body: quick-action buttons, a four-up metrics row, and an upcoming-showtimes /
- * recent-activity split. The figures are placeholder content matching the Figma overview — the
- * dashboard is not yet wired to a ViewModel (real metrics arrive with the Reports phase).
+ * Dashboard landing body: quick-action buttons, a four-up metrics row, and an upcoming-showtimes
+ * card. Wired to [AdminDashboardViewModel], which composes live figures from the `admin/reports`
+ * endpoints (net revenue + tickets for the trailing 30 days, average occupancy, and today's
+ * showtimes). The Recent Activity card was removed pending a backend activity-log endpoint.
  */
 @Composable
 fun DashboardOverview() {
+    val ctx = rememberPageContext()
+    val vm = rememberAdminViewModel<AdminDashboardViewModel>()
+    val state by vm.state.collectAsState()
+    val error = state.error
+
     Column(
         modifier = Modifier.fillMaxWidth().maxWidth(1280.px),
         verticalArrangement = Arrangement.spacedBy(32.px),
     ) {
-        QuickActions()
-        MetricsRow()
-        ListsRow()
+        QuickActions { route -> ctx.router.navigateTo(route) }
+        when {
+            state.isLoading -> StatusBox("Loading dashboard…")
+            error != null -> ErrorBox(error) { vm.onAction(AdminDashboardAction.OnRetry) }
+            else -> {
+                MetricsRow(state)
+                UpcomingShowtimesCard(state.upcomingToday) { ctx.router.navigateTo("/showtimes") }
+            }
+        }
     }
 }
 
 @Composable
-private fun QuickActions() {
+private fun QuickActions(onNavigate: (String) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.px)) {
-        ActionButton("Add Movie", primary = true)
-        ActionButton("Add Showtime", primary = false)
-        ActionButton("Add Room", primary = false)
+        ActionButton("Add Movie", primary = true) { onNavigate("/movies") }
+        ActionButton("Add Showtime", primary = false) { onNavigate("/showtimes") }
+        ActionButton("Add Room", primary = false) { onNavigate("/rooms") }
     }
 }
 
 @Composable
-private fun ActionButton(label: String, primary: Boolean) {
+private fun ActionButton(label: String, primary: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .borderRadius(8.px)
             .padding(topBottom = 11.px, leftRight = 20.px)
             .cursor(Cursor.Pointer)
+            .onClick { onClick() }
             .then(
                 if (primary) {
                     Modifier.backgroundColor(AdminColors.Primary)
@@ -91,32 +107,23 @@ private fun ActionButton(label: String, primary: Boolean) {
 }
 
 @Composable
-private fun MetricsRow() {
+private fun MetricsRow(state: AdminDashboardState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.px)) {
         StatCard(
             label = "Total Revenue",
-            value = "₦450,000",
-            footer = "Net revenue for current month",
-            trend = "+12%",
+            value = formatNaira(state.totalNetRevenue),
+            footer = "Net revenue · last 30 days",
             icon = { FaMoneyBill(it) },
         )
         StatCard(
             label = "Tickets Sold",
-            value = "1,240",
-            footer = "Total tickets sold this month",
-            trend = "+5%",
+            value = groupDigits(state.ticketsSold),
+            footer = "Tickets sold · last 30 days",
             icon = { FaTicket(it) },
         )
         StatCard(
-            label = "Average Occupancy",
-            value = "68%",
-            footer = "Average seat fill rate",
-            progress = 68,
-            icon = { FaChair(it) },
-        )
-        StatCard(
             label = "Active Showtimes",
-            value = "12",
+            value = state.activeShowtimesToday.toString(),
             footer = "Scheduled showtimes today",
             icon = { FaClock(it) },
         )
@@ -128,40 +135,18 @@ private fun StatCard(
     label: String,
     value: String,
     footer: String,
-    trend: String? = null,
-    progress: Int? = null,
     icon: @Composable (Modifier) -> Unit,
 ) {
     Column(
         modifier = Modifier
-            .flexGrow(1)
-            .flexBasis(0.px)
+            .styleModifier { property("flex", "1 1 0") }
             .backgroundColor(AdminColors.SurfaceAlt)
             .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
             .borderRadius(12.px)
             .padding(25.px),
         verticalArrangement = Arrangement.spacedBy(4.px),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            icon(Modifier.color(AdminColors.Body).fontSize(28.px))
-            trend?.let {
-                Row(
-                    modifier = Modifier
-                        .backgroundColor(AdminColors.SuccessWash)
-                        .borderRadius(9999.px)
-                        .padding(topBottom = 4.px, leftRight = 8.px),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.px),
-                ) {
-                    FaArrowTrendUp(Modifier.color(AdminColors.Success).fontSize(11.px))
-                    SpanText(it, Modifier.color(AdminColors.Success).fontSize(12.px).fontWeight(FontWeight.Medium))
-                }
-            }
-        }
+        icon(Modifier.color(AdminColors.Body).fontSize(28.px))
         SpanText(
             label,
             Modifier.color(AdminColors.Body).fontSize(14.px).fontWeight(FontWeight.SemiBold).margin(top = 12.px),
@@ -170,42 +155,74 @@ private fun StatCard(
             value,
             Modifier.montserrat().color(AdminColors.Heading).fontSize(32.px).fontWeight(FontWeight.Bold),
         )
-        progress?.let { pct ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.px)
-                    .backgroundColor(AdminColors.Chip)
-                    .borderRadius(9999.px)
-                    .margin(top = 4.px),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(pct.percent)
-                        .height(6.px)
-                        .backgroundColor(AdminColors.Amber)
-                        .borderRadius(9999.px),
-                )
-            }
-        }
         SpanText(footer, Modifier.color(AdminColors.Body).fontSize(12.px).margin(top = 4.px))
     }
 }
 
 @Composable
-private fun ListsRow() {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.px)) {
-        Box(modifier = Modifier.flexGrow(2).flexBasis(0.px)) { UpcomingShowtimesCard() }
-        Box(modifier = Modifier.flexGrow(1).flexBasis(0.px)) { RecentActivityCard() }
+private fun UpcomingShowtimesCard(rows: List<UpcomingShowtimeItem>, onViewAll: () -> Unit) {
+    CardShell("Upcoming Showtimes Today", action = "View All", onAction = onViewAll) {
+        if (rows.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().padding(24.px)) {
+                SpanText("No showtimes scheduled today.", Modifier.color(AdminColors.Body).fontSize(14.px))
+            }
+        } else {
+            rows.forEach { row -> UpcomingShowtimeRow(row) }
+        }
     }
 }
 
 @Composable
-private fun CardShell(title: String, action: String? = null, body: @Composable () -> Unit) {
+private fun UpcomingShowtimeRow(row: UpcomingShowtimeItem) {
+    val full = row.occupancyPct >= 80
+    Row(
+        modifier = Modifier.fillMaxWidth().borderRadius(8.px).padding(12.px),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.px)) {
+            Box(
+                modifier = Modifier
+                    .width(48.px)
+                    .height(64.px)
+                    .backgroundColor(AdminColors.Chip)
+                    .borderRadius(4.px),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.px)) {
+                SpanText(
+                    row.movieTitle,
+                    Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.px)) {
+                    MetaItem({ FaLocationDot(it) }, row.roomName)
+                    MetaItem({ FaClock(it) }, dispTime(row.startsAt))
+                }
+            }
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.px)) {
+            val chipBg = if (full) AdminColors.SuccessChip else AdminColors.AmberWash
+            val chipFg = if (full) AdminColors.Success else AdminColors.Amber
+            Box(
+                modifier = Modifier
+                    .backgroundColor(chipBg)
+                    .borderRadius(9999.px)
+                    .padding(topBottom = 4.px, leftRight = 10.px),
+            ) {
+                SpanText("${row.occupancyPct}% Full", Modifier.color(chipFg).fontSize(12.px).fontWeight(FontWeight.Medium))
+            }
+            SpanText(
+                "${row.seatsBooked}/${row.seatsTotal} seats",
+                Modifier.color(AdminColors.Body).fontSize(12.px),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CardShell(title: String, action: String? = null, onAction: () -> Unit = {}, body: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(400.px)
             .backgroundColor(AdminColors.SurfaceAlt)
             .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
             .borderRadius(12.px)
@@ -224,7 +241,10 @@ private fun CardShell(title: String, action: String? = null, body: @Composable (
                 Modifier.montserrat().color(AdminColors.Heading).fontSize(20.px).fontWeight(FontWeight.SemiBold),
             )
             action?.let {
-                SpanText(it, Modifier.color(AdminColors.BodyStrong).fontSize(12.px).cursor(Cursor.Pointer))
+                SpanText(
+                    it,
+                    Modifier.color(AdminColors.BodyStrong).fontSize(12.px).cursor(Cursor.Pointer).onClick { onAction() },
+                )
             }
         }
         Column(
@@ -236,121 +256,10 @@ private fun CardShell(title: String, action: String? = null, body: @Composable (
     }
 }
 
-private data class ShowtimeRow(
-    val movie: String,
-    val room: String,
-    val time: String,
-    val fill: String,
-    val seats: String,
-    val full: Boolean,
-)
-
-@Composable
-private fun UpcomingShowtimesCard() {
-    val rows = listOf(
-        ShowtimeRow("Dune: Part Two", "IMAX Room 1", "14:30", "65% Full", "130/200 seats", full = false),
-        ShowtimeRow("Oppenheimer", "Standard Room 3", "15:00", "92% Full", "110/120 seats", full = true),
-    )
-    CardShell("Upcoming Showtimes Today", action = "View All") {
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth().borderRadius(8.px).padding(12.px),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.px),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(48.px)
-                            .height(64.px)
-                            .backgroundColor(AdminColors.Chip)
-                            .borderRadius(4.px),
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.px)) {
-                        SpanText(
-                            row.movie,
-                            Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold),
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.px),
-                        ) {
-                            MetaItem({ FaLocationDot(it) }, row.room)
-                            MetaItem({ FaClock(it) }, row.time)
-                        }
-                    }
-                }
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.px)) {
-                    val chipBg = if (row.full) AdminColors.SuccessChip else AdminColors.AmberWash
-                    val chipFg = if (row.full) AdminColors.Success else AdminColors.Amber
-                    Box(
-                        modifier = Modifier
-                            .backgroundColor(chipBg)
-                            .borderRadius(9999.px)
-                            .padding(topBottom = 4.px, leftRight = 10.px),
-                    ) {
-                        SpanText(row.fill, Modifier.color(chipFg).fontSize(12.px).fontWeight(FontWeight.Medium))
-                    }
-                    SpanText(row.seats, Modifier.color(AdminColors.Body).fontSize(12.px))
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun MetaItem(icon: @Composable (Modifier) -> Unit, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.px)) {
         icon(Modifier.color(AdminColors.Body).fontSize(11.px))
         SpanText(text, Modifier.color(AdminColors.Body).fontSize(12.px))
-    }
-}
-
-private data class ActivityRow(val title: String, val detail: String, val time: String, val dot: ActivityDot)
-private enum class ActivityDot { Red, Green, Neutral }
-
-@Composable
-private fun RecentActivityCard() {
-    val rows = listOf(
-        ActivityRow("New Reservation", "Order #8829 for 4 VIP seats - Dune: Part Two.", "2 mins ago", ActivityDot.Red),
-        ActivityRow("System Update", "Payment gateway sync completed successfully.", "15 mins ago", ActivityDot.Green),
-        ActivityRow("Movie Added", "\"The Creator\" added to catalog by SuperAdmin.", "1 hour ago", ActivityDot.Neutral),
-    )
-    CardShell("Recent Activity") {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(12.px),
-            verticalArrangement = Arrangement.spacedBy(24.px),
-        ) {
-            rows.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.px)) {
-                    val dotColor = when (row.dot) {
-                        ActivityDot.Red -> AdminColors.Primary
-                        ActivityDot.Green -> AdminColors.Success
-                        ActivityDot.Neutral -> AdminColors.Heading
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(24.px)
-                            .backgroundColor(AdminColors.Chip)
-                            .border(2.px, LineStyle.Solid, AdminColors.Bg)
-                            .borderRadius(9999.px),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(modifier = Modifier.size(8.px).backgroundColor(dotColor).borderRadius(9999.px))
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.px)) {
-                        SpanText(
-                            row.title,
-                            Modifier.color(AdminColors.Heading).fontSize(14.px).fontWeight(FontWeight.SemiBold),
-                        )
-                        SpanText(row.detail, Modifier.color(AdminColors.Body).fontSize(14.px))
-                        SpanText(row.time, Modifier.color(AdminColors.Body).fontSize(12.px))
-                    }
-                }
-            }
-        }
     }
 }
