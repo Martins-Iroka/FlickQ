@@ -29,7 +29,6 @@ import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
-import com.varabyte.kobweb.silk.components.text.SpanText
 import com.varabyte.kobweb.silk.components.icons.fa.FaArrowTrendUp
 import com.varabyte.kobweb.silk.components.icons.fa.FaChair
 import com.varabyte.kobweb.silk.components.icons.fa.FaClock
@@ -37,6 +36,7 @@ import com.varabyte.kobweb.silk.components.icons.fa.FaLocationDot
 import com.varabyte.kobweb.silk.components.icons.fa.FaMoneyBill
 import com.varabyte.kobweb.silk.components.icons.fa.FaPlus
 import com.varabyte.kobweb.silk.components.icons.fa.FaTicket
+import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.percent
 import org.jetbrains.compose.web.css.px

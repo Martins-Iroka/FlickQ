@@ -65,11 +65,11 @@ import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
+import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.silk.components.icons.fa.FaDoorOpen
 import com.varabyte.kobweb.silk.components.icons.fa.FaPenToSquare
 import com.varabyte.kobweb.silk.components.icons.fa.FaTrash
 import com.varabyte.kobweb.silk.components.text.SpanText
-import com.varabyte.kobweb.core.Page
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.px
@@ -310,13 +310,13 @@ private fun LayoutPreviewCard(rows: Int, cols: Int) {
             LegendDot("Available", AdminColors.Chip)
         }
         ScreenBar()
-        if (rows in 1..40 && cols in 1..40) {
+        if (rows in 1..40 && cols in 1..30) {
             SeatGridPreview(rows, cols)
         } else {
             Box(modifier = Modifier.fillMaxWidth().height(200.px), contentAlignment = Alignment.Center) {
                 SpanText(
                     if (rows <= 0 || cols <= 0) "Enter rows and columns to preview the layout."
-                    else "Layout too large to preview (max 40 × 40).",
+                    else "Layout too large to preview (max 40 × 30).",
                     Modifier.color(AdminColors.Muted).fontSize(13.px),
                 )
             }

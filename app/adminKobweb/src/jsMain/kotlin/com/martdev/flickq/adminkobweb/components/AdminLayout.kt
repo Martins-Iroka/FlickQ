@@ -37,7 +37,6 @@ import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
 import com.varabyte.kobweb.compose.ui.thenIf
 import com.varabyte.kobweb.core.rememberPageContext
-import com.varabyte.kobweb.silk.components.text.SpanText
 import com.varabyte.kobweb.silk.components.icons.fa.FaBell
 import com.varabyte.kobweb.silk.components.icons.fa.FaChartColumn
 import com.varabyte.kobweb.silk.components.icons.fa.FaClapperboard
@@ -48,6 +47,7 @@ import com.varabyte.kobweb.silk.components.icons.fa.FaGauge
 import com.varabyte.kobweb.silk.components.icons.fa.FaRightFromBracket
 import com.varabyte.kobweb.silk.components.icons.fa.FaTicket
 import com.varabyte.kobweb.silk.components.icons.fa.FaUser
+import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.cssRem
 import org.jetbrains.compose.web.css.px
@@ -76,7 +76,7 @@ private fun NavIcon(item: AdminNav, modifier: Modifier) {
 }
 
 /**
- * The CineAdmin shell: a fixed 260px left sidebar (brand, nav, user + logout) and a scrollable
+ * The FlickQAdmin shell: a fixed 260px left sidebar (brand, nav, user + logout) and a scrollable
  * main column with a top bar. Pages provide their [selected] nav item, a [title] for the top bar,
  * and their body as [content].
  */
@@ -127,7 +127,7 @@ private fun Sidebar(selected: AdminNav) {
         ) {
             FaClapperboard(Modifier.color(AdminColors.Primary).fontSize(1.5.cssRem))
             SpanText(
-                "Cinema Admin",
+                "FlickQ Admin",
                 Modifier.montserrat().color(AdminColors.Heading).fontSize(20.px).fontWeight(FontWeight.Bold),
             )
         }

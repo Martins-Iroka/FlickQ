@@ -48,8 +48,8 @@ import com.varabyte.kobweb.compose.ui.modifiers.borderRadius
 import com.varabyte.kobweb.compose.ui.modifiers.color
 import com.varabyte.kobweb.compose.ui.modifiers.cursor
 import com.varabyte.kobweb.compose.ui.modifiers.fillMaxWidth
-import com.varabyte.kobweb.compose.ui.modifiers.flexGrow
 import com.varabyte.kobweb.compose.ui.modifiers.flexBasis
+import com.varabyte.kobweb.compose.ui.modifiers.flexGrow
 import com.varabyte.kobweb.compose.ui.modifiers.fontSize
 import com.varabyte.kobweb.compose.ui.modifiers.fontWeight
 import com.varabyte.kobweb.compose.ui.modifiers.height
@@ -58,9 +58,8 @@ import com.varabyte.kobweb.compose.ui.modifiers.maxWidth
 import com.varabyte.kobweb.compose.ui.modifiers.onClick
 import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.compose.ui.modifiers.size
-import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
-import com.varabyte.kobweb.silk.components.text.SpanText
+import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.silk.components.icons.fa.FaChartColumn
 import com.varabyte.kobweb.silk.components.icons.fa.FaClapperboard
 import com.varabyte.kobweb.silk.components.icons.fa.FaImage
@@ -69,7 +68,7 @@ import com.varabyte.kobweb.silk.components.icons.fa.FaPenToSquare
 import com.varabyte.kobweb.silk.components.icons.fa.FaPlus
 import com.varabyte.kobweb.silk.components.icons.fa.FaTrash
 import com.varabyte.kobweb.silk.components.icons.fa.FaXmark
-import com.varabyte.kobweb.core.Page
+import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.px

@@ -29,7 +29,6 @@ import com.varabyte.kobweb.compose.ui.modifiers.fillMaxWidth
 import com.varabyte.kobweb.compose.ui.modifiers.flexGrow
 import com.varabyte.kobweb.compose.ui.modifiers.fontSize
 import com.varabyte.kobweb.compose.ui.modifiers.fontWeight
-import com.varabyte.kobweb.compose.ui.modifiers.letterSpacing
 import com.varabyte.kobweb.compose.ui.modifiers.lineHeight
 import com.varabyte.kobweb.compose.ui.modifiers.margin
 import com.varabyte.kobweb.compose.ui.modifiers.maxWidth
@@ -37,14 +36,13 @@ import com.varabyte.kobweb.compose.ui.modifiers.minHeight
 import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.modifiers.textAlign
-import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
 import com.varabyte.kobweb.core.Page
-import com.varabyte.kobweb.core.rememberPageContext
+import com.varabyte.kobweb.core.PageContext
 import com.varabyte.kobweb.silk.components.forms.Button
 import com.varabyte.kobweb.silk.components.forms.TextInput
-import com.varabyte.kobweb.silk.components.text.SpanText
 import com.varabyte.kobweb.silk.components.icons.fa.FaClapperboard
+import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.cssRem
 import org.jetbrains.compose.web.css.px
@@ -56,8 +54,7 @@ private fun UiText.plain(): String = when (this) {
 
 @Page
 @Composable
-fun LoginPage() {
-    val ctx = rememberPageContext()
+fun LoginPage(ctx: PageContext) {
     val vm = rememberAdminViewModel<AdminLoginViewModel>()
     val state by vm.state.collectAsState()
 
@@ -112,7 +109,7 @@ private fun HeroPanel() {
         ) {
             FaClapperboard(Modifier.color(AdminColors.Primary).fontSize(2.cssRem))
             SpanText(
-                "CineAdmin",
+                "FlickQ",
                 Modifier.montserrat().color(AdminColors.Heading).fontSize(2.cssRem).fontWeight(FontWeight.Bold),
             )
         }
@@ -158,10 +155,10 @@ private fun LoginForm(
                 FaClapperboard(Modifier.color(AdminColors.Primary).fontSize(1.6.cssRem))
             }
             SpanText(
-                "Staff Login",
+                "Admin Login",
                 Modifier.montserrat().color(AdminColors.Heading).fontSize(2.cssRem).fontWeight(FontWeight.Bold),
             )
-            Row(
+            /*Row(
                 modifier = Modifier
                     .backgroundColor(AdminColors.Surface)
                     .border(1.px, LineStyle.Solid, AdminColors.BorderWarm)
@@ -175,19 +172,19 @@ private fun LoginForm(
                     "STAFF TERMINAL SECURE",
                     Modifier.color(AdminColors.Body).fontSize(0.75.cssRem).letterSpacing(0.6.px),
                 )
-            }
+            }*/
         }
 
         // Form fields.
-        FieldLabel("Staff ID / Email")
+        FieldLabel("Email")
         TextInput(
             text = email,
             onTextChange = onEmail,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = "e.g. jdoe@cineadmin.corp",
+            placeholder = "e.g. jdoe@flickq.com",
         )
 
-        FieldLabel("Authentication Key")
+        FieldLabel("Password")
         TextInput(
             text = password,
             onTextChange = onPassword,
@@ -196,11 +193,11 @@ private fun LoginForm(
             password = true,
         )
 
-        SpanText(
+        /*SpanText(
             "Forgot password?",
             Modifier.fillMaxWidth().color(AdminColors.BodyStrong).fontSize(0.8.cssRem)
                 .textAlign(TextAlign.End).cursor(Cursor.Pointer),
-        )
+        )*/
 
         error?.let {
             SpanText(it, Modifier.color(AdminColors.Primary).fontSize(0.85.cssRem).textAlign(TextAlign.Center))
@@ -217,11 +214,11 @@ private fun LoginForm(
                 .cursor(Cursor.Pointer),
             enabled = canSubmit,
         ) {
-            SpanText(if (isLoading) "Signing in…" else "Initialize Session", Modifier.fontWeight(FontWeight.Bold))
+            SpanText(if (isLoading) "Signing in…" else "Sign in", Modifier.fontWeight(FontWeight.Bold))
         }
 
         SpanText(
-            "Restricted Access Area · © 2024 CineAdmin Systems",
+            "Restricted Access Area · © 2026 FlickQ Systems",
             Modifier.color(AdminColors.Muted).fontSize(0.75.cssRem).textAlign(TextAlign.Center).margin(top = 8.px),
         )
     }

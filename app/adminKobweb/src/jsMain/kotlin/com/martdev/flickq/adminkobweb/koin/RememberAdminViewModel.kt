@@ -12,9 +12,9 @@ import org.koin.mp.KoinPlatform
  * Obtains a reused MVI [ViewModel] from Koin and scopes its lifetime to the calling page.
  *
  * Compose HTML / Kobweb has no `LocalViewModelStoreOwner`, so Koin's `koinViewModel()` isn't
- * available. Instead we resolve the VM from the started Koin, park it in a page-local
+ * available. Instead, we resolve the VM from the started Koin, park it in a page-local
  * [ViewModelStore], and clear that store when the page leaves the composition — which invokes
- * the VM's `onCleared()` and cancels its `viewModelScope`, matching navigation-compose behaviour.
+ * the VM's `onCleared()` and cancels its `viewModelScope`, matching navigation-compose behavior.
  */
 @Composable
 inline fun <reified VM : ViewModel> rememberAdminViewModel(
