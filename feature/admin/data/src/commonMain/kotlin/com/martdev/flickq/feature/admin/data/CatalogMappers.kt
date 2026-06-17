@@ -2,7 +2,6 @@ package com.martdev.flickq.feature.admin.data
 
 import com.martdev.flickq.movie.GenreDTO
 import com.martdev.flickq.movie.MovieDTO
-import com.martdev.flickq.movie.MovieListItemDTO
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.room.RoomDTO
@@ -32,9 +31,6 @@ internal fun MovieDTO.toMovie(): Movie = Movie(
     genres = genres.map { it.toGenre() },
 )
 
-/** The list endpoint returns only id/title/poster; remaining fields fill in via [MovieDTO.toMovie]. */
-internal fun MovieListItemDTO.toMovie(): Movie = Movie(id = id, title = title, posterUrl = posterUrl)
-
 internal fun Movie.toDto(): MovieDTO = MovieDTO(
     id = id,
     title = title,
@@ -54,8 +50,11 @@ private fun String.toLocalDateOrToday(): LocalDate =
 internal fun RoomDTO.toRoom(): Room = Room(id = id, name = name, rows = rows, columns = columns)
 internal fun Room.toDto(): RoomDTO = RoomDTO(id = id, name = name, rows = rows, columns = columns)
 
-internal fun SeatDTO.toSeat(): Seat = Seat(id = id, roomId = roomId, rowLabel = rowLabel, seatNumber = seatNumber)
-internal fun Seat.toDto(): SeatDTO = SeatDTO(id = id, roomId = roomId, rowLabel = rowLabel, seatNumber = seatNumber)
+internal fun SeatDTO.toSeat(): Seat =
+    Seat(id = id, roomId = roomId, rowLabel = rowLabel, seatNumber = seatNumber)
+
+internal fun Seat.toDto(): SeatDTO =
+    SeatDTO(id = id, roomId = roomId, rowLabel = rowLabel, seatNumber = seatNumber)
 
 // --- Showtimes ------------------------------------------------------------------------
 

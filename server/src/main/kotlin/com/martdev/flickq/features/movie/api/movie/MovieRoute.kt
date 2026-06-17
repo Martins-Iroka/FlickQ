@@ -65,7 +65,7 @@ private fun Route.moviePublicRoute(service: MovieService) {
         get("/get-movies") {
             val (limit, offset) = getLimitAndOffset()
             val response = service.getMovies(limit, offset).map {
-                it.toMovieItemDto()
+                it.toMovieDto()
             }
             val dataResponse = DataResponse(response)
             call.respond(HttpStatusCode.OK, dataResponse)

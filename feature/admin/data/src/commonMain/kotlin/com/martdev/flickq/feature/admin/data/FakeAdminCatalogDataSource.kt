@@ -29,13 +29,38 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
         Genre(1, "Drama"), Genre(2, "Sci-Fi"), Genre(3, "Thriller"), Genre(4, "Comedy"),
     )
     private val movies = mutableListOf(
-        Movie(1, "Neon Skyline", "A neon-soaked heist.", "", 128, LocalDate(2026, 3, 14), listOf(genres[1], genres[2])),
-        Movie(2, "The Quiet Coast", "A slow-burning drama.", "", 102, LocalDate(2026, 1, 9), listOf(genres[0])),
-        Movie(4, "Last Call at the Atlas", "One night, one bar.", "", 96, LocalDate(2026, 5, 2), listOf(genres[0], genres[3])),
+        Movie(
+            1,
+            "Neon Skyline",
+            "A neon-soaked heist.",
+            "",
+            128,
+            LocalDate(2026, 3, 14),
+            listOf(genres[1], genres[2], genres[4], genres.component4())
+        ),
+        Movie(
+            2,
+            "The Quiet Coast",
+            "A slow-burning drama.",
+            "",
+            102,
+            LocalDate(2026, 1, 9),
+            listOf(genres[0])
+        ),
+        Movie(
+            4,
+            "Last Call at the Atlas",
+            "One night, one bar.",
+            "",
+            96,
+            LocalDate(2026, 5, 2),
+            listOf(genres[0], genres[3])
+        ),
     )
     private val rooms = mutableListOf(
         Room(1, "Screen 1", 8, 10), Room(2, "Screen 2", 8, 10), Room(3, "Screen 3", 6, 10),
     )
+
     // Seats per room. Screens 1 & 2 ship pre-generated; Screen 3 starts empty so the detail
     // view can demo the "No Seats → Generate Seats → Seats Generated" flow.
     private val seats = mutableListOf<Seat>().apply {
@@ -47,7 +72,14 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
         repeat(room.rows) { rowIndex ->
             val label = rowLabel(rowIndex)
             repeat(room.columns) { columnIndex ->
-                add(Seat(id = id(), roomId = room.id, rowLabel = label, seatNumber = columnIndex + 1))
+                add(
+                    Seat(
+                        id = id(),
+                        roomId = room.id,
+                        rowLabel = label,
+                        seatNumber = columnIndex + 1
+                    )
+                )
             }
         }
     }
@@ -62,6 +94,7 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
         }
         return sb.reverse().toString()
     }
+
     private val showtimes = mutableListOf(
         Showtime(1, 1, 1, now(), now() + 2.hours, 3500, ShowtimeStatus.SCHEDULED),
         Showtime(2, 2, 2, now() + 1.days, now() + 1.days + 2.hours, 3000, ShowtimeStatus.SCHEDULED),
@@ -71,7 +104,17 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
     private fun now() = Clock.System.now()
 
     override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> =
-        Result.Success(movies.drop(offset).take(limit).map { Movie(it.id, it.title, posterUrl = it.posterUrl) })
+        Result.Success(
+            movies.drop(offset).take(limit).map {
+                Movie(
+                    it.id,
+                    it.title,
+                    posterUrl = it.posterUrl,
+                    duration = it.duration,
+                    releasedDate = it.releasedDate,
+                    genres = it.genres
+                )
+            })
 
     override suspend fun getMovie(id: Long): Result<Movie, DataError> =
         movies.find { it.id == id }?.let { Result.Success(it) }
@@ -94,7 +137,8 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
         return Result.Success(Unit)
     }
 
-    override suspend fun getGenres(): Result<List<Genre>, DataError> = Result.Success(genres.toList())
+    override suspend fun getGenres(): Result<List<Genre>, DataError> =
+        Result.Success(genres.toList())
 
     override suspend fun createGenre(genre: Genre): EmptyResult<DataError> {
         genres += genre.copy(id = id())
@@ -160,7 +204,10 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
         return Result.Success(Unit)
     }
 
-    override suspend fun updateShowtimeStatus(id: Long, status: ShowtimeStatus): Result<Showtime, DataError> {
+    override suspend fun updateShowtimeStatus(
+        id: Long,
+        status: ShowtimeStatus
+    ): Result<Showtime, DataError> {
         val index = showtimes.indexOfFirst { it.id == id }
         if (index < 0) return Result.Error(DataError.Network.NOT_FOUND)
         val updated = showtimes[index].copy(status = status)

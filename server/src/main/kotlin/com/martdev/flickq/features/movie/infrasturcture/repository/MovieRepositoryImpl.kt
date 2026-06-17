@@ -10,12 +10,10 @@ import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
-import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.SizedCollection
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
 
 @Single
@@ -43,7 +41,13 @@ class MovieRepositoryImpl : MovieRepository {
         offset: Long
     ): DataResult<List<Movie>> {
         return withSuspendTransaction {
-            val result = MoviesTable
+            val result = MoviesEntity.all()
+                .limit(limit)
+                .offset(offset)
+                .map {
+                    it.toMovie()
+                }
+            /*val result = MoviesTable
                 .select(
                     MoviesTable.id,
                     MoviesTable.title,
@@ -55,7 +59,7 @@ class MovieRepositoryImpl : MovieRepository {
                     val title = it[MoviesTable.title]
                     val posterUrl = it[MoviesTable.posterUrl]
                     Movie(id = id, title = title, posterUrl = posterUrl)
-                }
+                }*/
 
             DataResult.Success(result)
         }

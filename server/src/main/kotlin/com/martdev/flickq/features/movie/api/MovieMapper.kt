@@ -8,7 +8,7 @@ import com.martdev.flickq.movie.model.Movie
 import kotlinx.datetime.LocalDate
 
 fun Movie.toMovieItemDto() = MovieListItemDTO(
-    id, title, posterUrl
+    id, title, posterUrl, duration, releasedDate.toString(), genres.map { it.toGenreDto() }
 )
 
 fun Movie.toMovieDto() = MovieDTO(

@@ -13,7 +13,6 @@ import com.martdev.flickq.core.data.putData
 import com.martdev.flickq.feature.admin.domain.AdminCatalogRepository
 import com.martdev.flickq.movie.GenreDTO
 import com.martdev.flickq.movie.MovieDTO
-import com.martdev.flickq.movie.MovieListItemDTO
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.room.RoomDTO
@@ -38,7 +37,7 @@ class RealAdminCatalogDataSource(
     // --- Movies -----------------------------------------------------------------------
 
     override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> =
-        httpClient.getData<List<MovieListItemDTO>>(
+        httpClient.getData<List<MovieDTO>>(
             route = "/movie/get-movies",
             queryParameters = mapOf("limit" to limit, "offset" to offset),
         ).map { list -> list.map { it.toMovie() } }

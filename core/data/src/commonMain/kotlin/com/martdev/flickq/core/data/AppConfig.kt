@@ -17,7 +17,7 @@ import com.martdev.flickq.core.data.AppConfig.USE_FAKES
  * promoted to BuildKonfig flavors later without touching call sites.)
  */
 object AppConfig {
-    const val USE_FAKES: Boolean = false
+    const val USE_FAKES: Boolean = true
 
     const val BASE_URL: String = "https://finn-unsmitten-raeann.ngrok-free.dev/api/v1"
 
