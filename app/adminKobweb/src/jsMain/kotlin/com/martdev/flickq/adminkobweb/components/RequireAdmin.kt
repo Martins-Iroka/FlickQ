@@ -19,8 +19,13 @@ import com.varabyte.kobweb.compose.ui.modifiers.fillMaxWidth
 import com.varabyte.kobweb.compose.ui.modifiers.minHeight
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.silk.components.text.SpanText
+import kotlinx.browser.sessionStorage
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.web.css.vh
 import org.koin.mp.KoinPlatform
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 private enum class AuthStatus { Checking, Authorized }
 
@@ -40,12 +45,17 @@ private enum class AuthStatus { Checking, Authorized }
 fun RequireAdmin(content: @Composable () -> Unit) {
     val ctx = rememberPageContext()
     val tokenStorage = remember { KoinPlatform.getKoin().get<TokenStorage>() }
-    val sessionManager = remember { KoinPlatform.getKoin().get<SessionManager>() }
+    val sm = remember { KoinPlatform.getKoin().get<SessionManager>() }
     var status by remember { mutableStateOf(AuthStatus.Checking) }
 
     LaunchedEffect(Unit) {
         val claims = JwtDecoder.decode(tokenStorage.getAccessToken())
-        if (claims?.isAdmin == true) {
+        val clock = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val lexp = sessionStorage.getItem("exp")?.let {
+            Instant.parseOrNull(it)?.toLocalDateTime(TimeZone.UTC)
+        }
+        val isExpired = lexp != null && lexp < clock
+        if (claims?.isAdmin == true && isExpired.not()) {
             status = AuthStatus.Authorized
         } else {
             ctx.router.navigateTo("/login")
@@ -53,7 +63,7 @@ fun RequireAdmin(content: @Composable () -> Unit) {
     }
 
     LaunchedEffect(Unit) {
-        sessionManager.events.collect {
+        sm.events.collect {
             ctx.router.navigateTo("/login")
         }
     }

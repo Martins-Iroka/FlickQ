@@ -34,7 +34,7 @@ sealed interface AdminLoginAction {
 }
 
 sealed interface AdminLoginEvent {
-    data object Authenticated : AdminLoginEvent
+    data class Authenticated(val exp: String) : AdminLoginEvent
 }
 
 /**
@@ -71,9 +71,10 @@ class AdminLoginViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             authRepository.login(Credentials(current.email.trim(), current.password), true)
                 .onSuccess { result ->
-                    if (JwtDecoder.decode(result.accessToken)?.isAdmin == true) {
+                    val claim = JwtDecoder.decode(result.accessToken)
+                    if (claim?.isAdmin == true) {
                         _state.update { it.copy(isLoading = false) }
-                        _events.send(AdminLoginEvent.Authenticated)
+                        _events.send(AdminLoginEvent.Authenticated(claim.exp!!))
                     } else {
                         // Valid account, but not an admin — drop the session.
                         tokenStorage.clear()

@@ -10,8 +10,12 @@ import com.martdev.flickq.core.data.TokenStorage
 import com.martdev.flickq.feature.auth.data.FakeAuthDataSource.Companion.VALID_OTP
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * In-memory stand-in for the real auth backend. Accepts any registration, treats
@@ -100,7 +104,10 @@ class FakeAuthDataSource(
 
     @OptIn(ExperimentalEncodingApi::class)
     private fun fakeJwt(userId: Long, role: String): String {
-        val payload = """{"userId":"$userId","role":"$role"}"""
+//        val expiryDate = Clock.System.now().plus(15.minutes).toString()
+        val exp = Clock.System.now().plus(1.minutes).toLocalDateTime(TimeZone.currentSystemDefault()).toString().plus("Z")
+
+        val payload = """{"userId":"$userId","role":"$role","exp":"$exp"}"""
         val body = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(payload.encodeToByteArray())
         return "header.$body.signature"
     }

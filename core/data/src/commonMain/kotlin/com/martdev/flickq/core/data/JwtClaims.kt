@@ -1,11 +1,11 @@
 package com.martdev.flickq.core.data
 
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
  * The subset of JWT payload claims the client cares about. Decoded WITHOUT verifying the
@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonPrimitive
 data class JwtClaims(
     val userId: String?,
     val role: String?,
+    val exp: String?
 ) {
     val isAdmin: Boolean get() = role.equals("ADMIN", ignoreCase = true)
 }
@@ -35,6 +36,7 @@ object JwtDecoder {
             JwtClaims(
                 userId = obj["userId"]?.jsonPrimitive?.contentOrNull,
                 role = obj["role"]?.jsonPrimitive?.contentOrNull,
+                exp = obj["exp"]?.jsonPrimitive?.contentOrNull
             )
         } catch (e: Exception) {
             null

@@ -30,7 +30,7 @@ kobweb {
 
 kotlin {
     // JS-only Kobweb application (no Kobweb backend server — we hit the existing Ktor API).
-    configAsKobwebApplication("adminkobweb")
+    configAsKobwebApplication("adminkobweb", includeServer = false)
 
     sourceSets {
         jsMain.dependencies {

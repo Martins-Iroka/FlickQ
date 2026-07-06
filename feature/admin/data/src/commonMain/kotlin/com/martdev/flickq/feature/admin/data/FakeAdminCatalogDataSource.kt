@@ -36,7 +36,7 @@ class FakeAdminCatalogDataSource : AdminCatalogRepository {
             "",
             128,
             LocalDate(2026, 3, 14),
-            listOf(genres[1], genres[2], genres[4], genres.component4())
+            listOf(genres[1], genres[2], genres[3])
         ),
         Movie(
             2,

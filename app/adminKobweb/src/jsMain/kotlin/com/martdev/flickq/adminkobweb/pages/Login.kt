@@ -43,6 +43,7 @@ import com.varabyte.kobweb.silk.components.forms.Button
 import com.varabyte.kobweb.silk.components.forms.TextInput
 import com.varabyte.kobweb.silk.components.icons.fa.FaClapperboard
 import com.varabyte.kobweb.silk.components.text.SpanText
+import kotlinx.browser.sessionStorage
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.cssRem
 import org.jetbrains.compose.web.css.px
@@ -61,7 +62,10 @@ fun LoginPage(ctx: PageContext) {
     LaunchedEffect(vm) {
         vm.events.collect { event ->
             when (event) {
-                AdminLoginEvent.Authenticated -> ctx.router.navigateTo("/")
+                is AdminLoginEvent.Authenticated -> {
+                    sessionStorage.setItem("exp", event.exp)
+                    ctx.router.navigateTo("/")
+                }
             }
         }
     }

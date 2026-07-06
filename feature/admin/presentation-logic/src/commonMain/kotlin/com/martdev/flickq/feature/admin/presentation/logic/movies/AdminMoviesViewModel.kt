@@ -29,7 +29,7 @@ data class MovieForm(
     val releasedDate: String = "",
     val genreIds: Set<Long> = emptySet(),
 ) {
-    val isValid: Boolean get() = title.isNotBlank()
+    val isValid: Boolean get() = title.isNotBlank() && description.isNotBlank() && posterUrl.isNotBlank() && duration.isNotBlank() && releasedDate.isNotBlank() && genreIds.isNotEmpty()
 }
 
 data class AdminMoviesState(

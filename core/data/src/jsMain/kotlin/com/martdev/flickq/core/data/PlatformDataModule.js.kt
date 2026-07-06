@@ -11,7 +11,7 @@ actual fun httpClientEngine(): HttpClientEngine {
 }
 
 actual fun platformDataModule(): Module = module {
-    single<TokenStorage> { WebTokenStorage() }
+    single<TokenStorage> { KobwebTokenStorage() }
 }
 
 /**
