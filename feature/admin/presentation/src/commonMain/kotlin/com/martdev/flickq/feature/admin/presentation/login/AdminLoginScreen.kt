@@ -19,15 +19,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginAction
-import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginEvent
-import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginState
-import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginViewModel
 import com.martdev.flickq.core.designsystem.FlickQButton
 import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.FlickQTextField
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
 import com.martdev.flickq.core.presentation.ObserveAsEvents
+import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginAction
+import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginEvent
+import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginState
+import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -39,7 +39,7 @@ fun AdminLoginRoot(
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
-            AdminLoginEvent.Authenticated -> onAuthenticated()
+            is AdminLoginEvent.Authenticated -> onAuthenticated()
         }
     }
 
