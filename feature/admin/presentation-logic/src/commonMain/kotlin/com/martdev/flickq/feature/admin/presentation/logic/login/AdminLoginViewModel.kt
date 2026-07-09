@@ -11,6 +11,7 @@ import com.martdev.flickq.core.presentation.UiText
 import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
+import com.martdev.flickq.validation.Validator
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,7 +67,26 @@ class AdminLoginViewModel(
 
     private fun submit() {
         val current = _state.value
-        if (!current.canSubmit) return
+        val emailValidation = Validator.validateEmail(current.email)
+        val passwordValidation = Validator.validatePassword(current.password)
+        when {
+            !emailValidation.isValid -> {
+                _state.update {
+                    it.copy(
+                        error = UiText.DynamicString(emailValidation.errorMessage ?: "Invalid email")
+                    )
+                }
+                return
+            }
+            !passwordValidation.isValid -> {
+                _state.update {
+                    it.copy(
+                        error = UiText.DynamicString(passwordValidation.errorMessage ?: "Invalid password")
+                    )
+                }
+                return
+            }
+        }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             authRepository.login(Credentials(current.email.trim(), current.password), true)

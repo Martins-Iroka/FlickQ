@@ -104,8 +104,7 @@ class FakeAuthDataSource(
 
     @OptIn(ExperimentalEncodingApi::class)
     private fun fakeJwt(userId: Long, role: String): String {
-//        val expiryDate = Clock.System.now().plus(15.minutes).toString()
-        val exp = Clock.System.now().plus(1.minutes).toLocalDateTime(TimeZone.currentSystemDefault()).toString().plus("Z")
+        val exp = Clock.System.now().plus(30.minutes).toLocalDateTime(TimeZone.currentSystemDefault()).toString().plus("Z")
 
         val payload = """{"userId":"$userId","role":"$role","exp":"$exp"}"""
         val body = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(payload.encodeToByteArray())
@@ -115,6 +114,6 @@ class FakeAuthDataSource(
     companion object {
         const val VALID_OTP = "123456"
         const val SEED_ADMIN_EMAIL = "admin@flickq.com"
-        const val SEED_ADMIN_PASSWORD = "admin123"
+        const val SEED_ADMIN_PASSWORD = "Admin123"
     }
 }

@@ -13,32 +13,23 @@ import com.martdev.flickq.room.SeatDTO
 import com.martdev.flickq.showtime.ShowtimeDTO
 import com.martdev.flickq.showtime.UpdateShowtimeStatusRequest
 import com.martdev.flickq.showtime.model.ShowtimeStatus
+import com.martdev.flickq.validation.Validator
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.requestvalidation.RequestValidation
 import io.ktor.server.plugins.requestvalidation.ValidationResult
 import kotlin.enums.enumEntries
 
-private const val MIN_PASSWORD_LENGTH = 8
-private const val MAX_PASSWORD_LENGTH = 72
-
-private fun isStrongPassword(password: String): Boolean {
-    if (password.length !in MIN_PASSWORD_LENGTH..MAX_PASSWORD_LENGTH) return false
-    val hasLower = password.any { it.isLowerCase() }
-    val hasUpper = password.any { it.isUpperCase() }
-    val hasDigit = password.any { it.isDigit() }
-    val hasSpecial = password.any { !it.isLetterOrDigit() }
-    return listOf(hasLower, hasUpper, hasDigit, hasSpecial).count { it } >= 3
-}
-
 fun Application.configureRequestValidation() {
     val emailPattern = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+[a-zA-Z]{2,}$")
     install(RequestValidation) {
         validate<CreateUserRequest> { request ->
+            val emailValidation = Validator.validateEmail(request.email)
+            val passwordValidation = Validator.validatePassword(request.password)
             when {
-                request.email.isEmpty() || !emailPattern.matches(request.email) -> invalidResponseResult("Invalid email or password")
-                !isStrongPassword(request.password) -> invalidResponseResult(
-                    "Password must be $MIN_PASSWORD_LENGTH-$MAX_PASSWORD_LENGTH characters and include at least 3 of: lowercase, uppercase, digit, special character"
+                !emailValidation.isValid -> invalidResponseResult(emailValidation.errorMessage ?: "Invalid email")
+                !passwordValidation.isValid -> invalidResponseResult(
+                    passwordValidation.errorMessage ?: "Invalid password"
                 )
                 else -> ValidationResult.Valid
             }
@@ -54,9 +45,13 @@ fun Application.configureRequestValidation() {
         }
 
         validate<UserLoginRequest> { request ->
+            val emailValidation = Validator.validateEmail(request.email)
+            val passwordValidation = Validator.validatePassword(request.password)
             when {
-                request.email.isEmpty() || !emailPattern.matches(request.email) -> invalidResponseResult("Invalid email or password")
-                request.password.isEmpty() -> invalidResponseResult("Invalid email or password")
+                !emailValidation.isValid -> invalidResponseResult(emailValidation.errorMessage ?: "Invalid email")
+                !passwordValidation.isValid -> invalidResponseResult(
+                    passwordValidation.errorMessage ?: "Invalid password"
+                )
                 else -> ValidationResult.Valid
             }
         }
