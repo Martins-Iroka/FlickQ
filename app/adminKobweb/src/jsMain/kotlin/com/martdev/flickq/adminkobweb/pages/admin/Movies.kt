@@ -1,4 +1,4 @@
-package com.martdev.flickq.adminkobweb.pages
+package com.martdev.flickq.adminkobweb.pages.admin
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -71,6 +71,7 @@ import com.varabyte.kobweb.silk.components.icons.fa.FaXmark
 import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.LineStyle
+import org.jetbrains.compose.web.css.StyleScope
 import org.jetbrains.compose.web.css.px
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Img
@@ -494,7 +495,7 @@ private fun ReleasePill(iso: String) {
 // ---- helpers ------------------------------------------------------------------------------
 
 /** flex-wrap row for chips, applied to a raw <div>. */
-private fun org.jetbrains.compose.web.css.StyleScope.wrap() {
+private fun StyleScope.wrap() {
     property("display", "flex")
     property("flex-wrap", "wrap")
     property("gap", "8px")

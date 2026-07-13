@@ -1,4 +1,4 @@
-package com.martdev.flickq.adminkobweb.pages
+package com.martdev.flickq.adminkobweb.pages.admin
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -71,17 +71,16 @@ import com.varabyte.kobweb.compose.ui.modifiers.minWidth
 import com.varabyte.kobweb.compose.ui.modifiers.onClick
 import com.varabyte.kobweb.compose.ui.modifiers.opacity
 import com.varabyte.kobweb.compose.ui.modifiers.padding
-import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.modifiers.textDecorationLine
 import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.thenIf
+import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.silk.components.icons.fa.FaClock
 import com.varabyte.kobweb.silk.components.icons.fa.FaPenToSquare
 import com.varabyte.kobweb.silk.components.icons.fa.FaTicket
 import com.varabyte.kobweb.silk.components.icons.fa.FaTrash
 import com.varabyte.kobweb.silk.components.icons.fa.FaXmark
 import com.varabyte.kobweb.silk.components.text.SpanText
-import com.varabyte.kobweb.core.Page
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.px

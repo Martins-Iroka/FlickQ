@@ -1,4 +1,4 @@
-package com.martdev.flickq.adminkobweb.pages
+package com.martdev.flickq.adminkobweb.pages.admin
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,7 +53,7 @@ private fun UiText.plain(): String = when (this) {
     is UiText.DynamicString -> value
 }
 
-@Page
+@Page("login")
 @Composable
 fun LoginPage(ctx: PageContext) {
     val vm = rememberAdminViewModel<AdminLoginViewModel>()
@@ -64,7 +64,7 @@ fun LoginPage(ctx: PageContext) {
             when (event) {
                 is AdminLoginEvent.Authenticated -> {
                     sessionStorage.setItem("exp", event.exp)
-                    ctx.router.navigateTo("/")
+                    ctx.router.navigateTo("/admin/dashboard")
                 }
             }
         }

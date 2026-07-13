@@ -58,13 +58,13 @@ fun RequireAdmin(content: @Composable () -> Unit) {
         if (claims?.isAdmin == true && isExpired.not()) {
             status = AuthStatus.Authorized
         } else {
-            ctx.router.navigateTo("/login")
+            ctx.router.navigateTo("/admin/login")
         }
     }
 
     LaunchedEffect(Unit) {
         sm.events.collect {
-            ctx.router.navigateTo("/login")
+            ctx.router.navigateTo("/admin/login")
         }
     }
 

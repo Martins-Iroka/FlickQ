@@ -1,4 +1,4 @@
-package com.martdev.flickq.adminkobweb.pages
+package com.martdev.flickq.adminkobweb.pages.admin
 
 import androidx.compose.runtime.Composable
 import com.martdev.flickq.adminkobweb.components.AdminLayout
