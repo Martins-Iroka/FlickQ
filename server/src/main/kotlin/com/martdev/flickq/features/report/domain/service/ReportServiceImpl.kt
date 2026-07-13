@@ -16,12 +16,13 @@ class ReportServiceImpl(
     private val paystackConfig: PaystackConfig,
 ) : ReportService {
 
+    private val badRequestException = BadRequestException("'from' must be before 'to'")
     override suspend fun getRevenueReport(
         from: Instant,
         to: Instant,
         bucket: ReportBucketGranularity,
     ): RevenueReport {
-        if (from >= to) throw BadRequestException("'from' must be before 'to'")
+        if (from >= to) throw badRequestException
 
         val buckets = reportRepository.getRevenueBuckets(from, to, bucket).returnValue()
         val totalGross = buckets.sumOf { it.gross }
@@ -49,7 +50,7 @@ class ReportServiceImpl(
         movieId: Long?,
         roomId: Long?,
     ): CapacityReport {
-        if (from >= to) throw BadRequestException("'from' must be before 'to'")
+        if (from >= to) throw badRequestException
 
         val rows = reportRepository.getCapacityRows(from, to, limit, offset, movieId, roomId).returnValue()
         val totals = reportRepository.getCapacityTotals(from, to, movieId, roomId).returnValue()
