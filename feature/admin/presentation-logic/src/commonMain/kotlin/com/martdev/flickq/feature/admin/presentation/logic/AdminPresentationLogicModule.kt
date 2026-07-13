@@ -3,6 +3,7 @@ package com.martdev.flickq.feature.admin.presentation.logic
 import com.martdev.flickq.feature.admin.presentation.logic.dashboard.AdminDashboardViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.hub.AdminHubViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieDetailViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailViewModel
@@ -30,4 +31,7 @@ val adminPresentationLogicModule = module {
     viewModelOf(::AdminReservationsViewModel)
     // Param-injected (the reservation id) — viewModelOf can't supply the Long.
     viewModel { params -> AdminReservationDetailViewModel(params.get(), get(), get(), get()) }
+    viewModel { params ->
+        AdminMovieDetailViewModel(params.get(), get())
+    }
 }

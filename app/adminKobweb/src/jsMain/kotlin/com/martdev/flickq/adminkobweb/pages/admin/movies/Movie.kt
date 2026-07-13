@@ -6,11 +6,13 @@ import androidx.compose.runtime.getValue
 import com.martdev.flickq.adminkobweb.components.AdminLayout
 import com.martdev.flickq.adminkobweb.components.AdminNav
 import com.martdev.flickq.adminkobweb.components.DateField
+import com.martdev.flickq.adminkobweb.components.ErrorBox
 import com.martdev.flickq.adminkobweb.components.FIELD_CSS
 import com.martdev.flickq.adminkobweb.components.FieldLabel
 import com.martdev.flickq.adminkobweb.components.FormCard
 import com.martdev.flickq.adminkobweb.components.RequireAdmin
 import com.martdev.flickq.adminkobweb.components.SaveButton
+import com.martdev.flickq.adminkobweb.components.StatusBox
 import com.martdev.flickq.adminkobweb.components.TextAreaField
 import com.martdev.flickq.adminkobweb.components.TextField
 import com.martdev.flickq.adminkobweb.components.formatDuration
@@ -18,10 +20,12 @@ import com.martdev.flickq.adminkobweb.components.plain
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
-import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesAction
-import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesState
-import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesViewModel
-import com.martdev.flickq.feature.admin.presentation.logic.movies.MovieForm
+import com.martdev.flickq.core.presentation.ObserveAsEvents
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieAction
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieDetailState
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieDetailViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieEvent
+import com.martdev.flickq.feature.admin.presentation.logic.movies.TheMovieForm
 import com.martdev.flickq.movie.model.Genre
 import com.varabyte.kobweb.compose.css.Cursor
 import com.varabyte.kobweb.compose.css.FontWeight
@@ -62,12 +66,13 @@ import org.jetbrains.compose.web.css.px
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.Input
+import org.koin.core.parameter.parametersOf
 
 @Page("item")
 @Composable
 fun MoviePage() {
     RequireAdmin {
-        AdminLayout(selected = AdminNav.Movies, title = "Movies") {
+        AdminLayout(selected = AdminNav.Movies, title = "Movie") {
             MovieContent()
         }
     }
@@ -76,17 +81,40 @@ fun MoviePage() {
 @Composable
 private fun MovieContent() {
     val ctx = rememberPageContext()
-    val mode = ctx.route.params["mode"] ?: "Nothing came"
-    val vm = rememberAdminViewModel<AdminMoviesViewModel>()
+    val id = ctx.route.params["id"] ?: ""
+    console.info("See the id passed $id")
+//    val mode = ctx.route.params["mode"] ?: "add"
+    val vm = rememberAdminViewModel<AdminMovieDetailViewModel>(
+        parameters = {
+            parametersOf(id.toLongOrNull() ?: 0L)
+        }
+    )
     val state by vm.state.collectAsState()
     val onAction = vm::onAction
 
-    val form = state.form!!
-    MovieFormView(state, form, onAction)
+    val form = state.form
+    val error = state.error
+
+    ObserveAsEvents(vm.events) { event ->
+        when(event) {
+            AdminMovieEvent.BackToMovieList -> TODO()
+            AdminMovieEvent.MovieSaved -> {
+                ctx.router.navigateTo("/admin/movies/items")
+            }
+        }
+    }
+
+    when {
+        state.isLoading -> StatusBox("Loading movie detail")
+        error != null -> ErrorBox(error) {
+            onAction(AdminMovieAction.OnDismiss)
+        }
+        else -> MovieFormView(state, form, onAction)
+    }
 }
 
 @Composable
-private fun MovieFormView(state: AdminMoviesState, form: MovieForm, onAction: (AdminMoviesAction) -> Unit) {
+private fun MovieFormView(state: AdminMovieDetailState, form: TheMovieForm, onAction: (AdminMovieAction) -> Unit) {
     val editing = form.editingId != null
     Column(
         modifier = Modifier.fillMaxWidth().maxWidth(1280.px),
@@ -113,12 +141,12 @@ private fun MovieFormView(state: AdminMoviesState, form: MovieForm, onAction: (A
                     "Cancel",
                     Modifier.color(AdminColors.Body).fontSize(14.px).fontWeight(FontWeight.SemiBold)
                         .cursor(Cursor.Pointer).padding(leftRight = 12.px)
-                        .onClick { onAction(AdminMoviesAction.OnDismissDialog) },
+                        .onClick { onAction(AdminMovieAction.OnDismiss) },
                 )
                 SaveButton(
                     label = if (state.isSaving) "Saving…" else "Save Movie",
                     enabled = form.isValid && !state.isSaving,
-                ) { onAction(AdminMoviesAction.OnSave) }
+                ) { onAction(AdminMovieAction.OnSave) }
             }
         }
 
@@ -134,20 +162,20 @@ private fun MovieFormView(state: AdminMoviesState, form: MovieForm, onAction: (A
             ) {
                 FormCard("Core Information", { FaClapperboard(it) }) {
                     FieldLabel("MOVIE TITLE *")
-                    TextField(form.title, "Enter the movie title") { onAction(AdminMoviesAction.OnTitleChange(it)) }
+                    TextField(form.title, "Enter the movie title") { onAction(AdminMovieAction.OnTitleChange(it)) }
                     FieldLabel("SYNOPSIS")
-                    TextAreaField(form.description) { onAction(AdminMoviesAction.OnDescriptionChange(it)) }
+                    TextAreaField(form.description) { onAction(AdminMovieAction.OnDescriptionChange(it)) }
                 }
                 FormCard("Metadata & Categorization", { FaChartColumn(it) }) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.px)) {
                         Column(modifier = Modifier.flexGrow(1).flexBasis(0.px), verticalArrangement = Arrangement.spacedBy(8.px)) {
                             FieldLabel("DURATION (MINUTES)")
-                            TextField(form.duration, "e.g. 120") { onAction(AdminMoviesAction.OnDurationChange(it)) }
+                            TextField(form.duration, "e.g. 120") { onAction(AdminMovieAction.OnDurationChange(it)) }
                             SpanText("Approx. ${formatDuration(form.duration.toIntOrNull() ?: 0)}", Modifier.color(AdminColors.Muted).fontSize(12.px))
                         }
                         Column(modifier = Modifier.flexGrow(1).flexBasis(0.px), verticalArrangement = Arrangement.spacedBy(8.px)) {
                             FieldLabel("RELEASE DATE")
-                            DateField(form.releasedDate) { onAction(AdminMoviesAction.OnReleasedDateChange(it)) }
+                            DateField(form.releasedDate) { onAction(AdminMovieAction.OnReleasedDateChange(it)) }
                         }
                     }
                     Row(
@@ -158,10 +186,10 @@ private fun MovieFormView(state: AdminMoviesState, form: MovieForm, onAction: (A
                         FieldLabel("GENRES")
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.px)) {
                             SpanText("Select multiple", Modifier.color(AdminColors.Muted).fontSize(12.px))
-                            AddGenreLink { onAction(AdminMoviesAction.OnAddGenreClick) }
+                            AddGenreLink { onAction(AdminMovieAction.OnAddGenreClick) }
                         }
                     }
-                    GenrePicker(state.genres, form.genreIds) { onAction(AdminMoviesAction.OnToggleGenre(it)) }
+                    GenrePicker(state.genres, form.genreIds) { onAction(AdminMovieAction.OnToggleGenre(it)) }
                     state.newGenre?.let { name ->
                         NewGenreRow(name, state.isSavingGenre, onAction)
                     }
@@ -171,7 +199,7 @@ private fun MovieFormView(state: AdminMoviesState, form: MovieForm, onAction: (A
             Column(modifier = Modifier.flexGrow(1).flexBasis(0.px)) {
                 FormCard("Media Assets", { FaImages(it) }) {
                     FieldLabel("POSTER IMAGE URL")
-                    TextField(form.posterUrl, "https://…") { onAction(AdminMoviesAction.OnPosterUrlChange(it)) }
+                    TextField(form.posterUrl, "https://…") { onAction(AdminMovieAction.OnPosterUrlChange(it)) }
                     FieldLabel("PREVIEW")
                     PosterPreview(form.posterUrl)
                 }
@@ -217,7 +245,7 @@ private fun GenrePicker(all: List<Genre>, selected: Set<Long>, onToggle: (Long) 
 }
 
 @Composable
-private fun NewGenreRow(value: String, saving: Boolean, onAction: (AdminMoviesAction) -> Unit) {
+private fun NewGenreRow(value: String, saving: Boolean, onAction: (AdminMovieAction) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().margin(top = 8.px),
         verticalAlignment = Alignment.CenterVertically,
@@ -228,18 +256,18 @@ private fun NewGenreRow(value: String, saving: Boolean, onAction: (AdminMoviesAc
                 value(value)
                 attr("placeholder", "New genre name")
                 attr("style", FIELD_CSS)
-                onInput { onAction(AdminMoviesAction.OnNewGenreChange(it.value)) }
+                onInput { onAction(AdminMovieAction.OnNewGenreChange(it.value)) }
             }
         }
         SaveButton(
             label = if (saving) "Adding…" else "Add",
             enabled = value.isNotBlank() && !saving,
-        ) { onAction(AdminMoviesAction.OnSubmitGenre) }
+        ) { onAction(AdminMovieAction.OnSubmitGenre) }
         SpanText(
             "Cancel",
             Modifier.color(AdminColors.Body).fontSize(14.px).fontWeight(FontWeight.SemiBold)
                 .cursor(Cursor.Pointer).padding(leftRight = 8.px)
-                .onClick { onAction(AdminMoviesAction.OnCancelGenre) },
+                .onClick { onAction(AdminMovieAction.OnCancelGenre) },
         )
     }
 }

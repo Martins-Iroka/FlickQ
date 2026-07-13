@@ -59,7 +59,7 @@ import org.jetbrains.compose.web.dom.Div
 @Composable
 fun MoviesPage() {
     RequireAdmin {
-        AdminLayout(selected = AdminNav.Movies, title = "Movies") {
+        AdminLayout(selected = AdminNav.Movies, title = "Movie") {
             MoviesContent()
         }
     }
@@ -75,7 +75,7 @@ private fun MoviesContent() {
     ObserveAsEvents(vm.events) { event ->
         when (event) {
             AdminMoviesEvent.AddNewMovie -> ctx.router.navigateTo("/admin/movies/item?mode=add")
-            is AdminMoviesEvent.EditMovie -> TODO()
+            is AdminMoviesEvent.EditMovie -> ctx.router.navigateTo("/admin/movies/item?id=${event.id}&mode=edit")
         }
     }
 

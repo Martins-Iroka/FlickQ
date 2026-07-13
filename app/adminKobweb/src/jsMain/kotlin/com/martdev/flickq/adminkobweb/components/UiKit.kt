@@ -226,14 +226,14 @@ fun StatusBox(message: String) {
 }
 
 @Composable
-fun ErrorBox(error: UiText, onRetry: () -> Unit) {
+fun ErrorBox(error: UiText, label: String = "Retry", onRetry: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.SurfaceAlt)
             .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(12.px).padding(32.px),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.px),
     ) {
         SpanText(error.plain(), Modifier.color(AdminColors.Body).fontSize(14.px))
-        Box(modifier = Modifier.width(140.px)) { SecondaryButton("Retry", onRetry) }
+        Box(modifier = Modifier.width(140.px)) { SecondaryButton(label, onRetry) }
     }
 }
 

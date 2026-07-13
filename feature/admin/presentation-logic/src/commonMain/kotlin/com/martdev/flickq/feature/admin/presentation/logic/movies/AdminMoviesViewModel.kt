@@ -89,7 +89,9 @@ class AdminMoviesViewModel(
     private val _events = Channel<AdminMoviesEvent>()
     val events = _events.receiveAsFlow()
 
-    init { load() }
+    init {
+        load()
+    }
 
     fun onAction(action: AdminMoviesAction) {
         when (action) {
@@ -100,7 +102,12 @@ class AdminMoviesViewModel(
                     _events.send(AdminMoviesEvent.AddNewMovie)
                 }
             }
-            is AdminMoviesAction.OnEditClick -> openEdit(action.movie.id)
+
+            is AdminMoviesAction.OnEditClick -> {
+                viewModelScope.launch {
+                    _events.send(AdminMoviesEvent.EditMovie(action.movie.id))
+                }
+            }
             is AdminMoviesAction.OnTitleChange -> updateForm { it.copy(title = action.value) }
             is AdminMoviesAction.OnDescriptionChange -> updateForm { it.copy(description = action.value) }
             is AdminMoviesAction.OnPosterUrlChange -> updateForm { it.copy(posterUrl = action.value) }
@@ -109,12 +116,27 @@ class AdminMoviesViewModel(
             is AdminMoviesAction.OnToggleGenre -> updateForm { form ->
                 form.copy(genreIds = if (action.genreId in form.genreIds) form.genreIds - action.genreId else form.genreIds + action.genreId)
             }
-            AdminMoviesAction.OnAddGenreClick -> _state.update { it.copy(newGenre = "", dialogError = null) }
+
+            AdminMoviesAction.OnAddGenreClick -> _state.update {
+                it.copy(
+                    newGenre = "",
+                    dialogError = null
+                )
+            }
+
             is AdminMoviesAction.OnNewGenreChange -> _state.update { it.copy(newGenre = action.value) }
             AdminMoviesAction.OnSubmitGenre -> submitGenre()
             AdminMoviesAction.OnCancelGenre -> _state.update { it.copy(newGenre = null) }
             AdminMoviesAction.OnSave -> save()
-            AdminMoviesAction.OnDismissDialog -> _state.update { it.copy(form = null, dialogError = null, newGenre = null, isSavingGenre = false) }
+            AdminMoviesAction.OnDismissDialog -> _state.update {
+                it.copy(
+                    form = null,
+                    dialogError = null,
+                    newGenre = null,
+                    isSavingGenre = false
+                )
+            }
+
             is AdminMoviesAction.OnDeleteClick -> _state.update { it.copy(deleting = action.movie) }
             AdminMoviesAction.OnConfirmDelete -> delete()
             AdminMoviesAction.OnDismissDelete -> _state.update { it.copy(deleting = null) }
@@ -127,7 +149,14 @@ class AdminMoviesViewModel(
 
     private fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, isLoadingMore = false, endReached = false, error = null) }
+            _state.update {
+                it.copy(
+                    isLoading = true,
+                    isLoadingMore = false,
+                    endReached = false,
+                    error = null
+                )
+            }
             // Genres back the form's chips; fetched once alongside the first page.
             catalog.getGenres().onSuccess { genres -> _state.update { it.copy(genres = genres) } }
             fetchPage(replace = true)
@@ -187,7 +216,16 @@ class AdminMoviesViewModel(
                         )
                     }
                 }
-                .onFailure { error, message -> _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            error = resolveErrorText(
+                                message,
+                                error.toUiText()
+                            )
+                        )
+                    }
+                }
         }
     }
 
@@ -205,13 +243,23 @@ class AdminMoviesViewModel(
         )
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, dialogError = null) }
-            val result = if (form.editingId == null) catalog.createMovie(movie) else catalog.updateMovie(movie)
+            val result =
+                if (form.editingId == null) catalog.createMovie(movie) else catalog.updateMovie(
+                    movie
+                )
             result
                 .onSuccess {
                     _state.update { it.copy(isSaving = false, form = null) }
                     load()
                 }
-                .onFailure { error, message -> _state.update { it.copy(isSaving = false, dialogError = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            isSaving = false,
+                            dialogError = resolveErrorText(message, error.toUiText())
+                        )
+                    }
+                }
         }
     }
 
@@ -228,7 +276,8 @@ class AdminMoviesViewModel(
                 .onSuccess {
                     catalog.getGenres()
                         .onSuccess { genres ->
-                            val created = genres.firstOrNull { it.name.equals(name, ignoreCase = true) }
+                            val created =
+                                genres.firstOrNull { it.name.equals(name, ignoreCase = true) }
                             _state.update { s ->
                                 s.copy(
                                     genres = genres,
@@ -240,9 +289,24 @@ class AdminMoviesViewModel(
                                 )
                             }
                         }
-                        .onFailure { error, message -> _state.update { it.copy(isSavingGenre = false, newGenre = null, dialogError = resolveErrorText(message, error.toUiText())) } }
+                        .onFailure { error, message ->
+                            _state.update {
+                                it.copy(
+                                    isSavingGenre = false,
+                                    newGenre = null,
+                                    dialogError = resolveErrorText(message, error.toUiText())
+                                )
+                            }
+                        }
                 }
-                .onFailure { error, message -> _state.update { it.copy(isSavingGenre = false, dialogError = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            isSavingGenre = false,
+                            dialogError = resolveErrorText(message, error.toUiText())
+                        )
+                    }
+                }
         }
     }
 
@@ -252,7 +316,16 @@ class AdminMoviesViewModel(
             _state.update { it.copy(deleting = null) }
             catalog.deleteMovie(target.id)
                 .onSuccess { load() }
-                .onFailure { error, message -> _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            error = resolveErrorText(
+                                message,
+                                error.toUiText()
+                            )
+                        )
+                    }
+                }
         }
     }
 
