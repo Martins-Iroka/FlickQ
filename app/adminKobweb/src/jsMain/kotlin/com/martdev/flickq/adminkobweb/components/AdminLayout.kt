@@ -55,12 +55,12 @@ import org.jetbrains.compose.web.css.vh
 
 /** Sidebar destinations, in display order. Routes for unbuilt phases 404 until their page lands. */
 enum class AdminNav(val label: String, val route: String) {
-    Dashboard("Dashboard", "/"),
-    Movies("Movies", "/movies"),
-    Rooms("Rooms", "/rooms"),
-    Showtimes("Showtimes", "/showtimes"),
-    Reservations("Reservations", "/reservations"),
-    Reports("Reports", "/reports"),
+    Dashboard("Dashboard", "/admin/dashboard"),
+    Movies("Movie", "/admin/movies/items"),
+    Rooms("Room", "/rooms"),
+    Showtimes("Showtime", "/showtimes"),
+    Reservations("Reservation", "/reservations"),
+    Reports("Report", "/reports"),
 }
 
 @Composable

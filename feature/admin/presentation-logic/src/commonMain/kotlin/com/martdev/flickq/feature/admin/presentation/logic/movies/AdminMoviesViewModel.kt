@@ -10,8 +10,10 @@ import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.admin.domain.AdminCatalogRepository
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -39,7 +41,7 @@ data class AdminMoviesState(
     val movies: List<Movie> = emptyList(),
     val genres: List<Genre> = emptyList(),
     val error: UiText? = null,
-    val form: MovieForm? = null,
+    val form: MovieForm? = MovieForm(),
     val isSaving: Boolean = false,
     val dialogError: UiText? = null,
     val deleting: Movie? = null,
@@ -72,6 +74,11 @@ sealed interface AdminMoviesAction {
     data object OnDismissDelete : AdminMoviesAction
 }
 
+sealed interface AdminMoviesEvent {
+    data object AddNewMovie : AdminMoviesEvent
+    data class EditMovie(val id: Long) : AdminMoviesEvent
+}
+
 class AdminMoviesViewModel(
     private val catalog: AdminCatalogRepository
 ) : ViewModel() {
@@ -79,13 +86,20 @@ class AdminMoviesViewModel(
     private val _state = MutableStateFlow(AdminMoviesState())
     val state = _state.asStateFlow()
 
+    private val _events = Channel<AdminMoviesEvent>()
+    val events = _events.receiveAsFlow()
+
     init { load() }
 
     fun onAction(action: AdminMoviesAction) {
         when (action) {
             AdminMoviesAction.OnRetry -> load()
             AdminMoviesAction.OnLoadMore -> loadMore()
-            AdminMoviesAction.OnAddClick -> _state.update { it.copy(form = MovieForm(), dialogError = null, newGenre = null) }
+            AdminMoviesAction.OnAddClick -> {
+                viewModelScope.launch {
+                    _events.send(AdminMoviesEvent.AddNewMovie)
+                }
+            }
             is AdminMoviesAction.OnEditClick -> openEdit(action.movie.id)
             is AdminMoviesAction.OnTitleChange -> updateForm { it.copy(title = action.value) }
             is AdminMoviesAction.OnDescriptionChange -> updateForm { it.copy(description = action.value) }

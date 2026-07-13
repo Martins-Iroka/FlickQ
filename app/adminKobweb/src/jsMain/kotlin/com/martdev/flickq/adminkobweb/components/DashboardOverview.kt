@@ -67,7 +67,8 @@ fun DashboardOverview() {
             error != null -> ErrorBox(error) { vm.onAction(AdminDashboardAction.OnRetry) }
             else -> {
                 MetricsRow(state)
-                UpcomingShowtimesCard(state.upcomingToday) { ctx.router.navigateTo("/showtimes") }
+                UpcomingShowtimesCard(state.upcomingToday) {
+                    ctx.router.navigateTo("/showtimes") }
             }
         }
     }
@@ -76,7 +77,7 @@ fun DashboardOverview() {
 @Composable
 private fun QuickActions(onNavigate: (String) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.px)) {
-        ActionButton("Add Movie", primary = true) { onNavigate("/movie") }
+        ActionButton("Add Movie", primary = true) { onNavigate("/admin/movies/item?mode=add") }
         ActionButton("Add Showtime", primary = false) { onNavigate("/showtime") }
         ActionButton("Add Room", primary = false) { onNavigate("/room") }
     }
