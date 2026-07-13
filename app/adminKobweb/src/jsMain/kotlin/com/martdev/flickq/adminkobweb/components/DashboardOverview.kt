@@ -76,9 +76,9 @@ fun DashboardOverview() {
 @Composable
 private fun QuickActions(onNavigate: (String) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.px)) {
-        ActionButton("Add Movie", primary = true) { onNavigate("/movies") }
-        ActionButton("Add Showtime", primary = false) { onNavigate("/showtimes") }
-        ActionButton("Add Room", primary = false) { onNavigate("/rooms") }
+        ActionButton("Add Movie", primary = true) { onNavigate("/movie") }
+        ActionButton("Add Showtime", primary = false) { onNavigate("/showtime") }
+        ActionButton("Add Room", primary = false) { onNavigate("/room") }
     }
 }
 
