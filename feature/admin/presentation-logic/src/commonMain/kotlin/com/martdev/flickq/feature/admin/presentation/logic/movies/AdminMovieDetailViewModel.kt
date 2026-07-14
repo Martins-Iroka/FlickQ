@@ -160,7 +160,7 @@ class AdminMovieDetailViewModel(
     }
 
     private fun save() {
-        val form = _state.value.form ?: return
+        val form = _state.value.form
         if (!form.isValid || _state.value.isSaving) return
         val movie = Movie(
             id = form.editingId ?: 0L,

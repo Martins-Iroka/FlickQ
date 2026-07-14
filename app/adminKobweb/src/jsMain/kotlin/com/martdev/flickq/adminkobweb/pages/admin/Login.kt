@@ -1,12 +1,12 @@
 package com.martdev.flickq.adminkobweb.pages.admin
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
+import com.martdev.flickq.core.presentation.ObserveAsEvents
 import com.martdev.flickq.core.presentation.UiText
 import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginAction
 import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginEvent
@@ -43,7 +43,6 @@ import com.varabyte.kobweb.silk.components.forms.Button
 import com.varabyte.kobweb.silk.components.forms.TextInput
 import com.varabyte.kobweb.silk.components.icons.fa.FaClapperboard
 import com.varabyte.kobweb.silk.components.text.SpanText
-import kotlinx.browser.sessionStorage
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.cssRem
 import org.jetbrains.compose.web.css.px
@@ -59,13 +58,10 @@ fun LoginPage(ctx: PageContext) {
     val vm = rememberAdminViewModel<AdminLoginViewModel>()
     val state by vm.state.collectAsState()
 
-    LaunchedEffect(vm) {
-        vm.events.collect { event ->
-            when (event) {
-                is AdminLoginEvent.Authenticated -> {
-                    sessionStorage.setItem("exp", event.exp)
-                    ctx.router.navigateTo("/admin/dashboard")
-                }
+    ObserveAsEvents(vm.events) { event ->
+        when (event) {
+            is AdminLoginEvent.Authenticated -> {
+                ctx.router.navigateTo("/admin/dashboard")
             }
         }
     }

@@ -84,6 +84,30 @@ class RealAuthDataSource(
         }
     }
 
+    override suspend fun newLogin(
+        credentials: Credentials,
+        isAdmin: Boolean
+    ): Result<Unit, AuthError> {
+        val path = if (isAdmin) "/authentication/admin/login" else "/authentication/login"
+        return when (val r = client.postData<UserLoginRequest, UserLoginResponse>(
+            path,
+            UserLoginRequest(email = credentials.email, password = credentials.password)
+        )) {
+            is Result.Success -> {
+                val tokens = r.data
+                tokenStorage.saveTokens(tokens.accessToken, tokens.refreshToken)
+                val expiryDate = JwtDecoder.decode(tokens.accessToken)?.exp
+                expiryDate?.let {
+                    tokenStorage.saveExpiryDate(it)
+                }
+                Result.Success(
+                    Unit
+                )
+            }
+            is Result.Error -> Result.Error(r.error.toLoginError(), r.message)
+        }
+    }
+
     override suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError> =
         when (val r = client.postData<ResendOTPRequest, ResendOTPResponse>(
             "/authentication/resend-otp",

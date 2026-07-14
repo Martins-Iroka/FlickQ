@@ -20,6 +20,9 @@ interface AuthRepository {
 
     suspend fun login(credentials: Credentials, isAdmin: Boolean = false): Result<LoginResult, AuthError>
 
+    suspend fun newLogin(credentials: Credentials, isAdmin: Boolean = false): Result<Unit, AuthError> =
+        Result.Success(Unit)
+
     suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError>
 
     /**

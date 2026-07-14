@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.martdev.flickq.adminkobweb.theme.AdminColors
-import com.martdev.flickq.core.data.JwtDecoder
 import com.martdev.flickq.core.data.SessionManager
 import com.martdev.flickq.core.data.TokenStorage
 import com.varabyte.kobweb.compose.foundation.layout.Box
@@ -19,7 +18,6 @@ import com.varabyte.kobweb.compose.ui.modifiers.fillMaxWidth
 import com.varabyte.kobweb.compose.ui.modifiers.minHeight
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.silk.components.text.SpanText
-import kotlinx.browser.sessionStorage
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.web.css.vh
@@ -49,13 +47,12 @@ fun RequireAdmin(content: @Composable () -> Unit) {
     var status by remember { mutableStateOf(AuthStatus.Checking) }
 
     LaunchedEffect(Unit) {
-        val claims = JwtDecoder.decode(tokenStorage.getAccessToken())
         val clock = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        val lexp = sessionStorage.getItem("exp")?.let {
-            Instant.parseOrNull(it)?.toLocalDateTime(TimeZone.UTC)
+        val lexp = tokenStorage.getExpiryDate().run {
+            Instant.parseOrNull(this)?.toLocalDateTime(TimeZone.UTC)
         }
         val isExpired = lexp != null && lexp < clock
-        if (claims?.isAdmin == true && isExpired.not()) {
+        if (isExpired.not()) {
             status = AuthStatus.Authorized
         } else {
             ctx.router.navigateTo("/admin/login")

@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.martdev.flickq.auth.model.Credentials
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
-import com.martdev.flickq.core.data.JwtDecoder
-import com.martdev.flickq.core.data.TokenStorage
 import com.martdev.flickq.core.presentation.UiText
 import com.martdev.flickq.core.presentation.resolveErrorText
 import com.martdev.flickq.feature.auth.domain.AuthError
@@ -35,7 +33,7 @@ sealed interface AdminLoginAction {
 }
 
 sealed interface AdminLoginEvent {
-    data class Authenticated(val exp: String) : AdminLoginEvent
+    data object Authenticated : AdminLoginEvent
 }
 
 /**
@@ -46,7 +44,6 @@ sealed interface AdminLoginEvent {
  */
 class AdminLoginViewModel(
     private val authRepository: AuthRepository,
-    private val tokenStorage: TokenStorage,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AdminLoginState())
@@ -89,22 +86,10 @@ class AdminLoginViewModel(
         }
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            authRepository.login(Credentials(current.email.trim(), current.password), true)
-                .onSuccess { result ->
-                    val claim = JwtDecoder.decode(result.accessToken)
-                    if (claim?.isAdmin == true) {
-                        _state.update { it.copy(isLoading = false) }
-                        _events.send(AdminLoginEvent.Authenticated(claim.exp!!))
-                    } else {
-                        // Valid account, but not an admin — drop the session.
-                        tokenStorage.clear()
-                        _state.update {
-                            it.copy(
-                                isLoading = false,
-                                error = UiText.DynamicString("This account doesn't have administrator access.")
-                            )
-                        }
-                    }
+            authRepository.newLogin(Credentials(current.email.trim(), current.password), true)
+                .onSuccess {
+                    _state.update { it.copy(isLoading = false) }
+                    _events.send(AdminLoginEvent.Authenticated)
                 }
                 .onFailure { error, message ->
                     _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }

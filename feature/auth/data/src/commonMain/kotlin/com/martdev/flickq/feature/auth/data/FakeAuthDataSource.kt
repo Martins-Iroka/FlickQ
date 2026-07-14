@@ -69,6 +69,25 @@ class FakeAuthDataSource(
         return issueSession(credentials.email, isAdmin)
     }
 
+    override suspend fun newLogin(
+        credentials: Credentials,
+        isAdmin: Boolean
+    ): Result<Unit, AuthError> {
+        val account = accounts[credentials.email]
+        if (account == null || account.password != credentials.password) {
+            return Result.Error(AuthError.INVALID_CREDENTIALS)
+        }
+        val userId = userIdSeq++
+        // Issue a real (signature-less) JWT so JwtDecoder can read the role — the admin app gates
+        // entry on the ADMIN claim. Mirrors the shape of the backend's tokens.
+        val accessToken = fakeJwt(userId, role = if (isAdmin) "ADMIN" else "USER")
+        val refreshToken = "refresh-token-${credentials.email}"
+        tokenStorage.saveTokens(accessToken = accessToken, refreshToken = refreshToken)
+        return Result.Success(
+            Unit
+        )
+    }
+
     override suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError> {
         if (!accounts.containsKey(email)) {
             return Result.Error(AuthError.UNKNOWN)
@@ -103,9 +122,9 @@ class FakeAuthDataSource(
     }
 
     @OptIn(ExperimentalEncodingApi::class)
-    private fun fakeJwt(userId: Long, role: String): String {
+    private suspend fun fakeJwt(userId: Long, role: String): String {
         val exp = Clock.System.now().plus(30.minutes).toLocalDateTime(TimeZone.currentSystemDefault()).toString().plus("Z")
-
+        tokenStorage.saveExpiryDate(exp)
         val payload = """{"userId":"$userId","role":"$role","exp":"$exp"}"""
         val body = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(payload.encodeToByteArray())
         return "header.$body.signature"
