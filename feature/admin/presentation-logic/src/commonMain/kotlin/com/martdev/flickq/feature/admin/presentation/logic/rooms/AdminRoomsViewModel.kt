@@ -10,8 +10,10 @@ import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.admin.domain.AdminCatalogRepository
 import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.room.model.Seat
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -75,6 +77,11 @@ sealed interface AdminRoomsAction {
     data object OnRetrySeats : AdminRoomsAction
 }
 
+sealed interface AdminRoomsEvent {
+    data object AddRoom : AdminRoomsEvent
+    data class EditRoom(val id: Long, val name: String, val rows: String, val columns: String) : AdminRoomsEvent
+}
+
 class AdminRoomsViewModel(
     private val catalog: AdminCatalogRepository
 ) : ViewModel() {
@@ -82,14 +89,30 @@ class AdminRoomsViewModel(
     private val _state = MutableStateFlow(AdminRoomsState())
     val state = _state.asStateFlow()
 
+    private val _event = Channel<AdminRoomsEvent>()
+    val event = _event.receiveAsFlow()
+
     init { load() }
 
     fun onAction(action: AdminRoomsAction) {
         when (action) {
             AdminRoomsAction.OnRetry -> load()
-            AdminRoomsAction.OnAddClick -> _state.update { it.copy(form = RoomForm(), dialogError = null) }
-            is AdminRoomsAction.OnEditClick -> _state.update {
-                it.copy(form = RoomForm(action.room.id, action.room.name, action.room.rows.toString(), action.room.columns.toString()), dialogError = null)
+            AdminRoomsAction.OnAddClick -> {
+                viewModelScope.launch {
+                    _event.send(AdminRoomsEvent.AddRoom)
+                }
+            }
+            is AdminRoomsAction.OnEditClick -> {
+                viewModelScope.launch {
+                    _event.send(
+                        AdminRoomsEvent.EditRoom(
+                            action.room.id,
+                            action.room.name,
+                            action.room.rows.toString(),
+                            action.room.columns.toString()
+                        )
+                    )
+                }
             }
             is AdminRoomsAction.OnNameChange -> updateForm { it.copy(name = action.value) }
             is AdminRoomsAction.OnRowsChange -> updateForm { it.copy(rows = action.value.filter { c -> c.isDigit() }) }

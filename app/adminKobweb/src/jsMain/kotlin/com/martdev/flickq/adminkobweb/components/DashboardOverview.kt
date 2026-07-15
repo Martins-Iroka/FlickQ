@@ -79,7 +79,7 @@ private fun QuickActions(onNavigate: (String) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.px)) {
         ActionButton("Add Movie", primary = true) { onNavigate("/admin/movies/item?mode=add") }
         ActionButton("Add Showtime", primary = false) { onNavigate("/showtime") }
-        ActionButton("Add Room", primary = false) { onNavigate("/room") }
+        ActionButton("Add Room", primary = false) { onNavigate("/admin/room/info?mode=add") }
     }
 }
 

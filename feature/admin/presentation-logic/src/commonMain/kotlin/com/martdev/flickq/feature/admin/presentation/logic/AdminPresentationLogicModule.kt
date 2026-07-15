@@ -8,6 +8,7 @@ import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesVie
 import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationsViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminAddEditRoomViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.showtimes.AdminShowtimesViewModel
 import org.koin.core.module.dsl.viewModel
@@ -33,5 +34,8 @@ val adminPresentationLogicModule = module {
     viewModel { params -> AdminReservationDetailViewModel(params.get(), get(), get(), get()) }
     viewModel { params ->
         AdminMovieDetailViewModel(params.get(), get())
+    }
+    viewModel {params ->
+        AdminAddEditRoomViewModel(get(), params.get(), params.get(), params.get(), params.get())
     }
 }

@@ -82,7 +82,6 @@ fun MoviePage() {
 private fun MovieContent() {
     val ctx = rememberPageContext()
     val id = ctx.route.params["id"] ?: ""
-    console.info("See the id passed $id")
 //    val mode = ctx.route.params["mode"] ?: "add"
     val vm = rememberAdminViewModel<AdminMovieDetailViewModel>(
         parameters = {
