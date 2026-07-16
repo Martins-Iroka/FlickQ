@@ -57,6 +57,7 @@ kotlin {
             // Movie/Showtime models expose kotlinx-datetime types (LocalDate); core.domain pulls it
             // via `implementation` so it doesn't leak to us — declare it directly for formatting.
             implementation(libs.kotlin.datetime)
+            implementation(libs.kotlin.serialization)
         }
     }
 }

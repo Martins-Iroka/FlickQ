@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // UI-agnostic admin presentation logic (MVI ViewModels + State/Action/Event + Koin module).
@@ -47,6 +48,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.bundles.client.test)
+        }
+        jsMain.dependencies {
+            implementation(libs.kotlin.serialization)
         }
     }
 }

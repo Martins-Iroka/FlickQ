@@ -58,7 +58,7 @@ enum class AdminNav(val label: String, val route: String) {
     Dashboard("Dashboard", "/admin/dashboard"),
     Movies("Movie", "/admin/movies/items"),
     Rooms("Room", "/admin/room/list"),
-    Showtimes("Showtime", "/showtimes"),
+    Showtimes("Showtime", "/admin/showtime/list"),
     Reservations("Reservation", "/reservations"),
     Reports("Report", "/reports"),
 }

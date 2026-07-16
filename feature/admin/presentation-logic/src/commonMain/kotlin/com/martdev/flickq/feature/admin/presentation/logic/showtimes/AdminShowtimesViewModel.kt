@@ -13,8 +13,10 @@ import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -92,6 +94,11 @@ sealed interface AdminShowtimesAction {
     data object OnClearMovie : AdminShowtimesAction
 }
 
+sealed interface ShowtimeListEvent {
+    data object NavigateToAddNewShowtime : ShowtimeListEvent
+    data class NavigateToEditShowtime(val data: ShowtimeData) : ShowtimeListEvent
+}
+
 class AdminShowtimesViewModel(
     private val catalog: AdminCatalogRepository,
     private val reservations: AdminReservationRepository,
@@ -99,6 +106,9 @@ class AdminShowtimesViewModel(
 
     private val _state = MutableStateFlow(AdminShowtimesState())
     val state = _state.asStateFlow()
+
+    private val _event = Channel<ShowtimeListEvent>()
+    val event = _event.receiveAsFlow()
 
     init {
         loadRefs()
@@ -109,26 +119,28 @@ class AdminShowtimesViewModel(
         when (action) {
             AdminShowtimesAction.OnRetry -> { loadRefs(); load() }
             AdminShowtimesAction.OnLoadMore -> loadMore()
-            AdminShowtimesAction.OnAddClick -> _state.update { it.copy(form = ShowtimeForm(), dialogError = null, selectedMovie = null) }
+            AdminShowtimesAction.OnAddClick -> {
+                viewModelScope.launch {
+                    _event.send(ShowtimeListEvent.NavigateToAddNewShowtime)
+                }
+            }
             is AdminShowtimesAction.OnEditClick -> {
                 val s = action.showtime
-                _state.update {
-                    it.copy(
-                        form = ShowtimeForm(
-                            editingId = s.id,
-                            movieId = s.movieId.toString(),
-                            roomId = s.roomId.toString(),
-                            startsAt = s.startsAt.toString(),
-                            endsAt = s.endsAt.toString(),
-                            price = s.price.toString(),
-                            status = s.status,
-                            endEdited = true, // keep the stored end; don't auto-overwrite on edit
-                        ),
-                        dialogError = null,
-                        selectedMovie = null,
+                viewModelScope.launch {
+                    _event.send(
+                        ShowtimeListEvent.NavigateToEditShowtime(
+                            ShowtimeData(
+                                editingId = s.id,
+                                movieId = s.movieId.toString(),
+                                roomId = s.roomId.toString(),
+                                startsAt = s.startsAt.toString(),
+                                endsAt = s.endsAt.toString(),
+                                price = s.price.toString(),
+                                status = s.status,
+                            )
+                        )
                     )
                 }
-                if (s.movieId > 0) fetchSelectedMovie(s.movieId)
             }
             is AdminShowtimesAction.OnMovieIdChange -> updateForm { it.copy(movieId = action.value.filter { c -> c.isDigit() }) }
             is AdminShowtimesAction.OnRoomIdChange -> updateForm { it.copy(roomId = action.value.filter { c -> c.isDigit() }) }
