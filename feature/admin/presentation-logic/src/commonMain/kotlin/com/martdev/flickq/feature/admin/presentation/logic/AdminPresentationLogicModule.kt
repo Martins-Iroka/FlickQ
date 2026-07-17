@@ -9,6 +9,7 @@ import com.martdev.flickq.feature.admin.presentation.logic.reports.AdminReportsV
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationDetailViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.reservations.AdminReservationsViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminAddEditRoomViewModel
+import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomDetailViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminRoomsViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.showtimes.AdminAddEditShowtimeViewModel
 import com.martdev.flickq.feature.admin.presentation.logic.showtimes.AdminShowtimesViewModel
@@ -41,5 +42,9 @@ val adminPresentationLogicModule = module {
     }
     viewModel { params ->
         AdminAddEditShowtimeViewModel(params.get(), get())
+    }
+
+    viewModel { params ->
+        AdminRoomDetailViewModel(params.get(), get())
     }
 }

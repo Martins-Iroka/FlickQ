@@ -23,7 +23,9 @@ data class RoomForm(
     val rows: String = "",
     val columns: String = "",
 ) {
-    val isValid: Boolean get() = name.isNotBlank() && (rows.toIntOrNull() ?: 0) > 0 && (columns.toIntOrNull() ?: 0) > 0
+    val isValid: Boolean
+        get() = name.isNotBlank() && (rows.toIntOrNull() ?: 0) > 0 && (columns.toIntOrNull()
+            ?: 0) > 0
 }
 
 /**
@@ -78,8 +80,15 @@ sealed interface AdminRoomsAction {
 }
 
 sealed interface AdminRoomsEvent {
-    data object AddRoom : AdminRoomsEvent
-    data class EditRoom(val id: Long, val name: String, val rows: String, val columns: String) : AdminRoomsEvent
+    data object NavigateToAddNewRoom : AdminRoomsEvent
+    data class NavigateToEditRoom(
+        val id: Long,
+        val name: String,
+        val rows: String,
+        val columns: String
+    ) : AdminRoomsEvent
+
+    data class NavigateToRoomDetail(val roomData: RoomData) : AdminRoomsEvent
 }
 
 class AdminRoomsViewModel(
@@ -92,20 +101,23 @@ class AdminRoomsViewModel(
     private val _event = Channel<AdminRoomsEvent>()
     val event = _event.receiveAsFlow()
 
-    init { load() }
+    init {
+        load()
+    }
 
     fun onAction(action: AdminRoomsAction) {
         when (action) {
             AdminRoomsAction.OnRetry -> load()
             AdminRoomsAction.OnAddClick -> {
                 viewModelScope.launch {
-                    _event.send(AdminRoomsEvent.AddRoom)
+                    _event.send(AdminRoomsEvent.NavigateToAddNewRoom)
                 }
             }
+
             is AdminRoomsAction.OnEditClick -> {
                 viewModelScope.launch {
                     _event.send(
-                        AdminRoomsEvent.EditRoom(
+                        AdminRoomsEvent.NavigateToEditRoom(
                             action.room.id,
                             action.room.name,
                             action.room.rows.toString(),
@@ -114,11 +126,18 @@ class AdminRoomsViewModel(
                     )
                 }
             }
+
             is AdminRoomsAction.OnNameChange -> updateForm { it.copy(name = action.value) }
             is AdminRoomsAction.OnRowsChange -> updateForm { it.copy(rows = action.value.filter { c -> c.isDigit() }) }
             is AdminRoomsAction.OnColumnsChange -> updateForm { it.copy(columns = action.value.filter { c -> c.isDigit() }) }
             AdminRoomsAction.OnSave -> save()
-            AdminRoomsAction.OnDismissDialog -> _state.update { it.copy(form = null, dialogError = null) }
+            AdminRoomsAction.OnDismissDialog -> _state.update {
+                it.copy(
+                    form = null,
+                    dialogError = null
+                )
+            }
+
             is AdminRoomsAction.OnDeleteClick -> _state.update { it.copy(deleting = action.room) }
             AdminRoomsAction.OnConfirmDelete -> delete()
             AdminRoomsAction.OnDismissDelete -> _state.update { it.copy(deleting = null) }
@@ -126,7 +145,23 @@ class AdminRoomsViewModel(
             AdminRoomsAction.OnConfirmGenerateSeats -> generateSeats()
             AdminRoomsAction.OnDismissGenerateSeats -> _state.update { it.copy(seatingFor = null) }
             AdminRoomsAction.OnDismissMessage -> _state.update { it.copy(message = null) }
-            is AdminRoomsAction.OnRoomClick -> openDetail(action.room)
+            is AdminRoomsAction.OnRoomClick -> {
+//                openDetail(action.room)
+                viewModelScope.launch {
+                    val room = action.room
+                    _event.send(
+                        AdminRoomsEvent.NavigateToRoomDetail(
+                            RoomData(
+                                room.id,
+                                room.name,
+                                room.rows,
+                                room.columns
+                            )
+                        )
+                    )
+                }
+            }
+
             AdminRoomsAction.OnCloseDetail -> _state.update { it.copy(detail = null) }
             AdminRoomsAction.OnRetrySeats -> _state.value.detail?.let { loadSeats(it.room) }
         }
@@ -141,7 +176,14 @@ class AdminRoomsViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             catalog.getRooms()
                 .onSuccess { rooms -> _state.update { it.copy(isLoading = false, rooms = rooms) } }
-                .onFailure { error, message -> _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = resolveErrorText(message, error.toUiText())
+                        )
+                    }
+                }
         }
     }
 
@@ -156,17 +198,26 @@ class AdminRoomsViewModel(
         )
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, dialogError = null) }
-            val result = if (form.editingId == null) catalog.createRoom(room) else catalog.updateRoom(room)
+            val result =
+                if (form.editingId == null) catalog.createRoom(room) else catalog.updateRoom(room)
             result
                 .onSuccess { saved ->
                     // If the saved room is the one open in detail, reflect the edit there too.
                     _state.update { s ->
-                        val detail = s.detail?.takeIf { it.room.id == saved.id }?.copy(room = saved) ?: s.detail
+                        val detail = s.detail?.takeIf { it.room.id == saved.id }?.copy(room = saved)
+                            ?: s.detail
                         s.copy(isSaving = false, form = null, detail = detail)
                     }
                     load()
                 }
-                .onFailure { error, message -> _state.update { it.copy(isSaving = false, dialogError = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            isSaving = false,
+                            dialogError = resolveErrorText(message, error.toUiText())
+                        )
+                    }
+                }
         }
     }
 
@@ -174,10 +225,23 @@ class AdminRoomsViewModel(
         val target = _state.value.deleting ?: return
         viewModelScope.launch {
             // Leaving the detail view too if we just deleted the room it was showing.
-            _state.update { it.copy(deleting = null, detail = it.detail?.takeIf { d -> d.room.id != target.id }) }
+            _state.update {
+                it.copy(
+                    deleting = null,
+                    detail = it.detail?.takeIf { d -> d.room.id != target.id })
+            }
             catalog.deleteRoom(target.id)
                 .onSuccess { load() }
-                .onFailure { error, message -> _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            error = resolveErrorText(
+                                message,
+                                error.toUiText()
+                            )
+                        )
+                    }
+                }
         }
     }
 
@@ -199,7 +263,16 @@ class AdminRoomsViewModel(
                     // Refresh the inventory if this room is open in the detail view.
                     if (_state.value.detail?.room?.id == room.id) loadSeats(room)
                 }
-                .onFailure { error, message -> _state.update { it.copy(message = resolveErrorText(message, error.toUiText())) } }
+                .onFailure { error, message ->
+                    _state.update {
+                        it.copy(
+                            message = resolveErrorText(
+                                message,
+                                error.toUiText()
+                            )
+                        )
+                    }
+                }
         }
     }
 
@@ -210,11 +283,34 @@ class AdminRoomsViewModel(
 
     private fun loadSeats(room: Room) {
         viewModelScope.launch {
-            _state.update { it.copy(detail = it.detail?.copy(isLoadingSeats = true, seatsError = null)) }
+            _state.update {
+                it.copy(
+                    detail = it.detail?.copy(
+                        isLoadingSeats = true,
+                        seatsError = null
+                    )
+                )
+            }
             catalog.getSeats(room.id)
-                .onSuccess { seats -> _state.update { it.copy(detail = it.detail?.copy(isLoadingSeats = false, seats = seats)) } }
+                .onSuccess { seats ->
+                    _state.update {
+                        it.copy(
+                            detail = it.detail?.copy(
+                                isLoadingSeats = false,
+                                seats = seats
+                            )
+                        )
+                    }
+                }
                 .onFailure { error, message ->
-                    _state.update { it.copy(detail = it.detail?.copy(isLoadingSeats = false, seatsError = resolveErrorText(message, error.toUiText()))) }
+                    _state.update {
+                        it.copy(
+                            detail = it.detail?.copy(
+                                isLoadingSeats = false,
+                                seatsError = resolveErrorText(message, error.toUiText())
+                            )
+                        )
+                    }
                 }
         }
     }
