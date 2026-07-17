@@ -58,7 +58,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun RoomPage() {
     RequireAdmin {
-        AdminLayout(AdminNav.Rooms, title = "Rooms") {
+        AdminLayout(AdminNav.Rooms, title = "Room") {
             RoomContent()
         }
     }

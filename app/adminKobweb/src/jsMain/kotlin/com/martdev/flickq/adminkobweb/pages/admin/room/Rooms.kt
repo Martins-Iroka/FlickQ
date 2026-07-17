@@ -61,7 +61,7 @@ import org.jetbrains.compose.web.css.px
 @Composable
 fun RoomsPage() {
     RequireAdmin {
-        AdminLayout(selected = AdminNav.Rooms, title = "Rooms") {
+        AdminLayout(selected = AdminNav.Rooms, title = "Room") {
             RoomsContent()
         }
     }
