@@ -71,6 +71,12 @@ class AdminReservationDetailViewModel(
 
     private fun load() {
         viewModelScope.launch {
+            if (reservationId == 0L) {
+                _state.update {
+                    it.copy(isLoading = false, error = UiText.DynamicString("Invalid id"))
+                }
+                return@launch
+            }
             _state.update { it.copy(isLoading = true, error = null) }
             reservations.getReservation(reservationId)
                 .onSuccess { reservation ->

@@ -1,9 +1,8 @@
-package com.martdev.flickq.adminkobweb.pages.admin
+package com.martdev.flickq.adminkobweb.pages.admin.reservation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,12 +71,12 @@ import com.varabyte.kobweb.compose.ui.modifiers.minWidth
 import com.varabyte.kobweb.compose.ui.modifiers.onClick
 import com.varabyte.kobweb.compose.ui.modifiers.opacity
 import com.varabyte.kobweb.compose.ui.modifiers.padding
-import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.modifiers.textDecorationLine
 import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
 import com.varabyte.kobweb.compose.ui.thenIf
 import com.varabyte.kobweb.core.Page
+import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.silk.components.icons.fa.FaArrowLeft
 import com.varabyte.kobweb.silk.components.icons.fa.FaCircleInfo
 import com.varabyte.kobweb.silk.components.icons.fa.FaCouch
@@ -97,11 +96,11 @@ import org.w3c.dom.url.URL
 import org.w3c.files.Blob
 import org.w3c.files.BlobPropertyBag
 
-@Page
+@Page("list")
 @Composable
 fun ReservationsPage() {
     RequireAdmin {
-        AdminLayout(selected = AdminNav.Reservations, title = "Reservations") {
+        AdminLayout(selected = AdminNav.Reservations, title = "Reservation") {
             ReservationsContent()
         }
     }
@@ -111,19 +110,10 @@ fun ReservationsPage() {
 private fun ReservationsContent() {
     // The list VM is held at page level so loaded pages survive list ⇄ detail navigation.
     val listVm = rememberAdminViewModel<AdminReservationsViewModel>()
-    var selectedId by remember { mutableStateOf<Long?>(null) }
+    val ctx = rememberPageContext()
 
-    val id = selectedId
-    if (id == null) {
-        ReservationListView(listVm) { selectedId = it }
-    } else {
-        key(id) {
-            ReservationDetailView(id) {
-                // Refresh on the way back so a cancel done in the detail view shows in the list.
-                listVm.onAction(AdminReservationsAction.OnRetry)
-                selectedId = null
-            }
-        }
+    ReservationListView(listVm) {
+        ctx.router.navigateTo("/admin/reservation/detail/$it")
     }
 }
 
@@ -215,7 +205,7 @@ private fun ListCard(
         modifier = Modifier.fillMaxWidth().backgroundColor(AdminColors.SurfaceAlt)
             .border(1.px, LineStyle.Solid, AdminColors.BorderWarm).borderRadius(12.px),
     ) {
-        // Status tabs (counts are over loaded rows until a server-side filter exists).
+        // Status tabs (counts are overloaded rows until a server-side filter exists).
         Row(
             modifier = Modifier.fillMaxWidth().borderBottom(1.px, LineStyle.Solid, AdminColors.BorderWarm)
                 .padding(leftRight = 8.px),
@@ -539,16 +529,6 @@ private fun CancelConfirm(onAction: (AdminReservationDetailAction) -> Unit) {
 // ---- Badges -------------------------------------------------------------------------------
 
 @Composable
-private fun ReservationBadge(status: ReservationStatus) {
-    val (bg, fg) = when (status) {
-        ReservationStatus.PENDING -> AdminColors.AmberWash to AdminColors.Amber
-        ReservationStatus.CONFIRMED -> AdminColors.SuccessChip to AdminColors.Success
-        ReservationStatus.CANCELLED -> AdminColors.PrimaryWash to AdminColors.Primary
-    }
-    DotBadge(status.name, bg, fg)
-}
-
-@Composable
 private fun PaymentBadge(status: PaymentStatus) {
     val (bg, fg) = when (status) {
         PaymentStatus.SUCCESS, PaymentStatus.REFUNDED -> AdminColors.SuccessChip to AdminColors.Success
@@ -576,14 +556,6 @@ private fun SeatBadge(status: SeatStatus) {
 }
 
 // ---- Page-specific bits ---------------------------------------------------------------------
-
-@Composable
-private fun Avatar(text: String) {
-    Box(
-        modifier = Modifier.size(26.px).backgroundColor(AdminColors.Chip).borderRadius(9999.px),
-        contentAlignment = Alignment.Center,
-    ) { SpanText(text, Modifier.color(AdminColors.Muted).fontSize(10.px).fontWeight(FontWeight.SemiBold)) }
-}
 
 @Composable
 private fun ExportButton(onClick: () -> Unit) {

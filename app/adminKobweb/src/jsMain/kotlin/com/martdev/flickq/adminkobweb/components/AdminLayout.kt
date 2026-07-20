@@ -59,8 +59,8 @@ enum class AdminNav(val label: String, val route: String) {
     Movies("Movie", "/admin/movies/items"),
     Rooms("Room", "/admin/room/list"),
     Showtimes("Showtime", "/admin/showtime/list"),
-    Reservations("Reservation", "/reservations"),
-    Reports("Report", "/reports"),
+    Reservations("Reservation", "/admin/reservation/list"),
+    Reports("Report", "/admin/reports"),
 }
 
 @Composable
