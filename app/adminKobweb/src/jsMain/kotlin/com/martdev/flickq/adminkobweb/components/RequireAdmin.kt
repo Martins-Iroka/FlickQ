@@ -17,6 +17,7 @@ import com.varabyte.kobweb.compose.ui.modifiers.color
 import com.varabyte.kobweb.compose.ui.modifiers.fillMaxWidth
 import com.varabyte.kobweb.compose.ui.modifiers.minHeight
 import com.varabyte.kobweb.core.rememberPageContext
+import com.varabyte.kobweb.navigation.UpdateHistoryMode
 import com.varabyte.kobweb.silk.components.text.SpanText
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -45,6 +46,7 @@ fun RequireAdmin(content: @Composable () -> Unit) {
     val tokenStorage = remember { KoinPlatform.getKoin().get<TokenStorage>() }
     val sm = remember { KoinPlatform.getKoin().get<SessionManager>() }
     var status by remember { mutableStateOf(AuthStatus.Checking) }
+    fun routeToLogin() = ctx.router.navigateTo("/admin/login", UpdateHistoryMode.REPLACE)
 
     LaunchedEffect(Unit) {
         val clock = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -55,13 +57,13 @@ fun RequireAdmin(content: @Composable () -> Unit) {
         if (isExpired.not()) {
             status = AuthStatus.Authorized
         } else {
-            ctx.router.navigateTo("/admin/login")
+            routeToLogin()
         }
     }
 
     LaunchedEffect(Unit) {
         sm.events.collect {
-            ctx.router.navigateTo("/admin/login")
+            routeToLogin()
         }
     }
 

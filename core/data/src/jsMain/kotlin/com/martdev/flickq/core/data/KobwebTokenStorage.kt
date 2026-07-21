@@ -24,7 +24,7 @@ class KobwebTokenStorage:  TokenStorage {
         sessionStorage.setItem("exp", exp)
     }
 
-    override suspend fun getExpiryDate(): String {
+    override fun getExpiryDate(): String {
         return sessionStorage.getItem("exp") ?: ""
     }
 }

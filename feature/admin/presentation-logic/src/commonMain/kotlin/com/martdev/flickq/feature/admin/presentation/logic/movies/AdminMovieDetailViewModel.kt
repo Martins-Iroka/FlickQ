@@ -40,7 +40,7 @@ data class AdminMovieDetailState(
     val form: TheMovieForm = TheMovieForm(),
     val genres: List<Genre> = emptyList(),
     val newGenre: String? = null,
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val isSavingGenre: Boolean = false
 )
@@ -116,17 +116,18 @@ class AdminMovieDetailViewModel(
 
     private fun load(id: Long) {
         viewModelScope.launch {
-            // Genres back the form's chips; fetched once alongside the first page.
-            catalog.getGenres().onSuccess { genres -> _state.update { it.copy(genres = genres) } }
             if (id != 0L) {
                 openEdit(id)
+            } else {
+                _state.update {
+                    it.copy(isLoading = false)
+                }
             }
+            // Genres back the form's chips; fetched once alongside the first page.
+            catalog.getGenres().onSuccess { genres -> _state.update { it.copy(genres = genres) } }
         }
     }
     private suspend fun openEdit(id: Long) {
-        _state.update {
-            it.copy(isLoading = true)
-        }
         catalog.getMovie(id)
             .onSuccess { movie ->
                 _state.update {

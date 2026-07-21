@@ -11,7 +11,7 @@ interface TokenStorage {
     suspend fun clear()
     suspend fun isLoggedIn(): Boolean = getAccessToken() != null
     suspend fun saveExpiryDate(exp: String) {}
-    suspend fun getExpiryDate(): String {
+    fun getExpiryDate(): String {
         return ""
     }
 }

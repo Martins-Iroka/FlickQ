@@ -138,7 +138,7 @@ class AdminMoviesViewModel(
             }
 
             is AdminMoviesAction.OnDeleteClick -> _state.update { it.copy(deleting = action.movie) }
-            AdminMoviesAction.OnConfirmDelete -> delete()
+            AdminMoviesAction.OnConfirmDelete -> {}
             AdminMoviesAction.OnDismissDelete -> _state.update { it.copy(deleting = null) }
         }
     }
@@ -310,7 +310,7 @@ class AdminMoviesViewModel(
         }
     }
 
-    private fun delete() {
+    /*private fun delete() {
         val target = _state.value.deleting ?: return
         viewModelScope.launch {
             _state.update { it.copy(deleting = null) }
@@ -327,7 +327,7 @@ class AdminMoviesViewModel(
                     }
                 }
         }
-    }
+    }*/
 
     private fun String.toLocalDateOrToday(): LocalDate =
         takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() }

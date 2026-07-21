@@ -48,7 +48,6 @@ import com.varabyte.kobweb.compose.ui.styleModifier
 import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.silk.components.icons.fa.FaPenToSquare
-import com.varabyte.kobweb.silk.components.icons.fa.FaTrash
 import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.StyleScope
@@ -140,7 +139,7 @@ private fun MovieTable(state: AdminMoviesState, onAction: (AdminMoviesAction) ->
             HeaderCell("Genres", 220.px)
             HeaderCell("Duration", 110.px)
             HeaderCell("Release Date", 150.px)
-            HeaderCell("Actions", 90.px)
+            HeaderCell("Action", 90.px)
         }
         // Rows.
         state.movies.forEach { movie -> MovieRow(movie, onAction) }
@@ -200,18 +199,15 @@ private fun MovieRow(movie: Movie, onAction: (AdminMoviesAction) -> Unit) {
         Cell(150.px) { ReleasePill(movie.releasedDate.toString()) }
         // Actions.
         Cell(90.px) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.px),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Box {
                 IconButton(
                     { FaPenToSquare(it) },
                     AdminColors.Body
                 ) { onAction(AdminMoviesAction.OnEditClick(movie)) }
-                IconButton(
+                /*IconButton(
                     { FaTrash(it) },
                     AdminColors.Primary
-                ) { onAction(AdminMoviesAction.OnDeleteClick(movie)) }
+                ) { onAction(AdminMoviesAction.OnDeleteClick(movie)) }*/
             }
         }
     }

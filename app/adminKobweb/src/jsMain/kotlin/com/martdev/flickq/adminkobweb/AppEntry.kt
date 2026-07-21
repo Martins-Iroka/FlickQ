@@ -35,6 +35,20 @@ fun initKobweb(@Suppress("UNUSED_PARAMETER") ctx: InitKobwebContext) {
                 adminPresentationLogicModule,
             )
         }
+        /*ctx.router.addRouteInterceptor {
+            val tokenStorage = KoinPlatform.getKoin().get<TokenStorage>()
+            val sm = KoinPlatform.getKoin().get<SessionManager>()
+            val clock = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            val lexp = tokenStorage.getExpiryDate().run {
+                Instant.parseOrNull(this)?.toLocalDateTime(TimeZone.UTC)
+            }
+            val isExpired = lexp != null && lexp < clock
+            if (isExpired) {
+                "/admin/login?redirect=$path"
+            } else {
+                path
+            }
+        }*/
     }
 }
 

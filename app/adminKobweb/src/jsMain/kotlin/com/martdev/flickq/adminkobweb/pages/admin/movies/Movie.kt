@@ -45,13 +45,13 @@ import com.varabyte.kobweb.compose.ui.modifiers.flexBasis
 import com.varabyte.kobweb.compose.ui.modifiers.flexGrow
 import com.varabyte.kobweb.compose.ui.modifiers.fontSize
 import com.varabyte.kobweb.compose.ui.modifiers.fontWeight
-import com.varabyte.kobweb.compose.ui.modifiers.height
 import com.varabyte.kobweb.compose.ui.modifiers.margin
 import com.varabyte.kobweb.compose.ui.modifiers.maxWidth
 import com.varabyte.kobweb.compose.ui.modifiers.onClick
 import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
+import com.varabyte.kobweb.navigation.UpdateHistoryMode
 import com.varabyte.kobweb.silk.components.icons.fa.FaChartColumn
 import com.varabyte.kobweb.silk.components.icons.fa.FaClapperboard
 import com.varabyte.kobweb.silk.components.icons.fa.FaImage
@@ -82,7 +82,6 @@ fun MoviePage() {
 private fun MovieContent() {
     val ctx = rememberPageContext()
     val id = ctx.route.params["id"] ?: ""
-//    val mode = ctx.route.params["mode"] ?: "add"
     val vm = rememberAdminViewModel<AdminMovieDetailViewModel>(
         parameters = {
             parametersOf(id.toLongOrNull() ?: 0L)
@@ -96,9 +95,11 @@ private fun MovieContent() {
 
     ObserveAsEvents(vm.events) { event ->
         when(event) {
-            AdminMovieEvent.BackToMovieList -> TODO()
-            AdminMovieEvent.MovieSaved -> {
-                ctx.router.navigateTo("/admin/movies/items")
+            AdminMovieEvent.BackToMovieList, AdminMovieEvent.MovieSaved -> {
+                ctx.router.navigateTo(
+                    "/admin/movies/items",
+                    updateHistoryMode = UpdateHistoryMode.REPLACE
+                )
             }
         }
     }
@@ -276,7 +277,6 @@ private fun PosterPreview(url: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(360.px)
             .backgroundColor(AdminColors.Surface)
             .border(1.px, LineStyle.Solid, AdminColors.Border)
             .borderRadius(8.px),
