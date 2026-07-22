@@ -47,6 +47,7 @@ import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.styleModifier
 import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
+import com.varabyte.kobweb.navigation.UpdateHistoryMode
 import com.varabyte.kobweb.silk.components.icons.fa.FaDoorOpen
 import com.varabyte.kobweb.silk.components.text.SpanText
 import kotlinx.browser.sessionStorage
@@ -84,8 +85,8 @@ private fun RoomContent() {
     val onAction = vm::onAction
     ObserveAsEvents(vm.event) { event ->
         when(event) {
-            AdminAddEditEvent.Saved -> {
-                ctx.router.navigateTo("/admin/room/list")
+            AdminAddEditEvent.NavigateToList -> {
+                ctx.router.navigateTo("/admin/room/list", UpdateHistoryMode.REPLACE)
             }
         }
     }
@@ -121,7 +122,9 @@ private fun RoomFormView(
                     Modifier.color(AdminColors.Body).fontSize(14.px)
                 )
             }
-            SecondaryButtonInline("← Back to Rooms") {  }
+            SecondaryButtonInline("← Back to Rooms") {
+                onAction(AdminAddEditAction.OnDismiss)
+            }
         }
 
         Row(
@@ -183,16 +186,22 @@ private fun RoomFormView(
                             Modifier.color(AdminColors.Primary).fontSize(13.px).margin(top = 4.px)
                         )
                     }
-                    Row(
+                    /*Row(
                         modifier = Modifier.fillMaxWidth().margin(top = 8.px),
                         horizontalArrangement = Arrangement.spacedBy(12.px),
                     ) {
-                        SecondaryButtonInline("Cancel") { }
+                        SecondaryButtonInline("Cancel") {
+                            onAction(AdminAddEditAction.OnDismiss)
+                        }
                         SaveButton(
                             label = if (state.isSaving) "Saving…" else "Save Room",
                             enabled = form.isValid && !state.isSaving,
                         ) { onAction(AdminAddEditAction.OnSave) }
-                    }
+                    }*/
+                    SaveButton(
+                        label = if (state.isSaving) "Saving…" else "Save Room",
+                        enabled = form.isValid && !state.isSaving,
+                    ) { onAction(AdminAddEditAction.OnSave) }
                 }
             }
             // Right: live preview.

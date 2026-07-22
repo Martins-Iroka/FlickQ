@@ -22,6 +22,7 @@ kotlin {
     android {
         namespace = "com.martdev.flickq.core.data"
         compileSdk { version = release(36) }
+        minSdk { version = release(24) }
     }
 
     sourceSets {

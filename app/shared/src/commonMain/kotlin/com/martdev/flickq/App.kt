@@ -1,6 +1,10 @@
 package com.martdev.flickq
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.martdev.flickq.core.data.SessionManager
@@ -9,7 +13,6 @@ import com.martdev.flickq.core.presentation.ObserveAsEvents
 import com.martdev.flickq.feature.auth.presentation.AuthGraphRoute
 import com.martdev.flickq.feature.auth.presentation.LogoutViewModel
 import com.martdev.flickq.feature.auth.presentation.authGraph
-import org.koin.compose.koinInject
 import com.martdev.flickq.feature.booking.presentation.SeatSelectionRoute
 import com.martdev.flickq.feature.booking.presentation.bookingGraph
 import com.martdev.flickq.feature.movie.presentation.MovieGraphRoute
@@ -18,6 +21,7 @@ import com.martdev.flickq.feature.payment.presentation.PaymentRoute
 import com.martdev.flickq.feature.payment.presentation.paymentGraph
 import com.martdev.flickq.feature.showtime.presentation.ShowtimeListRoute
 import com.martdev.flickq.feature.showtime.presentation.showtimeGraph
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -25,7 +29,16 @@ fun FlickQApp() {
     FlickQTheme {
         val navController = rememberNavController()
         val sessionManager = koinInject<SessionManager>()
-        val logoutViewModel = koinViewModel<LogoutViewModel>()
+        var hasAuthenticated by remember {
+            mutableStateOf(false)
+        }
+
+        val onLogout = if (hasAuthenticated) {
+            val logoutViewModel = koinViewModel<LogoutViewModel>()
+            logoutViewModel::logout
+        } else {
+            {}
+        }
         // Refresh token expired/revoked anywhere in the app → clear the stack and re-auth.
         ObserveAsEvents(sessionManager.events) {
             navController.navigate(AuthGraphRoute) {
@@ -37,6 +50,7 @@ fun FlickQApp() {
             authGraph(
                 navController = navController,
                 onAuthenticated = {
+                    hasAuthenticated = true
                     navController.navigate(MovieGraphRoute) {
                         popUpTo(AuthGraphRoute) { inclusive = true }
                     }
@@ -46,7 +60,7 @@ fun FlickQApp() {
                 navController = navController,
                 onViewShowtimes = { movieId -> navController.navigate(ShowtimeListRoute(movieId)) },
                 // Logout revokes the session; the SessionManager observer above routes to login.
-                onLogout = { logoutViewModel.logout() },
+                onLogout = onLogout,
             )
             showtimeGraph(
                 navController = navController,

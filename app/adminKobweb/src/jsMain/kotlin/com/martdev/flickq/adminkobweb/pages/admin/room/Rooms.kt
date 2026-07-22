@@ -51,7 +51,6 @@ import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.silk.components.icons.fa.FaDoorOpen
 import com.varabyte.kobweb.silk.components.icons.fa.FaPenToSquare
-import com.varabyte.kobweb.silk.components.icons.fa.FaTrash
 import com.varabyte.kobweb.silk.components.text.SpanText
 import kotlinx.browser.sessionStorage
 import org.jetbrains.compose.web.css.LineStyle
@@ -213,19 +212,10 @@ private fun RoomRow(room: Room, onAction: (AdminRoomsAction) -> Unit) {
             )
         }
         Cell(110.px) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.px),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    { FaPenToSquare(it) },
-                    AdminColors.Body
-                ) { onAction(AdminRoomsAction.OnEditClick(room)) }
-                IconButton(
-                    { FaTrash(it) },
-                    AdminColors.Primary
-                ) { onAction(AdminRoomsAction.OnDeleteClick(room)) }
-            }
+            IconButton(
+                { FaPenToSquare(it) },
+                AdminColors.Body
+            ) { onAction(AdminRoomsAction.OnEditClick(room)) }
         }
     }
 }

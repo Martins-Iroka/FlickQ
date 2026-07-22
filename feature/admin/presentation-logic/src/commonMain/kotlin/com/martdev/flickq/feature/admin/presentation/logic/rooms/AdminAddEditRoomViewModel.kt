@@ -44,7 +44,7 @@ sealed interface AdminAddEditAction {
 }
 
 sealed interface AdminAddEditEvent {
-    data object Saved : AdminAddEditEvent
+    data object NavigateToList : AdminAddEditEvent
 }
 
 class AdminAddEditRoomViewModel(
@@ -66,7 +66,11 @@ class AdminAddEditRoomViewModel(
     fun onAction(action: AdminAddEditAction) {
         when (action) {
             is AdminAddEditAction.OnColumnsChange -> updateForm { it.copy(columns = action.value.filter { c -> c.isDigit() }) }
-            AdminAddEditAction.OnDismiss -> TODO()
+            AdminAddEditAction.OnDismiss -> {
+                viewModelScope.launch {
+                    _events.send(AdminAddEditEvent.NavigateToList)
+                }
+            }
             is AdminAddEditAction.OnNameChange -> updateForm { it.copy(name = action.value) }
             is AdminAddEditAction.OnRowsChange -> updateForm { it.copy(rows = action.value.filter { c -> c.isDigit() }) }
             AdminAddEditAction.OnSave -> save()
@@ -92,7 +96,7 @@ class AdminAddEditRoomViewModel(
                 if (form.editingId == 0L) catalog.createRoom(room) else catalog.updateRoom(room)
             result
                 .onSuccess {
-                    _events.send(AdminAddEditEvent.Saved)
+                    _events.send(AdminAddEditEvent.NavigateToList)
                 }
                 .onFailure { error, message ->
                     _state.update {

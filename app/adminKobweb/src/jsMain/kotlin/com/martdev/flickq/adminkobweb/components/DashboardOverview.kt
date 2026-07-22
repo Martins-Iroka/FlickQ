@@ -68,7 +68,7 @@ fun DashboardOverview() {
             else -> {
                 MetricsRow(state)
                 UpcomingShowtimesCard(state.upcomingToday) {
-                    ctx.router.navigateTo("/showtimes") }
+                    ctx.router.navigateTo("/admin/showtime/list") }
             }
         }
     }
