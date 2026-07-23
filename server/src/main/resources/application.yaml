@@ -1,6 +1,6 @@
 ktor:
   deployment:
-    port: 3000
+    port: ${PORT:-3000}
   application:
     modules:
       - com.martdev.flickq.ApplicationKt.module
@@ -22,7 +22,6 @@ paystack:
   publicKey: ${PAYSTACK_PUBLIC_KEY}
   baseUrl: ${PAYSTACK_BASE_URL:-https://api.paystack.co}
   callbackUrl: ${PAYSTACK_CALLBACK_URL}
-  webhookSecret: ${PAYSTACK_WEBHOOK_SECRET}
   currency: ${PAYSTACK_CURRENCY:-NGN}
 
 jwt:

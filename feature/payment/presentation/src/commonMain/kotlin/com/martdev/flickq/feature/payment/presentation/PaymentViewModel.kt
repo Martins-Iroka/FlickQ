@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 enum class PaymentPhase { INITIALIZING, READY_TO_PAY, AWAITING_PAYMENT, CONFIRMED }
 
@@ -159,7 +160,7 @@ class PaymentViewModel(
         var lastError: DataError? = null
         var lastMessage: String? = null
         repeat(maxPollAttempts) { attempt ->
-            if (attempt > 0) delay(pollDelayMillis)
+            if (attempt > 0) delay(pollDelayMillis.seconds)
             when (val result = paymentRepository.verifyPayment(reference)) {
                 is Result.Success -> {
                     lastError = null

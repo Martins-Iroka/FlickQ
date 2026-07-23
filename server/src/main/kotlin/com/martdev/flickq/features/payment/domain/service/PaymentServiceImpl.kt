@@ -118,7 +118,7 @@ class PaymentServiceImpl(
     }
 
     override suspend fun handleWebhook(rawBody: String, signature: String?) {
-        if (!PaystackSignatureVerifier.isValid(rawBody, signature, config.webhookSecret)) {
+        if (!PaystackSignatureVerifier.isValid(rawBody, signature, config.secretKey)) {
             log.warn("Paystack webhook rejected: invalid signature")
             throw UnauthorizedException("Invalid webhook signature")
         }

@@ -1,6 +1,6 @@
 package com.martdev.flickq.config
 
-import io.ktor.server.application.*
+import io.ktor.server.application.ApplicationEnvironment
 
 data class PaystackConfig(
     val secretKey: String = "",
@@ -17,7 +17,6 @@ data class PaystackConfig(
                 publicKey = environment.getEnvValue("paystack.publicKey"),
                 baseUrl = environment.getEnvValue("paystack.baseUrl"),
                 callbackUrl = environment.getEnvValue("paystack.callbackUrl"),
-                webhookSecret = environment.getEnvValue("paystack.webhookSecret"),
                 currency = environment.getEnvValue("paystack.currency"),
             )
         }
