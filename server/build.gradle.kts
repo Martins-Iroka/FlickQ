@@ -6,8 +6,7 @@ plugins {
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
-//    alias(libs.plugins.shadow)
-    id("com.gradleup.shadow")
+    alias(libs.plugins.shadow)
 }
 
 group = "com.martdev.flickq"
