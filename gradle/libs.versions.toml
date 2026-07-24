@@ -28,6 +28,7 @@ logback = "1.5.32"
 material3 = "1.11.0-alpha07"
 mockk = "1.14.9"
 postgresql = "42.7.10"
+shadow = "8.3.1"
 stytch = "6.0.0"
 testcontainer = "2.0.5"
 navigationCompose = "2.9.0"
@@ -149,9 +150,10 @@ androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library",
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 flyway = { id = "org.flywaydb.flyway", version.ref = "flyway" }
+kobwebApplication = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version = "2.3.8" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
-kobwebApplication = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow"}

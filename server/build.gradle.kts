@@ -1,9 +1,13 @@
+import com.android.build.gradle.internal.tasks.factory.dependsOn
+
 plugins {
     alias(libs.plugins.flyway)
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+//    alias(libs.plugins.shadow)
+    id("com.gradleup.shadow")
 }
 
 group = "com.martdev.flickq"
@@ -40,5 +44,9 @@ tasks.named<Test>("test") {
 }
 
 tasks {
-    create("stage").dependsOn("installDist")
+    register("stage").dependsOn("installDist")
+}
+
+tasks.shadowJar {
+    mergeServiceFiles()
 }
