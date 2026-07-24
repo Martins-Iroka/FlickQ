@@ -48,4 +48,5 @@ tasks {
 
 tasks.shadowJar {
     mergeServiceFiles()
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
