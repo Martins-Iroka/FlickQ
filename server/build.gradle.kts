@@ -38,3 +38,7 @@ dependencies {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+tasks {
+    create("stage").dependsOn("installDist")
+}
