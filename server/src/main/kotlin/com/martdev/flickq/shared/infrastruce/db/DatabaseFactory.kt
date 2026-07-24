@@ -16,7 +16,7 @@ object DatabaseFactory {
                 config.address,
                 config.user,
                 config.password
-            ).load()
+            ).validateMigrationNaming(true).load()
         flyway.migrate()
 
         val hConfig = HikariConfig().apply {
