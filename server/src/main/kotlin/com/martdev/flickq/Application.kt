@@ -18,6 +18,7 @@ import io.ktor.server.application.Application
 fun main(args: Array<String>) {
     dotenv {
         systemProperties = true
+        ignoreIfMissing = true
     }
     io.ktor.server.netty.EngineMain.main(args)
 }
