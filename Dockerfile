@@ -9,7 +9,6 @@ RUN gradle :server:buildFatJar --no-daemon -x test
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-COPY --from=build
-/home/gradle/project/server/build/libs/*-all.jar app.jar
+COPY --from=build /home/gradle/project/server/build/libs/*-all.jar app.jar
 
 CMD ["java", "-jar", "app.jar"]
