@@ -3,18 +3,19 @@ package com.martdev.flickq.features.payment.domain.api
 import com.martdev.flickq.auth.model.Role
 import com.martdev.flickq.features.payment.domain.service.PaymentService
 import com.martdev.flickq.payment.InitializePaymentRequest
-import com.martdev.flickq.payment.PaymentCallbackResponse
+import com.martdev.flickq.payment.model.PaymentStatus
 import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
+import com.martdev.flickq.shared.api.getParameterFromPath
 import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.util.extractUserId
-import com.martdev.flickq.shared.api.getParameterFromPath
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -24,6 +25,7 @@ import org.koin.ktor.ext.inject
 const val paymentPath = "/payment"
 const val adminPaymentPath = "/admin$paymentPath"
 const val paystackSignatureHeader = "x-paystack-signature"
+const val mobileDeepLink = "flickq://payment-callback"
 
 fun Route.paymentRoute() {
     val paymentService by inject<PaymentService>()
@@ -48,16 +50,11 @@ private fun Route.publicPaymentRoutes(paymentService: PaymentService) {
                 ?: call.request.queryParameters["trxref"]
                 ?: throw BadRequestException("Missing reference")
             val payment = paymentService.verifyPayment(reference, requestingUserId = null)
-            call.respond(
-                HttpStatusCode.OK,
-                DataResponse(
-                    PaymentCallbackResponse(
-                        status = payment.status.name,
-                        reference = payment.reference,
-                        reservationId = payment.reservationId,
-                    )
-                )
-            )
+            if (payment.status == PaymentStatus.SUCCESS) {
+                call.respondRedirect("$mobileDeepLink?status=success&reference=${payment.reference}&amount=${payment.amount}")
+            } else {
+                call.respondRedirect("$mobileDeepLink?status=failed&reference=${payment.reference}")
+            }
         }
     }
 }
