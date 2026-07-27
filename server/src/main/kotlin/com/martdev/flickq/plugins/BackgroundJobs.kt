@@ -25,7 +25,7 @@ fun Application.configureBackgroundJobs() {
     }
     launch {
         while (isActive) {
-            delay(1.minutes)
+            delay(5.minutes)
             reservationService.cancelExpiredReservations()
         }
     }
