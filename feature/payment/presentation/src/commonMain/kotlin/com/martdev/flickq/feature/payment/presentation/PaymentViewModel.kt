@@ -43,7 +43,7 @@ sealed interface PaymentEvent {
     data object Done : PaymentEvent
     data object NavigateBack : PaymentEvent
 
-    /** The reservation can no longer be paid (expired/cancelled) — caller pops to seat selection. */
+    /** The reservation can no longer be paid (expired/canceled) — caller pops to seat selection. */
     data object ReservationExpired : PaymentEvent
 }
 
@@ -80,7 +80,7 @@ class PaymentViewModel(
 
     fun onAction(action: PaymentAction) {
         when (action) {
-            // Open synchronously in the gesture's call stack so the browser honours it,
+            // Open synchronously in the gesture's call stack so the browser honors it,
             // then poll on a coroutine.
             PaymentAction.OnProceedToPayment -> openCheckoutAndPoll()
             PaymentAction.OnDoneClick -> viewModelScope.launch {
@@ -100,35 +100,20 @@ class PaymentViewModel(
         urlOpener.launchCheckout(url,
             "flickq",
             onCancel = {
+                println("onCancel called")
                 _state.update {
                     it.copy(error = UiText.DynamicString("Payment process was cancelled."))
                 }
             },
             onResult = {
+                println("onResult called")
                 viewModelScope.launch { pollUntilResolved(reference) }
-                /*status?.let { s ->
-                    if (s == "success") {
-                        _state.update {
-                            it.copy(
-                                phase = PaymentPhase.CONFIRMED,
-                                reference = reference ?: "N/A",
-                                amountLabel = formatNaira(amount?.toLongOrNull() ?: 0),
-                                error = null
-                            )
-                        }
-                    } else {
-                        _state.update {
-                            it.copy(error = UiText.DynamicString("Payment was not completed. Please try again."))
-                        }
-                    }
-                }*/
             })
-//        viewModelScope.launch { pollUntilResolved(_state.value.reference) }
     }
 
     /**
      * Retry after an error. With no reference the transaction was never created, so restart.
-     * Otherwise re-open the checkout (the "Try again" tap is itself a gesture) and re-poll —
+     * Otherwise, re-open the checkout (the "Try again" tap is itself a gesture) and re-poll —
      * re-initializing would create a duplicate transaction.
      */
     private fun retry() {
@@ -166,7 +151,7 @@ class PaymentViewModel(
                     }
                 }
                 .onFailure { error, message ->
-                    // A reservation that expired or was cancelled can't be paid — the server
+                    // A reservation that expired or was canceled can't be paid — the server
                     // rejects the hand-off with 409/400. Don't show "payment failed" + retry
                     // (retry would just fail again); send the user back to re-pick seats.
                     if (error.isReservationNoLongerPayable()) {
@@ -178,7 +163,7 @@ class PaymentViewModel(
         }
     }
 
-    // The reservation hold lapsed (expiresAt passed → seats released) or it was cancelled.
+    // The reservation hold lapsed (expiresAt passed → seats released) or it was canceled.
     private fun DataError.isReservationNoLongerPayable(): Boolean =
         this == DataError.Network.CONFLICT || this == DataError.Network.BAD_REQUEST
 

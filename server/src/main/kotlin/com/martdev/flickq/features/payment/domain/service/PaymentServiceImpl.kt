@@ -131,6 +131,7 @@ class PaymentServiceImpl(
             }
 
         val data = event.data
+        log.info("Paystack webhook event: event={}", event.event)
         when (event.event) {
             "charge.success" -> {
                 applyChargeResult(

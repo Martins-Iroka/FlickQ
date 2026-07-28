@@ -36,6 +36,7 @@ class AndroidPaystackUrl : UrlOpener {
     }
 
     override fun handleRedirect() {
+        println("HandleRedirect called")
         terminalStatusChecked = true
         resultCallback?.invoke()
     }
@@ -43,8 +44,8 @@ class AndroidPaystackUrl : UrlOpener {
     fun register(activity: ComponentActivity) {
         checkoutLauncher = activity.registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
-        ) { _ ->
-            if (terminalStatusChecked.not()) {
+        ) { r ->
+            if (!terminalStatusChecked) {
                 cancelCallback?.invoke()
             }
         }

@@ -10,22 +10,13 @@ import org.koin.core.module.Module
  */
 interface UrlOpener {
     fun open(url: String) {}
-    fun launchCheckout(
-        checkoutUrl: String,
-        callbackScheme: String,
-        onCancel: () -> Unit,
-        onResult: (String?, String?, String?) -> Unit
-    ) {
-    }
 
     fun launchCheckout(
         checkoutUrl: String,
         callbackScheme: String,
         onCancel: () -> Unit,
         onResult: () -> Unit
-    ) {
-
-    }
+    ) {}
 
     fun handleRedirect() {}
 }

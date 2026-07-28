@@ -35,9 +35,6 @@ class IosPaystackLauncher : UrlOpener {
         session?.prefersEphemeralWebBrowserSession = true
         session?.start()
     }
-
-    private fun List<String>?.getQueryValue(queryKey: String) = this?.find { it.startsWith(queryKey) }
-        ?.substringAfter(queryKey)
 }
 
 actual fun paymentPlatformModule(): Module = module {

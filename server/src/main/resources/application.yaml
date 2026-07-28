@@ -20,7 +20,7 @@ stytch:
 paystack:
   secretKey: ${PAYSTACK_SECRET_KEY}
   publicKey: ${PAYSTACK_PUBLIC_KEY}
-  baseUrl: ${PAYSTACK_BASE_URL:-https://api.paystack.co}
+  baseUrl: ${PAYSTACK_BASE_URL:https://api.paystack.co}
   callbackUrl: ${PAYSTACK_CALLBACK_URL}
   currency: ${PAYSTACK_CURRENCY:-NGN}
 
@@ -32,7 +32,7 @@ jwt:
 
 cors:
   allowedHosts: ${CORS_ALLOWED_HOSTS:-}
-  allowAnyHost: ${CORS_ALLOW_ANY_HOST:-false}
+  allowAnyHost: ${CORS_ALLOW_ANY_HOST:false}
 
 cookie:
   secure: ${COOKIE_SECURE:-true}

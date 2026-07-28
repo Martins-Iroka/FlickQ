@@ -19,7 +19,7 @@ import com.martdev.flickq.core.data.AppConfig.USE_FAKES
 object AppConfig {
     const val USE_FAKES: Boolean = false
 
-    const val BASE_URL: String = "https://flickq-app-38bc0746084d.herokuapp.com/api/v1"
+    const val BASE_URL: String = "https://flickq-api.fly.dev/api/v1"
 
     /**
      * Scheme + host + port of [BASE_URL] with the path stripped (e.g. `http://localhost:8080`).
