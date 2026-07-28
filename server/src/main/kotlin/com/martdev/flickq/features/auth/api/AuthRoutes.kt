@@ -19,7 +19,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
-import io.ktor.util.logging.KtorSimpleLogger
 import org.koin.ktor.ext.inject
 
 fun Route.authRoutes() {

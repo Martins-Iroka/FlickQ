@@ -65,7 +65,7 @@ kotlin {
             implementation(projects.feature.booking.data)
             implementation(projects.feature.booking.presentation)
             implementation(projects.feature.payment.data)
-            implementation(projects.feature.payment.presentation)
+            api(projects.feature.payment.presentation)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

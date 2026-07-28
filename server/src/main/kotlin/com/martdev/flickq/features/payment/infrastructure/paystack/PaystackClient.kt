@@ -7,7 +7,8 @@ import com.martdev.flickq.features.payment.infrastructure.paystack.dto.VerifyRes
 interface PaystackClient {
     suspend fun initializeTransaction(
         email: String,
-        amount: Long
+        amount: Long,
+        callbackUrl: String?
     ): InitializeResponse
 
     suspend fun verifyTransaction(reference: String): VerifyResponse

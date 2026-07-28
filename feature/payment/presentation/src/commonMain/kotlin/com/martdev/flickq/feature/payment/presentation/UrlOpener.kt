@@ -9,7 +9,25 @@ import org.koin.core.module.Module
  * fire-and-forget — it does not report when the user returns.
  */
 interface UrlOpener {
-    fun open(url: String)
+    fun open(url: String) {}
+    fun launchCheckout(
+        checkoutUrl: String,
+        callbackScheme: String,
+        onCancel: () -> Unit,
+        onResult: (String?, String?, String?) -> Unit
+    ) {
+    }
+
+    fun launchCheckout(
+        checkoutUrl: String,
+        callbackScheme: String,
+        onCancel: () -> Unit,
+        onResult: () -> Unit
+    ) {
+
+    }
+
+    fun handleRedirect() {}
 }
 
 /** Per-platform Koin bindings for [UrlOpener]; mirrors `platformDataModule()`. */

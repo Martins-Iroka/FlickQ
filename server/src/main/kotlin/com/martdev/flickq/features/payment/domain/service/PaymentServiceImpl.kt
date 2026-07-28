@@ -65,7 +65,8 @@ class PaymentServiceImpl(
 
         val response = paystackClient.initializeTransaction(
             email = email,
-            amount = paystackAmount
+            amount = paystackAmount,
+            callbackUrl = config.callbackUrl.ifBlank { null }
         )
 
         val data = response.data

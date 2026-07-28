@@ -95,9 +95,35 @@ class PaymentViewModel(
 
     private fun openCheckoutAndPoll() {
         val url = _state.value.authorizationUrl ?: return
-        urlOpener.open(url)
+        val reference = _state.value.reference
         _state.update { it.copy(phase = PaymentPhase.AWAITING_PAYMENT, error = null) }
-        viewModelScope.launch { pollUntilResolved(_state.value.reference) }
+        urlOpener.launchCheckout(url,
+            "flickq",
+            onCancel = {
+                _state.update {
+                    it.copy(error = UiText.DynamicString("Payment process was cancelled."))
+                }
+            },
+            onResult = {
+                viewModelScope.launch { pollUntilResolved(reference) }
+                /*status?.let { s ->
+                    if (s == "success") {
+                        _state.update {
+                            it.copy(
+                                phase = PaymentPhase.CONFIRMED,
+                                reference = reference ?: "N/A",
+                                amountLabel = formatNaira(amount?.toLongOrNull() ?: 0),
+                                error = null
+                            )
+                        }
+                    } else {
+                        _state.update {
+                            it.copy(error = UiText.DynamicString("Payment was not completed. Please try again."))
+                        }
+                    }
+                }*/
+            })
+//        viewModelScope.launch { pollUntilResolved(_state.value.reference) }
     }
 
     /**

@@ -10,7 +10,9 @@ import com.martdev.flickq.shared.api.getParameterFromPath
 import com.martdev.flickq.shared.api.withRole
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.util.extractUserId
+import com.martdev.flickq.shared.util.getLoggerFactory
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.encodeURLParameter
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
@@ -27,6 +29,7 @@ const val adminPaymentPath = "/admin$paymentPath"
 const val paystackSignatureHeader = "x-paystack-signature"
 const val mobileDeepLink = "flickq://payment-callback"
 
+private val log = getLoggerFactory("PaymentCallback")
 fun Route.paymentRoute() {
     val paymentService by inject<PaymentService>()
     publicPaymentRoutes(paymentService)
@@ -49,12 +52,18 @@ private fun Route.publicPaymentRoutes(paymentService: PaymentService) {
             val reference = call.request.queryParameters["reference"]
                 ?: call.request.queryParameters["trxref"]
                 ?: throw BadRequestException("Missing reference")
-            val payment = paymentService.verifyPayment(reference, requestingUserId = null)
-            if (payment.status == PaymentStatus.SUCCESS) {
-                call.respondRedirect("$mobileDeepLink?status=success&reference=${payment.reference}&amount=${payment.amount}")
+            val payment = runCatching { paymentService.verifyPayment(reference, null) }
+                .onFailure {
+                    log.warn("Callback verify failed for reference={}", reference, it)
+                }
+                .getOrNull()
+            val redirectUrl = if (payment?.status == PaymentStatus.SUCCESS) {
+                "$mobileDeepLink?status=success&reference=${payment.reference.encodeURLParameter()}&amount=${payment.amount}"
             } else {
-                call.respondRedirect("$mobileDeepLink?status=failed&reference=${payment.reference}")
+                val ref = (payment?.reference ?: reference).encodeURLParameter()
+                "$mobileDeepLink?status=failed&reference=$ref"
             }
+            call.respondRedirect(redirectUrl)
         }
     }
 }

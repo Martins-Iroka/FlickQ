@@ -3,8 +3,8 @@ package com.martdev.flickq.feature.payment.presentation
 import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.containsExactly
-import assertk.assertions.isEqualTo
 import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import com.martdev.flickq.core.common.DataError
@@ -65,6 +65,16 @@ private class RecordingUrlOpener : UrlOpener {
     val opened = mutableListOf<String>()
     override fun open(url: String) {
         opened += url
+    }
+
+    override fun launchCheckout(
+        checkoutUrl: String,
+        callbackScheme: String,
+        onCancel: () -> Unit,
+        onResult: () -> Unit
+    ) {
+        opened += checkoutUrl
+        onResult()
     }
 }
 

@@ -1,25 +1,58 @@
 package com.martdev.flickq.feature.payment.presentation
 
-import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabsIntent
-import org.koin.android.ext.koin.androidContext
+import androidx.core.net.toUri
 import org.koin.core.module.Module
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
-/**
- * Opens the checkout in a Chrome Custom Tab. Launched from the application context, so the
- * tab needs its own task.
- */
-class AndroidUrlOpener(private val context: Context) : UrlOpener {
-    override fun open(url: String) {
+
+class AndroidPaystackUrl : UrlOpener {
+    private var terminalStatusChecked = false
+    private var cancelCallback: (() -> Unit)? = null
+    private var resultCallback : (() -> Unit)? = null
+
+    private var checkoutLauncher: ActivityResultLauncher<Intent>? = null
+
+    override fun launchCheckout(
+        checkoutUrl: String,
+        callbackScheme: String,
+        onCancel: () -> Unit,
+        onResult: () -> Unit
+    ) {
+        terminalStatusChecked = false
+        cancelCallback = onCancel
+        resultCallback = onResult
+
         val customTabs = CustomTabsIntent.Builder().build()
-        customTabs.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        customTabs.launchUrl(context, Uri.parse(url))
+        val intent = customTabs.intent
+        intent.data = checkoutUrl.toUri()
+
+        checkoutLauncher?.launch(intent)
+    }
+
+    override fun handleRedirect() {
+        terminalStatusChecked = true
+        resultCallback?.invoke()
+    }
+
+    fun register(activity: ComponentActivity) {
+        checkoutLauncher = activity.registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { _ ->
+            if (terminalStatusChecked.not()) {
+                cancelCallback?.invoke()
+            }
+        }
     }
 }
 
 actual fun paymentPlatformModule(): Module = module {
-    single<UrlOpener> { AndroidUrlOpener(androidContext()) }
+    single {
+        AndroidPaystackUrl()
+    } bind UrlOpener::class
 }
