@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
         payStackUrl.register(this)
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-
+        handlePaymentRedirectIfPresent(intent)
         setContent {
             FlickQApp()
         }
@@ -25,7 +25,22 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        val data = intent.data
+        setIntent(intent)
+        handlePaymentRedirectIfPresent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        payStackUrl.onResume()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        payStackUrl.unregister()
+    }
+
+    private fun handlePaymentRedirectIfPresent(intent: Intent?) {
+        val data = intent?.data
 
         if (data != null && data.scheme == "flickq" && data.host == "payment-callback") {
             payStackUrl.handleRedirect()

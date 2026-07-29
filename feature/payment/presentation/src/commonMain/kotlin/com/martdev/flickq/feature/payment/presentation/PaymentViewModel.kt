@@ -179,11 +179,12 @@ class PaymentViewModel(
                     val payment = result.data
                     when (payment.status) {
                         PaymentStatus.SUCCESS -> {
+                            val amount = payment.amount.div(100)
                             _state.update {
                                 it.copy(
                                     phase = PaymentPhase.CONFIRMED,
                                     reference = payment.reference,
-                                    amountLabel = formatNaira(payment.amount),
+                                    amountLabel = formatNaira(amount),
                                     error = null
                                 )
                             }
