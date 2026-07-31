@@ -1,10 +1,13 @@
 package com.martdev.flickq
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.martdev.flickq.core.data.SessionManager
@@ -46,50 +49,52 @@ fun FlickQApp() {
                 launchSingleTop = true
             }
         }
-        NavHost(navController = navController, startDestination = AuthGraphRoute) {
-            authGraph(
-                navController = navController,
-                onAuthenticated = {
-                    hasAuthenticated = true
-                    navController.navigate(MovieGraphRoute) {
-                        popUpTo(AuthGraphRoute) { inclusive = true }
+        Scaffold { innerPadding ->
+            NavHost(navController = navController, startDestination = AuthGraphRoute, modifier = Modifier.padding(innerPadding)) {
+                authGraph(
+                    navController = navController,
+                    onAuthenticated = {
+                        hasAuthenticated = true
+                        navController.navigate(MovieGraphRoute) {
+                            popUpTo(AuthGraphRoute) { inclusive = true }
+                        }
                     }
-                }
-            )
-            movieGraph(
-                navController = navController,
-                onViewShowtimes = { movieId -> navController.navigate(ShowtimeListRoute(movieId)) },
-                // Logout revokes the session; the SessionManager observer above routes to login.
-                onLogout = onLogout,
-            )
-            showtimeGraph(
-                navController = navController,
-                onPickShowtime = { showtimeId -> navController.navigate(SeatSelectionRoute(showtimeId)) }
-            )
-            bookingGraph(
-                navController = navController,
-                onProceedToPayment = { reservationId -> navController.navigate(PaymentRoute(reservationId)) },
-                onExitToBrowse = {
-                    navController.navigate(MovieGraphRoute) {
-                        popUpTo(MovieGraphRoute) { inclusive = true }
+                )
+                movieGraph(
+                    navController = navController,
+                    onViewShowtimes = { movieId -> navController.navigate(ShowtimeListRoute(movieId)) },
+                    // Logout revokes the session; the SessionManager observer above routes to login.
+                    onLogout = onLogout,
+                )
+                showtimeGraph(
+                    navController = navController,
+                    onPickShowtime = { showtimeId -> navController.navigate(SeatSelectionRoute(showtimeId)) }
+                )
+                bookingGraph(
+                    navController = navController,
+                    onProceedToPayment = { reservationId -> navController.navigate(PaymentRoute(reservationId)) },
+                    onExitToBrowse = {
+                        navController.navigate(MovieGraphRoute) {
+                            popUpTo(MovieGraphRoute) { inclusive = true }
+                        }
                     }
-                }
-            )
-            paymentGraph(
-                navController = navController,
-                onDone = {
-                    navController.navigate(MovieGraphRoute) {
-                        popUpTo(MovieGraphRoute) { inclusive = true }
-                    }
-                },
-                // Hold lapsed (seats released) → the reservation and its on-stack seat selection
-                // are both stale, so start over at browse rather than land on a stale seat map.
-                onReservationExpired = {
-                    navController.navigate(MovieGraphRoute) {
-                        popUpTo(MovieGraphRoute) { inclusive = true }
-                    }
-                },
-            )
+                )
+                paymentGraph(
+                    navController = navController,
+                    onDone = {
+                        navController.navigate(MovieGraphRoute) {
+                            popUpTo(MovieGraphRoute) { inclusive = true }
+                        }
+                    },
+                    // Hold lapsed (seats released) → the reservation and its on-stack seat selection
+                    // are both stale, so start over at browse rather than land on a stale seat map.
+                    onReservationExpired = {
+                        navController.navigate(MovieGraphRoute) {
+                            popUpTo(MovieGraphRoute) { inclusive = true }
+                        }
+                    },
+                )
+            }
         }
     }
 }
