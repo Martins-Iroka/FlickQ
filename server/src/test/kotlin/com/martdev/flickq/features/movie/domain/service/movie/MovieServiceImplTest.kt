@@ -10,12 +10,15 @@ import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 @ExtendWith(MockKExtension::class)
 class MovieServiceImplTest {
@@ -29,6 +32,8 @@ class MovieServiceImplTest {
     fun setup() {
         service = MovieServiceImpl(repository)
     }
+
+    val date = Clock.System.now().toLocalDateTime(TimeZone.UTC).date
 
     @Test
     fun `should create movie successfully`() = runTest {
@@ -58,10 +63,10 @@ class MovieServiceImplTest {
     @Test
     fun `should get list of movies successfully`() = runTest {
         coEvery {
-            repository.getMovies(any(), any())
+            repository.getMovies(any(), any(), any())
         } returns DataResult.Success(listOf(Movie()))
 
-        val result = service.getMovies(5, 0)
+        val result = service.getMovies(5, 0, date)
         assertTrue(result.isNotEmpty())
         assertEquals(1, result.size)
     }
@@ -69,10 +74,10 @@ class MovieServiceImplTest {
     @Test
     fun `should get list of movies should return empty list`() = runTest {
         coEvery {
-            repository.getMovies(any(), any())
+            repository.getMovies(any(), any(), any())
         } returns DataResult.Success(emptyList())
 
-        val result = service.getMovies(5, 0)
+        val result = service.getMovies(5, 0, date)
         assertTrue(result.isEmpty())
     }
 
