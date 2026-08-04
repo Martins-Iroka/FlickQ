@@ -3,6 +3,7 @@ package com.martdev.flickq.features.movie.domain.service.movie
 import com.martdev.flickq.features.movie.domain.repository.MovieRepository
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.util.returnValue
+import kotlinx.datetime.LocalDate
 import org.koin.core.annotation.Single
 
 @Single
@@ -13,11 +14,8 @@ class MovieServiceImpl(
         movieRepository.createMovie(movie).returnValue()
     }
 
-    override suspend fun getMovies(
-        limit: Int,
-        offset: Long
-    ): List<Movie> {
-        return movieRepository.getMovies(limit, offset).returnValue()
+    override suspend fun getMovies(limit: Int, offset: Long, date: LocalDate?): List<Movie> {
+        return movieRepository.getMovies(limit, offset, date).returnValue()
     }
 
     override suspend fun getMovieById(movieId: Long): Movie {

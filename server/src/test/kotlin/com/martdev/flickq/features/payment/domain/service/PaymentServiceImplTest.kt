@@ -109,6 +109,7 @@ class PaymentServiceImplTest {
             paystackClient.initializeTransaction(
                 email = "u@x.io",
                 amount = capture(amountCaptured),
+                ""
             )
         } returns InitializeResponse(
             status = true,

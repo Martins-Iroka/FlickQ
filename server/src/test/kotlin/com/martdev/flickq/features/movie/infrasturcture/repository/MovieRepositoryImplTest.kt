@@ -5,13 +5,23 @@ import com.martdev.flickq.features.movie.domain.repository.MovieRepository
 import com.martdev.flickq.features.movie.infrasturcture.tables.GenresTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MovieGenreTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
+import com.martdev.flickq.features.room.domain.repository.RoomRepository
+import com.martdev.flickq.features.room.infrastructure.db.repository.RoomRepositoryImpl
+import com.martdev.flickq.features.room.infrastructure.db.table.RoomTable
+import com.martdev.flickq.features.showtime.domain.repository.ShowtimeRepository
+import com.martdev.flickq.features.showtime.infrastructure.db.repository.ShowtimeRepositoryImpl
+import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTable
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
+import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.shared.domain.model.DataResult
+import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeAll
@@ -21,6 +31,8 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
 
 @Testcontainers
 class MovieRepositoryImplTest {
@@ -28,6 +40,9 @@ class MovieRepositoryImplTest {
     companion object {
         private lateinit var movieRepo: MovieRepository
         private lateinit var genreRepo: GenreRepository
+        private lateinit var showtimeRepo: ShowtimeRepository
+        private lateinit var roomRepo: RoomRepository
+
         @Container
         val postgres = PostgresContainer.initPostgres()
 
@@ -37,6 +52,8 @@ class MovieRepositoryImplTest {
             PostgresContainer.connectToDBAndMigrate(postgres)
             genreRepo = GenreRepositoryImpl()
             movieRepo = MovieRepositoryImpl()
+            showtimeRepo = ShowtimeRepositoryImpl()
+            roomRepo = RoomRepositoryImpl()
         }
     }
 
@@ -44,7 +61,9 @@ class MovieRepositoryImplTest {
     fun cleanDatabase() {
         transaction {
             // Order is important due to foreign key constraints
+            ShowtimeTable.deleteAll()
             MovieGenreTable.deleteAll()
+            RoomTable.deleteAll()
             MoviesTable.deleteAll()
             GenresTable.deleteAll()
         }
@@ -70,20 +89,21 @@ class MovieRepositoryImplTest {
     }
 
     @Test
-    fun `saveMovieData should fail to save a movie and its genres returns not found for invalid genre`() = runTest {
-        // Arrange
-        val genres = listOf(Genre())
-        val movie = createMovie(title = "Apex", genres = genres)
+    fun `saveMovieData should fail to save a movie and its genres returns not found for invalid genre`() =
+        runTest {
+            // Arrange
+            val genres = listOf(Genre())
+            val movie = createMovie(title = "Apex", genres = genres)
 
-        // Act
-        val result = movieRepo.createMovie(movie)
+            // Act
+            val result = movieRepo.createMovie(movie)
 
-        // Assert
-        assertTrue(result is DataResult.Failure.NotFound, "Movie should be not be saved")
+            // Assert
+            assertTrue(result is DataResult.Failure.NotFound, "Movie should be not be saved")
 
-        val movies = movieRepo.getMovies(limit = 10, offset = 0) as DataResult.Success
-        assertEquals(0, movies.value.size, "Failed save should not persist the movie")
-    }
+            val movies = movieRepo.getMovies(limit = 10, offset = 0) as DataResult.Success
+            assertEquals(0, movies.value.size, "Failed save should not persist the movie")
+        }
 
     @Test
     fun `getMovies should return a paginated list of movies`() = runTest {
@@ -106,6 +126,45 @@ class MovieRepositoryImplTest {
         // Assert: Page 2
         assertTrue(page2Result is DataResult.Success)
         assertEquals(1, page2Result.value.size)
+    }
+
+    private val clock = Clock.System.now()
+    @Test
+    fun `getMovies by date should return a paginated list of movies`() = runTest {
+        val genres = createAndSaveGenres("Fantasy")
+        val movieId = createAndSaveMovie(title = "Movie 1", genres = genres)
+        val movieId2 = createAndSaveMovie(title = "Movie 2", genres = genres)
+        val saveRoom = (roomRepo.createRoom(
+            Room(
+                name = "Room 5",
+                rows = 5,
+                columns = 10
+            )
+        ) as DataResult.Success).value
+        showtimeRepo.createShowtime(
+            Showtime(
+                movieId = movieId,
+                roomId = saveRoom.id,
+                startsAt = clock,
+                endsAt = clock.plus(2.hours),
+                price = 5000
+            )
+        )
+
+        showtimeRepo.createShowtime(
+            Showtime(
+                movieId = movieId2,
+                roomId = saveRoom.id,
+                startsAt = clock.plus(3.hours),
+                endsAt = clock.plus(5.hours),
+                price = 5000
+            )
+        )
+        val date = clock.toLocalDateTime(TimeZone.UTC).date
+        val result = movieRepo.getMovies(2, 0, date)
+
+        assertTrue(result is DataResult.Success)
+        assertEquals(2, result.value.size)
     }
 
     @Test
@@ -216,7 +275,8 @@ class MovieRepositoryImplTest {
     @Test
     fun `deleteMovie should remove a movie from the database`() = runTest {
         // Arrange
-        val movieId = createAndSaveMovie(title = "To Be Deleted", genres = createAndSaveGenres("Temporary"))
+        val movieId =
+            createAndSaveMovie(title = "To Be Deleted", genres = createAndSaveGenres("Temporary"))
 
         // Act
         val deleteResult = movieRepo.deleteMovie(movieId)
@@ -226,21 +286,25 @@ class MovieRepositoryImplTest {
         assertEquals(1, deleteResult.value, "Delete should report 1 row affected")
 
         val fetchResult = movieRepo.getMovieById(movieId)
-        assertTrue(fetchResult is DataResult.Failure.NotFound, "Fetching a deleted movie should result in NotFound")
+        assertTrue(
+            fetchResult is DataResult.Failure.NotFound,
+            "Fetching a deleted movie should result in NotFound"
+        )
     }
 
     @Test
-    fun `deleteMovie should return UnknownError when trying to delete a non-existent movie`() = runTest {
-        // Arrange: DB is empty
-        val nonExistentId = 999L
+    fun `deleteMovie should return UnknownError when trying to delete a non-existent movie`() =
+        runTest {
+            // Arrange: DB is empty
+            val nonExistentId = 999L
 
-        // Act
-        val result = movieRepo.deleteMovie(nonExistentId)
+            // Act
+            val result = movieRepo.deleteMovie(nonExistentId)
 
-        // Assert
-        assertTrue(result is DataResult.Failure.UnknownError)
-        assertEquals("Failed to delete movie", result.errorMessage)
-    }
+            // Assert
+            assertTrue(result is DataResult.Failure.UnknownError)
+            assertEquals("Failed to delete movie", result.errorMessage)
+        }
 
     private suspend fun createAndSaveGenres(vararg names: String): List<Genre> {
         return names.map { name ->

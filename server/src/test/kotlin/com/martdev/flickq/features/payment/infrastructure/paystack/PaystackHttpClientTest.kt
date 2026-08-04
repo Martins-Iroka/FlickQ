@@ -49,6 +49,7 @@ class PaystackHttpClientTest {
         val response = client.initializeTransaction(
             email = "u@x.io",
             amount = 500000L,
+            ""
         )
 
         assertEquals("Bearer sk_test_abc", capturedAuth)

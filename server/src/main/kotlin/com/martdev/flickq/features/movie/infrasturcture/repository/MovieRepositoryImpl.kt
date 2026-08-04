@@ -6,14 +6,26 @@ import com.martdev.flickq.features.movie.infrasturcture.tables.MovieGenreTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesEntity
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.toMovie
+import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTable
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
+import com.martdev.flickq.showtime.model.ShowtimeStatus
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.SizedCollection
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
 
 @Single
@@ -38,28 +50,37 @@ class MovieRepositoryImpl : MovieRepository {
 
     override suspend fun getMovies(
         limit: Int,
-        offset: Long
+        offset: Long,
+        date: LocalDate?
     ): DataResult<List<Movie>> {
         return withSuspendTransaction {
-            val result = MoviesEntity.all()
-                .limit(limit)
-                .offset(offset)
-                .map {
-                    it.toMovie()
+
+            val result = if (date != null) {
+                val from = date.atStartOfDayIn(TimeZone.UTC)
+                val to = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(TimeZone.UTC)
+                val movieIds = ShowtimeTable
+                    .select(ShowtimeTable.movieId)
+                    .where { (ShowtimeTable.status eq ShowtimeStatus.SCHEDULED) and
+                            (ShowtimeTable.startsAt greaterEq from) and
+                            (ShowtimeTable.startsAt less to) }
+                    .withDistinct()
+                    .map { it[ShowtimeTable.movieId].value }
+                MoviesEntity.find {
+                    MoviesTable.id inList movieIds
                 }
-            /*val result = MoviesTable
-                .select(
-                    MoviesTable.id,
-                    MoviesTable.title,
-                    MoviesTable.posterUrl
-                ).limit(limit).offset(offset)
-                .orderBy(MoviesTable.createdAt, SortOrder.DESC)
-                .map {
-                    val id = it[MoviesTable.id].value
-                    val title = it[MoviesTable.title]
-                    val posterUrl = it[MoviesTable.posterUrl]
-                    Movie(id = id, title = title, posterUrl = posterUrl)
-                }*/
+                    .limit(limit)
+                    .offset(offset)
+                    .map {
+                        it.toMovie()
+                    }
+            } else {
+                MoviesEntity.all()
+                    .limit(limit)
+                    .offset(offset)
+                    .map {
+                        it.toMovie()
+                    }
+            }
 
             DataResult.Success(result)
         }
@@ -118,9 +139,10 @@ class MovieRepositoryImpl : MovieRepository {
     ): DataResult<List<Movie>> {
         return withSuspendTransaction {
             val genreEntity =
-                GenreEntity.findById(genreId) ?: return@withSuspendTransaction DataResult.Failure.NotFound(
-                    "Genre with id $genreId doesn't exist"
-                )
+                GenreEntity.findById(genreId)
+                    ?: return@withSuspendTransaction DataResult.Failure.NotFound(
+                        "Genre with id $genreId doesn't exist"
+                    )
 
             val movies = genreEntity.movies
                 .limit(limit).offset(offset)
@@ -135,7 +157,8 @@ class MovieRepositoryImpl : MovieRepository {
     private fun linkGenres(m: MoviesEntity, genres: List<Genre>): DataResult<Unit> {
         genres.forEach { g ->
             val genreEntity =
-                GenreEntity.findById(g.id) ?: return DataResult.Failure.NotFound("${g.name} genre doesn't exist")
+                GenreEntity.findById(g.id)
+                    ?: return DataResult.Failure.NotFound("${g.name} genre doesn't exist")
             MovieGenreTable.insert {
                 it[movieId] = m.id
                 it[genreId] = genreEntity.id
