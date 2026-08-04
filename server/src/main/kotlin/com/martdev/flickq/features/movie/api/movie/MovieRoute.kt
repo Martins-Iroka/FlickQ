@@ -11,16 +11,19 @@ import com.martdev.flickq.shared.api.AUTH_JWT
 import com.martdev.flickq.shared.api.getLimitAndOffset
 import com.martdev.flickq.shared.api.getParameterFromPath
 import com.martdev.flickq.shared.api.withRole
+import com.martdev.flickq.shared.domain.exception.BadRequestException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
+import kotlinx.datetime.LocalDate
 import org.koin.ktor.ext.inject
 
 const val moviePath = "/movie"
@@ -64,7 +67,8 @@ private fun Route.moviePublicRoute(service: MovieService) {
     route(moviePath) {
         get("/get-movies") {
             val (limit, offset) = getLimitAndOffset()
-            val response = service.getMovies(limit, offset).map {
+            val date = getLocalDate("date")
+            val response = service.getMovies(limit, offset, date).map {
                 it.toMovieDto()
             }
             val dataResponse = DataResponse(response)
@@ -89,4 +93,10 @@ private fun Route.moviePublicRoute(service: MovieService) {
             call.respond(HttpStatusCode.OK, dataResponse)
         }
     }
+}
+
+private fun RoutingContext.getLocalDate(name: String): LocalDate {
+    return call.request.queryParameters[name]?.trim()?.let {
+        runCatching { LocalDate.parse(it) }.getOrNull()
+    } ?: throw BadRequestException("Invalid '$name' (expected ISO-8601 date, yyyy-MM-dd")
 }
