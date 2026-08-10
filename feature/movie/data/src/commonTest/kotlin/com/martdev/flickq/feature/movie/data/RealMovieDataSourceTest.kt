@@ -50,17 +50,17 @@ class RealMovieDataSourceTest {
     }
 
     @Test
-    fun `getMovies forwards limit and offset as query parameters`() = runTest {
+    fun `getMovies forwards limit, offset and date as query parameters`() = runTest {
         var query = ""
         val client = jsonClient { request ->
             query = request.url.encodedQuery
             jsonOk("""{"data":[]}""")
         }
-
         RealMovieDataSource(client).getMovies(limit = 20, offset = 40)
 
         assertThat(query.contains("limit=20")).isEqualTo(true)
         assertThat(query.contains("offset=40")).isEqualTo(true)
+        assertThat(query.contains("date=")).isEqualTo(false)
     }
 
     @Test

@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.LocalDate
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -32,7 +33,11 @@ private class FakeMovieRepository(
     var shouldReturnError = false
     val requestedPages = mutableListOf<Pair<Int, Int>>() // (limit, offset)
 
-    override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> {
+    override suspend fun getMovies(
+        limit: Int,
+        offset: Int,
+        date: LocalDate?
+    ): Result<List<Movie>, DataError> {
         requestedPages += limit to offset
         return if (shouldReturnError) Result.Error(DataError.Network.NO_INTERNET)
         else Result.Success(movies.drop(offset).take(limit))

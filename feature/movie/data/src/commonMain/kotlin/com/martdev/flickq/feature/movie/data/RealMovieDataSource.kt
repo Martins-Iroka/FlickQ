@@ -9,6 +9,7 @@ import com.martdev.flickq.movie.MovieDTO
 import com.martdev.flickq.movie.MovieListItemDTO
 import com.martdev.flickq.movie.model.Movie
 import io.ktor.client.HttpClient
+import kotlinx.datetime.LocalDate
 
 /**
  * Ktor-backed [MovieRepository]. `get-movies` returns lightweight list items (id/title/
@@ -18,10 +19,14 @@ class RealMovieDataSource(
     private val client: HttpClient
 ) : MovieRepository {
 
-    override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> =
+    override suspend fun getMovies(
+        limit: Int,
+        offset: Int,
+        date: LocalDate?
+    ): Result<List<Movie>, DataError> =
         client.getData<List<MovieListItemDTO>>(
             "/movie/get-movies",
-            queryParameters = mapOf("limit" to limit, "offset" to offset),
+            queryParameters = mapOf("limit" to limit, "offset" to offset, "date" to date?.toString()),
         ).map { items -> items.map { it.toMovie() } }
 
     override suspend fun getMovieById(id: Long): Result<Movie, DataError> =
