@@ -16,11 +16,19 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +43,11 @@ import com.martdev.flickq.core.designsystem.PosterImage
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
 import com.martdev.flickq.core.presentation.ObserveAsEvents
 import com.martdev.flickq.feature.movie.presentation.MovieUi
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
+import kotlin.time.Instant
 
 @Composable
 fun MovieListRoot(
@@ -60,6 +72,12 @@ fun MovieListScreen(
     onAction: (MovieListAction) -> Unit,
     onLogout: () -> Unit = {},
 ) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = state.selectedDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+    )
+    var showDatePicker by rememberSaveable {
+        mutableStateOf(false)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -69,7 +87,7 @@ fun MovieListScreen(
             modifier = Modifier.fillMaxWidth()
                 .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "FlickQ",
@@ -81,6 +99,79 @@ fun MovieListScreen(
                 Text(text = "Log out", color = FlickQColors.GoldHighlight, fontSize = 13.sp)
             }
         }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            FilterChip(
+                state.isToday,
+                onClick = {
+                    onAction(MovieListAction.OnTodayClick)
+                },
+                label = {
+                    Text(
+                        "Today",
+                        color = FlickQColors.Gold,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            )
+
+            FilterChip(
+                state.isTomorrow,
+                onClick = {
+                    onAction(MovieListAction.OnTomorrowClick)
+                },
+                label = {
+                    Text(
+                        "Tomorrow",
+                        color = FlickQColors.Gold,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            )
+
+            FilterChip(
+                state.isToday.not() and state.isTomorrow.not(),
+                onClick = {
+                    showDatePicker = true
+                },
+                label = {
+                    Text(
+                        "Pick a date",
+                        color = FlickQColors.Gold,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            )
+        }
+
+        if (showDatePicker) {
+            DatePickerDialog(onDismissRequest = {
+                showDatePicker = false
+            },
+                confirmButton = {
+                    Button(onClick = {
+                        showDatePicker = false
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val picked = Instant.fromEpochMilliseconds(millis)
+                                .toLocalDateTime(TimeZone.UTC).date
+                            onAction(MovieListAction.OnDateSelected(picked))
+                        }
+                    }) {
+                        Text("Ok")
+                    }
+                }) {
+                DatePicker(
+                    state = datePickerState
+                )
+            }
+        }
+
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
                 state.isLoading -> CircularProgressIndicator(
