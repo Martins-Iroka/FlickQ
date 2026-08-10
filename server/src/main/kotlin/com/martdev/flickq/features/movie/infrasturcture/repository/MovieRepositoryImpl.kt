@@ -51,28 +51,36 @@ class MovieRepositoryImpl : MovieRepository {
     override suspend fun getMovies(
         limit: Int,
         offset: Long,
-        date: LocalDate
+        date: LocalDate?
     ): DataResult<List<Movie>> {
         return withSuspendTransaction {
-            val from = date.atStartOfDayIn(TimeZone.UTC)
-            val to = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(TimeZone.UTC)
-            val movieIds = ShowtimeTable
-                .select(ShowtimeTable.movieId)
-                .where {
-                    (ShowtimeTable.status eq ShowtimeStatus.SCHEDULED) and
+
+            val result = if (date != null) {
+                val from = date.atStartOfDayIn(TimeZone.UTC)
+                val to = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(TimeZone.UTC)
+                val movieIds = ShowtimeTable
+                    .select(ShowtimeTable.movieId)
+                    .where { (ShowtimeTable.status eq ShowtimeStatus.SCHEDULED) and
                             (ShowtimeTable.startsAt greaterEq from) and
-                            (ShowtimeTable.startsAt less to)
+                            (ShowtimeTable.startsAt less to) }
+                    .withDistinct()
+                    .map { it[ShowtimeTable.movieId].value }
+                MoviesEntity.find {
+                    MoviesTable.id inList movieIds
                 }
-                .withDistinct()
-                .map { it[ShowtimeTable.movieId].value }
-            val result = MoviesEntity.find {
-                MoviesTable.id inList movieIds
+                    .limit(limit)
+                    .offset(offset)
+                    .map {
+                        it.toMovie()
+                    }
+            } else {
+                MoviesEntity.all()
+                    .limit(limit)
+                    .offset(offset)
+                    .map {
+                        it.toMovie()
+                    }
             }
-                .limit(limit)
-                .offset(offset)
-                .map {
-                    it.toMovie()
-                }
 
             DataResult.Success(result)
         }

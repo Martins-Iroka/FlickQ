@@ -95,8 +95,9 @@ private fun Route.moviePublicRoute(service: MovieService) {
     }
 }
 
-private fun RoutingContext.getLocalDate(name: String): LocalDate {
-    return call.request.queryParameters[name]?.trim()?.let {
-        runCatching { LocalDate.parse(it) }.getOrNull()
-    } ?: throw BadRequestException("Invalid '$name' (expected ISO-8601 date, yyyy-MM-dd")
+private fun RoutingContext.getLocalDate(name: String): LocalDate? {
+    val raw = call.request.queryParameters[name]?.trim()
+    if (raw.isNullOrBlank()) return null
+    return runCatching { LocalDate.parse(raw) }.getOrNull()
+        ?: throw BadRequestException("Invalid '$name' (expected ISO-8601 date, yyyy-MM-dd")
 }

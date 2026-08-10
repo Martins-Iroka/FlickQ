@@ -14,7 +14,7 @@ class MovieServiceImpl(
         movieRepository.createMovie(movie).returnValue()
     }
 
-    override suspend fun getMovies(limit: Int, offset: Long, date: LocalDate): List<Movie> {
+    override suspend fun getMovies(limit: Int, offset: Long, date: LocalDate?): List<Movie> {
         return movieRepository.getMovies(limit, offset, date).returnValue()
     }
 

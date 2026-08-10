@@ -108,6 +108,29 @@ class MovieRepositoryImplTest {
         }
 
     @Test
+    fun `getMovies should return a paginated list of movies`() = runTest {
+        // Arrange
+        val genres = createAndSaveGenres("Sci-Fi")
+        createAndSaveMovie(title = "Movie 1", genres = genres)
+        createAndSaveMovie(title = "Movie 2", genres = genres)
+        createAndSaveMovie(title = "Movie 3", genres = genres)
+
+        // Act: Get the first page with 2 items
+        val page1Result = movieRepo.getMovies(limit = 2, offset = 0)
+
+        // Assert: Page 1
+        assertTrue(page1Result is DataResult.Success)
+        assertEquals(2, page1Result.value.size)
+
+        // Act: Get the second page with 2 items (should only have 1 left)
+        val page2Result = movieRepo.getMovies(limit = 2, offset = 2)
+
+        // Assert: Page 2
+        assertTrue(page2Result is DataResult.Success)
+        assertEquals(1, page2Result.value.size)
+    }
+
+    @Test
     fun `getMovies by date should return a paginated list of movies`() = runTest {
         val genres = createAndSaveGenres("Fantasy")
         val movieId = createAndSaveMovie(title = "Movie 1", genres = genres)

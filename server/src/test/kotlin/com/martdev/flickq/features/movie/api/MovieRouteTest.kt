@@ -151,6 +151,21 @@ class MovieRouteTest {
     }
 
     @Test
+    fun testGetMovies_dateIsNull_returnList() = testApplication {
+        coEvery {
+            service.getMovies(any(), any(), null)
+        } returns listOf(Movie())
+
+        application {
+            configure()
+        }
+        val client = clientConfiguration(adminToken)
+        client.get("movie/get-movies").apply {
+            assertEquals(HttpStatusCode.OK, status)
+        }
+    }
+
+    @Test
     fun testGetMovies_throwsBadRequestException() = testApplication {
         application {
             configure()
