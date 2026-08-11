@@ -27,6 +27,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +44,7 @@ import com.martdev.flickq.core.designsystem.PosterImage
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
 import com.martdev.flickq.core.presentation.ObserveAsEvents
 import com.martdev.flickq.feature.movie.presentation.MovieUi
+import com.martdev.flickq.feature.movie.presentation.SelectableDateRange
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
@@ -72,8 +74,12 @@ fun MovieListScreen(
     onAction: (MovieListAction) -> Unit,
     onLogout: () -> Unit = {},
 ) {
+    val millis = remember(state) {
+        state.selectedDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+    }
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = state.selectedDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+        initialSelectedDateMillis = millis,
+        selectableDates = SelectableDateRange(millis, state.selectedDate.year)
     )
     var showDatePicker by rememberSaveable {
         mutableStateOf(false)
