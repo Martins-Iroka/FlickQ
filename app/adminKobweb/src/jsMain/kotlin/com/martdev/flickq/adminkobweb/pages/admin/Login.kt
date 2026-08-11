@@ -37,7 +37,6 @@ import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.compose.ui.modifiers.size
 import com.varabyte.kobweb.compose.ui.modifiers.textAlign
 import com.varabyte.kobweb.compose.ui.styleModifier
-import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.PageContext
 import com.varabyte.kobweb.silk.components.forms.Button
 import com.varabyte.kobweb.silk.components.forms.TextInput
@@ -52,9 +51,8 @@ private fun UiText.plain(): String = when (this) {
     is UiText.DynamicString -> value
 }
 
-@Page("login")
 @Composable
-fun LoginPage(ctx: PageContext) {
+fun LoginContent(ctx: PageContext) {
     val vm = rememberAdminViewModel<AdminLoginViewModel>()
     val state by vm.state.collectAsState()
 

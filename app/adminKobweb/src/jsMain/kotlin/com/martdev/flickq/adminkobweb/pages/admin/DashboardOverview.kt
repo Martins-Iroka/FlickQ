@@ -1,8 +1,16 @@
-package com.martdev.flickq.adminkobweb.components
+package com.martdev.flickq.adminkobweb.pages.admin
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.martdev.flickq.adminkobweb.components.AdminLayout
+import com.martdev.flickq.adminkobweb.components.AdminNav
+import com.martdev.flickq.adminkobweb.components.ErrorBox
+import com.martdev.flickq.adminkobweb.components.RequireAdmin
+import com.martdev.flickq.adminkobweb.components.StatusBox
+import com.martdev.flickq.adminkobweb.components.dispTime
+import com.martdev.flickq.adminkobweb.components.formatNaira
+import com.martdev.flickq.adminkobweb.components.groupDigits
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
@@ -34,6 +42,7 @@ import com.varabyte.kobweb.compose.ui.modifiers.onClick
 import com.varabyte.kobweb.compose.ui.modifiers.padding
 import com.varabyte.kobweb.compose.ui.modifiers.width
 import com.varabyte.kobweb.compose.ui.styleModifier
+import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.silk.components.icons.fa.FaClock
 import com.varabyte.kobweb.silk.components.icons.fa.FaLocationDot
@@ -44,6 +53,18 @@ import com.varabyte.kobweb.silk.components.text.SpanText
 import org.jetbrains.compose.web.css.LineStyle
 import org.jetbrains.compose.web.css.px
 
+@Page("dashboard")
+@Composable
+fun Dashboard() {
+    RequireAdmin {
+        AdminLayout(
+            selected = AdminNav.Dashboard,
+            title = "Dashboard Overview"
+        ) {
+            DashboardOverview()
+        }
+    }
+}
 /**
  * Dashboard landing body: quick-action buttons, a four-up metrics row, and an upcoming-showtimes
  * card. Wired to [AdminDashboardViewModel], which composes live figures from the `admin/reports`
@@ -63,8 +84,12 @@ fun DashboardOverview() {
     ) {
         QuickActions { route -> ctx.router.navigateTo(route) }
         when {
-            state.isLoading -> StatusBox("Loading dashboard…")
-            error != null -> ErrorBox(error) { vm.onAction(AdminDashboardAction.OnRetry) }
+            state.isLoading -> StatusBox(
+                "Loading dashboard…"
+            )
+            error != null -> ErrorBox(
+                error
+            ) { vm.onAction(AdminDashboardAction.OnRetry) }
             else -> {
                 MetricsRow(state)
                 UpcomingShowtimesCard(state.upcomingToday) {
@@ -196,7 +221,9 @@ private fun UpcomingShowtimeRow(row: UpcomingShowtimeItem) {
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.px)) {
                     MetaItem({ FaLocationDot(it) }, row.roomName)
-                    MetaItem({ FaClock(it) }, dispTime(row.startsAt))
+                    MetaItem({ FaClock(it) },
+                        dispTime(row.startsAt)
+                    )
                 }
             }
         }
