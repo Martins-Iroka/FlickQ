@@ -24,14 +24,10 @@ fun Application.configureHttp() {
         allowMethod(HttpMethod.Patch)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
-        // Web/native clients send this to skip ngrok-free's browser interstitial; the preflight
-        // requests permission for it, so it must be allow-listed or the OPTIONS check 403s.
-        allowHeader("ngrok-skip-browser-warning")
         // Required for the web refresh-token cookie to ride along on cross-origin requests
         // (Decision #2). Browsers reject credentials with a wildcard origin, so the web apps must
         // be served from explicit `cors.allowedHosts` — `allowAnyHost` (dev only) can't carry cookies.
         allowHost("localhost:8083")
-        allowHost("finn-unsmitten-raeann.ngrok-free.dev")
         allowCredentials = true
         if (corsConfig.allowAnyHost) {
             anyHost()
