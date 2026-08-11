@@ -15,12 +15,12 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.http.encodedPath
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -92,15 +92,13 @@ object HttpClientFactory {
                             null
                         }
                     }
+                    this.sendWithoutRequest { request ->
+                        request.url.encodedPath.contains("login").not()
+                    }
                 }
             }
             defaultRequest {
                 contentType(ContentType.Application.Json)
-                // Skip ngrok-free's browser interstitial (ERR_NGROK_6024). Without it ngrok serves
-                // an HTML warning page with no CORS headers, so the browser reports a CORS failure
-                // instead of reaching the backend. Harmless against non-ngrok hosts. Server CORS
-                // must allow this header (see configureHttp) or the preflight 403s.
-                header("ngrok-skip-browser-warning", "true")
             }
         }
     }

@@ -25,8 +25,8 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
     configureKoin()
-    configureCallLogging()
     configureHttp()
+    configureCallLogging()
     configureDatabase()
     configureSecurity()
     configureSerialization()

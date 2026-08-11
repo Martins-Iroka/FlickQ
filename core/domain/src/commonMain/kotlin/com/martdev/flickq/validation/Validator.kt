@@ -18,7 +18,7 @@ object Validator {
         val errors = mutableListOf<String>()
         if (password.length < 8) errors.add("At least 8 characters")
         if (password.none { it.isDigit() }) errors.add("At least one number")
-        if (password.none { it.isUpperCase() }) errors.add("At least on uppercase")
+        if (password.none { it.isUpperCase() }) errors.add("At least one uppercase")
         if (password.none { it.isLowerCase() }) errors.add("At least one lowercase")
 //        if (password.none { !it.isLetterOrDigit() }) errors.add("At least one special character")
         return if (errors.isEmpty()) ResultValidation.Valid else ResultValidation.Invalid(errors.joinToString(". ") + ".")

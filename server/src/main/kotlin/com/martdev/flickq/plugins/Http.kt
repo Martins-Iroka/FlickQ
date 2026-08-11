@@ -17,25 +17,29 @@ import org.koin.ktor.ext.inject
 fun Application.configureHttp() {
     val corsConfig by inject<CorsConfig>()
     install(CORS) {
+        if (corsConfig.allowAnyHost) {
+            anyHost()
+        } else {
+            corsConfig.allowedHosts.forEach { host ->
+                allowHost(host, schemes = listOf("https"), subDomains = listOf("*"))
+                allowOrigins {
+                    it == host
+                }
+            }
+        }
         allowMethod(HttpMethod.Post)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
         allowMethod(HttpMethod.Patch)
+        allowMethod(HttpMethod.Options)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
         // Required for the web refresh-token cookie to ride along on cross-origin requests
         // (Decision #2). Browsers reject credentials with a wildcard origin, so the web apps must
         // be served from explicit `cors.allowedHosts` — `allowAnyHost` (dev only) can't carry cookies.
-        allowHost("localhost:8083")
+//        allowHost("localhost:8083")
         allowCredentials = true
-        if (corsConfig.allowAnyHost) {
-            anyHost()
-        } else {
-            corsConfig.allowedHosts.forEach { host ->
-                allowHost(host, schemes = listOf("https", "http"))
-            }
-        }
     }
     routing {
         swaggerUI(path = "/swaggerUI") {
