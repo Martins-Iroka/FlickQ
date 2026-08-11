@@ -21,10 +21,7 @@ fun Application.configureHttp() {
             anyHost()
         } else {
             corsConfig.allowedHosts.forEach { host ->
-                allowHost(host, schemes = listOf("https"), subDomains = listOf("*"))
-                allowOrigins {
-                    it == host
-                }
+                allowHost(host, schemes = listOf("https"))
             }
         }
         allowMethod(HttpMethod.Post)

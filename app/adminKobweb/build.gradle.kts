@@ -12,6 +12,9 @@ version = "1.0-SNAPSHOT"
 
 kobweb {
     app {
+        export {
+            suppressNoRootWarning.set(true)
+        }
         index {
             description.set("FlickQ Admin")
             // CineAdmin type system: Inter (UI) + Montserrat (headings).
