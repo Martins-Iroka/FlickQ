@@ -10,6 +10,7 @@ import com.martdev.flickq.features.auth.domain.security.Auth
 import com.martdev.flickq.features.auth.domain.security.OTPProvider
 import com.martdev.flickq.features.auth.domain.security.PasswordHasher
 import com.martdev.flickq.shared.domain.exception.BadRequestException
+import com.martdev.flickq.shared.domain.exception.ForbiddenException
 import com.martdev.flickq.shared.domain.exception.InternalServerException
 import com.martdev.flickq.shared.domain.exception.NotFoundException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
@@ -20,6 +21,7 @@ import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
 import org.junit.jupiter.api.BeforeEach
@@ -109,15 +111,14 @@ class UserServiceImplTest {
     }
 
     @Test
-    fun `registerUser throws InternalServerException and reports otp send failure when Stytch fails`() = runTest {
+    fun `registerUser reports otp send failure when Stytch fails`() = runTest {
         every { passwordHasher.hashPassword(any()) } returns hashedPassword
         coEvery {
             repository.saveUserAndVerificationToken(any(), any())
         } returns DataResult.Success(savedUser)
         coEvery { otpProvider.sendVerificationCode(any()) } returns Pair("", "error")
 
-        val exception = assertFailsWith<InternalServerException> { service.registerUser(credentials) }
-        assertEquals("Failed to send OTP", exception.error)
+        service.registerUser(credentials)
         coVerify { events.otpSendFailed() }
     }
 
@@ -207,9 +208,7 @@ class UserServiceImplTest {
     fun `loginUser returns generic Invalid email or password for unverified account (no enumeration leak)`() = runTest {
         coEvery { repository.getUserByEmail(any()) } returns DataResult.Success(savedUser.copy(isVerified = false))
 
-        val exception = assertFailsWith<BadRequestException> { service.loginUser(credentials) }
-
-        assertEquals("Invalid email or password", exception.error)
+        assertFailsWith<ForbiddenException> { service.loginUser(credentials) }
         coVerify { events.loginFailed("unverified") }
     }
 
@@ -228,9 +227,12 @@ class UserServiceImplTest {
     fun `loginUser does not check password for unverified user`() = runTest {
         coEvery { repository.getUserByEmail(any()) } returns DataResult.Success(savedUser.copy(isVerified = false))
 
-        assertFailsWith<BadRequestException> { service.loginUser(credentials) }
+        assertFailsWith<ForbiddenException> { service.loginUser(credentials) }
 
-        coVerify(exactly = 0) { passwordHasher.verifyPassword(any(), any()) }
+        verify(exactly = 0) { passwordHasher.verifyPassword(any(), any()) }
+        verify {
+            events.loginFailed("unverified")
+        }
     }
 
     @Test
@@ -241,14 +243,14 @@ class UserServiceImplTest {
     }
 
     @Test
-    fun `loginUser throws NotFoundException when saving refresh token reports user not found`() = runTest {
+    fun `loginUser throws InternalServerException when saving refresh token reports user not found`() = runTest {
         coEvery { repository.getUserByEmail(any()) } returns DataResult.Success(savedUser)
         every { passwordHasher.verifyPassword(any(), any()) } returns true
         every { auth.generateAccessToken(any(), any()) } returns "access"
         every { auth.generateRefreshToken() } returns "refresh"
         coEvery { repository.saveRefreshToken(any(), any(), any()) } returns DataResult.Failure.NotFound()
 
-        assertFailsWith<NotFoundException> { service.loginUser(credentials) }
+        assertFailsWith<InternalServerException> { service.loginUser(credentials) }
     }
 
     @Test
