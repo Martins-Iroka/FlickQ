@@ -7,13 +7,18 @@ import com.martdev.flickq.shared.domain.exception.ForbiddenException
 import com.martdev.flickq.shared.domain.exception.InternalServerException
 import com.martdev.flickq.shared.domain.exception.NotFoundException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
+import com.martdev.flickq.shared.util.getLoggerFactory
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.requestvalidation.RequestValidationException
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.uri
 import io.ktor.server.response.respond
 import kotlinx.serialization.SerializationException
+
+private val log = getLoggerFactory("StatusPages")
 
 fun Application.configureStatusPages() {
     install(StatusPages) {
@@ -38,7 +43,9 @@ fun Application.configureStatusPages() {
         }
 
         exception<InternalServerException> { call, cause ->
-            val errorResponse = ErrorResponse(cause.message ?: "Internal server error")
+            log.error("InternalServer exception handling {} {}",
+                call.request.httpMethod.value, call.request.uri, cause)
+            val errorResponse = ErrorResponse("Internal server error")
             call.respond(status = HttpStatusCode.InternalServerError, errorResponse)
         }
 
@@ -53,7 +60,9 @@ fun Application.configureStatusPages() {
         }
 
         exception<Exception> { call, cause ->
-            val errorResponse = ErrorResponse(cause.message ?: "Internal server error")
+            log.error("General exception handling {} {}",
+                call.request.httpMethod.value, call.request.uri, cause)
+            val errorResponse = ErrorResponse("Internal server error")
             call.respond(status = HttpStatusCode.InternalServerError, errorResponse)
         }
 
@@ -70,6 +79,12 @@ fun Application.configureStatusPages() {
         exception<ConflictException> { call, cause ->
             val errorResponse = ErrorResponse(cause.message ?: "Conflict")
             call.respond(status = HttpStatusCode.Conflict, errorResponse)
+        }
+        exception<Throwable> { call, cause ->
+            log.error("General throwable handling {} {}",
+                call.request.httpMethod.value, call.request.uri, cause)
+            val errorResponse = ErrorResponse("Internal server error")
+            call.respond(status = HttpStatusCode.InternalServerError, errorResponse)
         }
         status(HttpStatusCode.TooManyRequests) { call, status ->
             val errorResponse = ErrorResponse("too many request")
