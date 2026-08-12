@@ -3,7 +3,6 @@ package com.martdev.flickq.shared.infrastruce.db
 import com.martdev.flickq.shared.domain.model.DataResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.jetbrains.exposed.v1.core.StdOutSqlLogger
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
@@ -12,7 +11,6 @@ suspend fun <T> withSuspendTransaction(block: suspend JdbcTransaction.() -> Data
     withContext(Dispatchers.IO) {
         try {
             suspendTransaction {
-                addLogger(StdOutSqlLogger)
                 try {
                     block()
                 } catch (e: ExposedSQLException) {

@@ -16,7 +16,6 @@ import io.ktor.server.request.contentLength
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.application
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
@@ -74,7 +73,6 @@ fun Route.authRoutes() {
         rateLimit(RateLimitName("login")) {
             post("/login") {
                 val request = call.receive<UserLoginRequest>().toCredentials()
-                application.environment.log.info("From server $request")
                 val response = service.loginUser(request).toUserLoginResponse()
                 // Native clients read the refresh token from the body; web ignores it and relies on
                 // this httpOnly cookie instead (XSS-safe — JS can't read it).
