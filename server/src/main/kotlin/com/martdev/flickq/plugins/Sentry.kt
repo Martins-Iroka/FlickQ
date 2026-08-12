@@ -5,6 +5,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.log
 import io.sentry.Sentry
 
+@Suppress("UnstableApiUsage")
 fun Application.configureSentry() {
     val sentryConfig = SentryConfig.fromEnvironment(environment)
     if (!sentryConfig.isEnabled) {
@@ -15,6 +16,7 @@ fun Application.configureSentry() {
         options.dsn = sentryConfig.dsn
         options.environment = sentryConfig.environment
         options.tracesSampleRate = sentryConfig.tracesSampleRate
+        options.logs.isEnabled = true
     }
     log.info("Sentry enabled: environment=${sentryConfig.environment}")
 }

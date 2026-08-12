@@ -1,12 +1,12 @@
 package com.martdev.flickq.features.auth.infrastructure.observability
 
 import com.martdev.flickq.features.auth.domain.observability.AuthMetrics
+import com.martdev.flickq.shared.util.getLoggerFactory
 import org.koin.core.annotation.Single
-import org.slf4j.LoggerFactory
 
 @Single
 class LoggingAuthMetrics : AuthMetrics {
-    private val logger = LoggerFactory.getLogger("auth.metrics")
+    private val logger = getLoggerFactory("auth.metrics")
 
     override fun count(name: String, vararg tags: Pair<String, String>) {
         if (tags.isEmpty()) {

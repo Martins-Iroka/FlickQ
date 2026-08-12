@@ -12,7 +12,7 @@ data class SentryConfig(
     companion object {
         fun fromEnvironment(environment: ApplicationEnvironment): SentryConfig {
            return SentryConfig(
-               dsn = environment.getEnvValue("sentry.dsn").ifEmpty { null },
+               dsn = environment.getEnvValue("sentry.dns").ifEmpty { null },
                environment = environment.getEnvValue("sentry.environment"),
                tracesSampleRate = environment.getEnvValue("sentry.trace_rate").toDouble()
            )

@@ -39,6 +39,6 @@ cookie:
   sameSite: ${COOKIE_SAME_SITE:-Strict}
 
 sentry:
-  dsn: ${SENTRY_DNS}
+  dns: ${SENTRY_DNS}
   environment: ${SENTRY_ENVIRONMENT}
   trace_rate: ${SENTRY_TRACES_SAMPLE_RATE}
