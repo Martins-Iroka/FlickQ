@@ -10,6 +10,7 @@ import com.martdev.flickq.plugins.configureRateLimiter
 import com.martdev.flickq.plugins.configureRequestValidation
 import com.martdev.flickq.plugins.configureRouting
 import com.martdev.flickq.plugins.configureSecurity
+import com.martdev.flickq.plugins.configureSentry
 import com.martdev.flickq.plugins.configureSerialization
 import com.martdev.flickq.plugins.configureStatusPages
 import io.github.cdimascio.dotenv.dotenv
@@ -24,6 +25,7 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
+    configureSentry()
     configureKoin()
     configureHttp()
     configureCallLogging()

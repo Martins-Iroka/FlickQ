@@ -21,6 +21,7 @@ kotlin {
 
 dependencies {
     ksp(libs.koin.annotation.compiler)
+    implementation(platform(libs.sentry.bom))
     implementation(projects.core.api)
     implementation(projects.core.domain)
     implementation(libs.bcrypt)
@@ -32,6 +33,8 @@ dependencies {
     implementation(libs.hikariCP)
     implementation(libs.bundles.koin.libs)
     implementation(libs.postgresql)
+    implementation(libs.sentry)
+    implementation(libs.sentry.logback)
     implementation(libs.stytch)
     implementation(libs.testcontainers.postgresql)
     testImplementation(libs.bundles.server.test.libs)
