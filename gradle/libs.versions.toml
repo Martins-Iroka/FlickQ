@@ -15,6 +15,8 @@ datetime = "0.8.0"
 dotenv = "6.5.1"
 exposed = "1.2.0"
 flyway = "12.11.0"
+firebae = "34.17.0"
+firebase-appdistribution = "16.0.0-beta20"
 hikariCP = "4.0.3"
 json = "1.11.0"
 junit5 = "6.1.0"
@@ -135,6 +137,10 @@ silk-icons-fa = { module = "com.varabyte.kobwebx:silk-icons-fa", version.ref = "
 sentry-bom = { module = "io.sentry:sentry-bom", version.ref = "sentry"}
 sentry = { module = "io.sentry:sentry"}
 sentry-logback = { module = "io.sentry:sentry-logback"}
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebae"}
+firebase-analytics = { module = "com.google.firebase:firebase-analytics"}
+firebase-appdistribution = { module = "com.google.firebase:firebase-appdistribution", version.ref = "firebase-appdistribution"}
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics"}
 
 [bundles]
 client-ktor-libs = ["ktor-client-core", "ktor-client-contentNegotiation", "ktor-client-logging", "ktor-serialization-kotlinx-json",]
@@ -142,6 +148,7 @@ client-koin-compose = ["koin-core", "koin-compose", "koin-compose-viewmodel"]
 coil-libs = ["coil-compose", "coil-network-ktor3"]
 client-test = ["kotlin-test", "turbine", "assertk", "kotlinx-coroutines-test"]
 exposed-libs = ["exposed-core", "exposed-dao", "exposed-datetime", "exposed-jdbc"]
+firebase-libs = ["firebase-analytics", "firebase-appdistribution", "firebase-crashlytics"]
 koin-libs = ["koin-annotation", "koin-ktor", "koin-logger"]
 ktor-libs = ["logback", "ktor-client-cio", "ktor-client-core", "ktor-client-contentNegotiation", "ktor-server-core", "ktor-client-logging", "ktor-serialization-kotlinx-json",
     "ktor-server-auth", "ktor-server-auth-jwt", "ktor-server-callId", "ktor-server-config-yaml", "ktor-server-contentNegotiation", "ktor-server-cors", "ktor-server-netty",
@@ -155,6 +162,8 @@ androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library",
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 flyway = { id = "org.flywaydb.flyway", version.ref = "flyway" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.7"}
+google-services = { id = "com.google.gms.google-services", version = "4.5.0"}
 kobwebApplication = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
