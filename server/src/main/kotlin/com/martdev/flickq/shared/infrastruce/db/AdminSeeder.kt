@@ -27,7 +27,7 @@ suspend fun seedAdminUser(config: SeedConfig, hasher: PasswordHasher, logger: Lo
     suspendTransaction {
         val alreadyExists = UserEntity.find { UserTable.email eq email }.firstOrNull() != null
         if (alreadyExists) {
-            logger.info("Admin '{}' already exists — seed skipped", email)
+            logger.info("Admin email already exists — seed skipped")
             return@suspendTransaction
         }
         UserEntity.new {
@@ -36,6 +36,6 @@ suspend fun seedAdminUser(config: SeedConfig, hasher: PasswordHasher, logger: Lo
             this.isVerified = true
             this.role = Role.ADMIN
         }
-        logger.info("Seeded verified ADMIN user '{}'", email)
+        logger.info("Seeded verified ADMIN user email")
     }
 }

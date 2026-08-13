@@ -1,5 +1,6 @@
 package com.martdev.flickq.plugins
 
+import com.martdev.flickq.shared.util.getLoggerFactory
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.callid.callId
@@ -7,11 +8,10 @@ import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.calllogging.processingTimeMillis
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
-import org.slf4j.event.Level
 
 fun Application.configureCallLogging() {
     install(CallLogging) {
-        level = Level.INFO
+        logger = getLoggerFactory("CallLogging")
         format { call ->
             val status = call.response.status()
                 ?.value?.toString() ?: "-"

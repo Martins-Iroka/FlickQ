@@ -10,8 +10,6 @@ import com.martdev.flickq.shared.infrastruce.http.KtorHttpClientFactory
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -29,9 +27,6 @@ class PaystackHttpClient(
 ) : PaystackClient {
 
     private val client = httpClientFactory.create(engine) {
-        install(Logging) {
-            level = LogLevel.ALL
-        }
         defaultRequest {
             header(HttpHeaders.Authorization, "Bearer ${config.secretKey}")
             contentType(ContentType.Application.Json)

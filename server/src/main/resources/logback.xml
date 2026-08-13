@@ -7,11 +7,24 @@
     <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
         <minimumEventLevel>ERROR</minimumEventLevel>
         <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        <minimumLevel>OFF</minimumLevel>
+    </appender>
+    <appender name="SENTRY_LOGS" class="io.sentry.logback.SentryAppender">
+        <options>
+            <logs>
+                <enabled>true</enabled>
+            </logs>
+        </options>
+        <minimumLevel>INFO</minimumLevel>
+        <minimumEventLevel>OFF</minimumEventLevel>
+        <minimumBreadcrumbLevel>OFF</minimumBreadcrumbLevel>
     </appender>
     <root level="info">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="SENTRY"/>
     </root>
-<!--    <logger name="org.eclipse.jetty" level="INFO"/>-->
     <logger name="io.netty" level="INFO"/>
+    <logger name="CallLogging" level="INFO" additivity="true">
+        <appender-ref ref="SENTRY_LOGS"/>
+    </logger>
 </configuration>

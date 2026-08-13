@@ -12,7 +12,7 @@ class LoggingAuthEvents(
     private val logger = Sentry.logger()
 
     override fun registerSucceeded(userId: Long) {
-        logger.info("event=register.success user_id=", userId)
+        logger.info("event=register.success user_id=%s", userId)
         metrics.count("auth.register.success")
     }
 
@@ -27,7 +27,7 @@ class LoggingAuthEvents(
     }
 
     override fun loginSucceeded(userId: Long) {
-        logger.info("event=login.success user_id=", userId)
+        logger.info("event=login.success user_id=%s", userId)
         metrics.count("auth.login.success")
     }
 
