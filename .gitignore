@@ -20,3 +20,13 @@ node_modules/
 ### Environment ###
 .env
 /fly.toml
+# Release signing secrets — never commit
+app/androidApp/keystore.properties
+app/androidApp/keystore/
+*.jks
+*.keystore
+# Firebase App Distribution service-account key (if placed in-repo)
+app/androidApp/appdistribution-service-account.json
+/app/androidApp/google-services.json
+/.wrangler/cache/pages.json
+/.wrangler/cache/wrangler-account.json

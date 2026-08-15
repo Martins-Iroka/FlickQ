@@ -1,4 +1,6 @@
+import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -6,6 +8,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.firebase.appdistribution)
 }
 
 kotlin {
@@ -25,6 +28,14 @@ dependencies {
     debugImplementation(libs.compose.uiTooling)
 }
 
+val keystorePropertiesFile = project.file("keystore.properties")
+val keystoreProperties = Properties()
+val hasKeystoreProperties = keystorePropertiesFile.exists()
+if (hasKeystoreProperties) {
+    keystorePropertiesFile.inputStream().use {
+        keystoreProperties.load(it)
+    }
+}
 android {
     namespace = "com.martdev.flickq"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -41,9 +52,39 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    signingConfigs {
+        create("release") {
+            if (hasKeystoreProperties) {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            if (hasKeystoreProperties) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "app/androidApp/keystore.properties not found - release build will be "
+                        .plus("UNSIGNED. Copy keystore.properties.example to keystore.properties ")
+                        .plus(" and fill in real values to sign release builds. Debug is unaffected")
+                )
+            }
+            firebaseAppDistribution {
+                artifactType = "APK"
+                releaseNotes = (project.findProperty("appDistroReleaseNotes") as String?) ?:
+                "No release notes provided — pass -PappDistroReleaseNotes=\"...\""
+                groups = (project.findProperty("appDistroGroups") as String?) ?: ""
+            }
         }
     }
     compileOptions {

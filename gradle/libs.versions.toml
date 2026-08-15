@@ -17,6 +17,7 @@ exposed = "1.2.0"
 flyway = "12.11.0"
 firebae = "34.17.0"
 firebase-appdistribution = "16.0.0-beta20"
+firebase-appdistribution-plugin = "5.3.0"
 hikariCP = "4.0.3"
 json = "1.11.0"
 junit5 = "6.1.0"
@@ -162,6 +163,7 @@ androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library",
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 flyway = { id = "org.flywaydb.flyway", version.ref = "flyway" }
+firebase-appdistribution = { id = "com.google.firebase.appdistribution", version.ref = "firebase-appdistribution-plugin"}
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.7"}
 google-services = { id = "com.google.gms.google-services", version = "4.5.0"}
 kobwebApplication = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }
