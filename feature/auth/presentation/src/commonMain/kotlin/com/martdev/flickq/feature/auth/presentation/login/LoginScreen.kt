@@ -1,6 +1,7 @@
 package com.martdev.flickq.feature.auth.presentation.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,6 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -17,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,6 +32,7 @@ import com.martdev.flickq.core.designsystem.FlickQTextField
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
 import com.martdev.flickq.core.presentation.ObserveAsEvents
 import org.koin.compose.viewmodel.koinViewModel
+
 //Nana12345
 @Composable
 fun LoginRoot(
@@ -93,9 +100,22 @@ fun LoginScreen(
             modifier = fieldModifier.padding(top = 12.dp),
             isError = state.passwordError,
             supportingText = if (state.passwordError) "At least 6 characters" else null,
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (state.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-        )
+        ) {
+            Icon(
+                if (state.showPassword) {
+                    Icons.Filled.Visibility
+                } else {
+                    Icons.Filled.VisibilityOff
+                },
+                contentDescription = "Toggle password visibility",
+                modifier = Modifier
+                    .clickable {
+                        onAction(LoginAction.OnShowPassword(!state.showPassword))
+                    }
+            )
+        }
 
         state.error?.let {
             Text(

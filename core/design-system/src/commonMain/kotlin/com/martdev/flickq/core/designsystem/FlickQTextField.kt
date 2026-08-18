@@ -17,7 +17,8 @@ fun FlickQTextField(
     supportingText: String? = null,
     singleLine: Boolean = true,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    trailingIcon: (@Composable () -> Unit)? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -28,6 +29,7 @@ fun FlickQTextField(
         singleLine = singleLine,
         supportingText = supportingText?.let { { Text(it) } },
         visualTransformation = visualTransformation,
-        keyboardOptions = keyboardOptions
+        keyboardOptions = keyboardOptions,
+        trailingIcon = trailingIcon
     )
 }

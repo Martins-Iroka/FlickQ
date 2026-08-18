@@ -25,7 +25,8 @@ data class LoginState(
     val emailError: Boolean = false,
     val passwordError: Boolean = false,
     val isLoading: Boolean = false,
-    val error: UiText? = null
+    val error: UiText? = null,
+    val showPassword: Boolean = false
 ) {
     val canSubmit: Boolean get() = email.isNotBlank() && password.isNotBlank() && !isLoading
 }
@@ -35,6 +36,7 @@ sealed interface LoginAction {
     data class OnPasswordChange(val password: String) : LoginAction
     data object OnLoginClick : LoginAction
     data object OnRegisterClick : LoginAction
+    data class OnShowPassword(val showPassword: Boolean) : LoginAction
 }
 
 sealed interface LoginEvent {
@@ -72,6 +74,15 @@ class LoginViewModel(
 
             LoginAction.OnRegisterClick -> viewModelScope.launch {
                 _events.send(LoginEvent.NavigateToRegister)
+            }
+
+            is LoginAction.OnShowPassword -> {
+                println(action.showPassword)
+                _state.update {
+                    it.copy(
+                        showPassword = action.showPassword
+                    )
+                }
             }
         }
     }
