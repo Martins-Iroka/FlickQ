@@ -14,8 +14,8 @@ import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTabl
 import com.martdev.flickq.payment.model.PaymentStatus
 import com.martdev.flickq.reservation.model.Reservation
 import com.martdev.flickq.reservation.model.ReservationPayment
-import com.martdev.flickq.reservation.model.ReservationSeat
 import com.martdev.flickq.reservation.model.ReservationStatus
+import com.martdev.flickq.reservation.model.ReservationTicket
 import com.martdev.flickq.reservation.model.SeatStatus
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
@@ -104,29 +104,24 @@ class ReservationRepositoryImpl : ReservationRepository {
             DataResult.Success(reservations)
         }
 
-    override suspend fun getUserReservation(
+    override suspend fun getUserReservationTicket(
         userId: Long,
         status: ReservationStatus,
         limit: Int,
         offset: Long
-    ): DataResult<List<Reservation>> {
+    ): DataResult<List<ReservationTicket>> {
         val joined = ReservationTable
             .innerJoin(ShowtimeTable)
             .innerJoin(MoviesTable)
             .innerJoin(RoomTable)
             .select(
-                ReservationTable.id,
                 ReservationTable.status,
                 ReservationTable.totalAmount,
-                ReservationTable.createdAt,
                 ReservationTable.expiresAt,
-                ShowtimeTable.id,
                 ShowtimeTable.startsAt,
                 ShowtimeTable.endsAt,
-                MoviesTable.id,
                 MoviesTable.title,
                 MoviesTable.posterUrl,
-                RoomTable.id,
                 RoomTable.name
             ).where {
                 (ReservationTable.userId eq userId) and (ReservationTable.status eq status)
@@ -146,7 +141,6 @@ class ReservationRepositoryImpl : ReservationRepository {
         val seatMap = ShowtimeSeatTable
             .innerJoin(SeatTable)
             .select(
-                ShowtimeSeatTable.seatId,
                 SeatTable.rowLabel,
                 SeatTable.seatNumber
             ).where {
@@ -169,31 +163,24 @@ class ReservationRepositoryImpl : ReservationRepository {
         }
         val reservation = joined.map {
             val reservationId = it[ReservationTable.id].value
-            val seats = seatMap[reservationId]?.map { seatRow ->
+            val seats = seatMap[reservationId]?.joinToString(",") { seatRow ->
                 val rowLabel = seatRow[SeatTable.rowLabel]
                 val seatNumber = seatRow[SeatTable.seatNumber]
-                ReservationSeat(
-                    seatId = seatRow[ShowtimeSeatTable.seatId].value,
-                    seat = rowLabel.plus(seatNumber)
-                )
+                "$rowLabel$seatNumber"
             }.orEmpty()
 
             val payment = pickLatestPayment(paymentMap[reservationId].orEmpty())
 
-            Reservation(
-                id = reservationId,
+            ReservationTicket(
                 status = it[ReservationTable.status],
                 totalAmount = it[ReservationTable.totalAmount],
-                createdAt = it[ReservationTable.createdAt],
                 expiresAt = it[ReservationTable.expiresAt],
-                showtimeId = it[ShowtimeTable.id].value,
                 showtimeStartsAt = it[ShowtimeTable.startsAt],
                 showtimeEndsAt = it[ShowtimeTable.endsAt],
-                movieId = it[MoviesTable.id].value,
                 movieTitle = it[MoviesTable.title],
                 posterUrl = it[MoviesTable.posterUrl],
-                roomId = it[RoomTable.id].value,
-                reservedSeats = seats,
+                roomName = it[RoomTable.name],
+                seat = seats,
                 payment = payment
             )
         }

@@ -1,6 +1,8 @@
 package com.martdev.flickq.features.reservation.domain.service
 
 import com.martdev.flickq.reservation.model.Reservation
+import com.martdev.flickq.reservation.model.ReservationStatus
+import com.martdev.flickq.reservation.model.ReservationTicket
 
 interface ReservationService {
     suspend fun createReservation(userId: Long, showtimeId: Long, seatIds: List<Long>): Reservation
@@ -12,4 +14,10 @@ interface ReservationService {
     suspend fun cancelReservation(id: Long, userId: Long): Reservation       // user cancel (PENDING only)
     suspend fun cancelReservationAdmin(id: Long): Reservation                // admin cancel
     suspend fun cancelExpiredReservations()                                  // background job
+    suspend fun getUserReservationTicket(
+        userId: Long,
+        status: ReservationStatus,
+        limit: Int,
+        offset: Long
+    ): List<ReservationTicket>
 }

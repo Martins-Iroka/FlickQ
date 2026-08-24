@@ -4,6 +4,7 @@ import com.martdev.flickq.features.reservation.domain.repository.ReservationRepo
 import com.martdev.flickq.features.showtime.domain.service.ShowtimeService
 import com.martdev.flickq.reservation.model.Reservation
 import com.martdev.flickq.reservation.model.ReservationStatus
+import com.martdev.flickq.reservation.model.ReservationTicket
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.exception.ConflictException
 import com.martdev.flickq.shared.domain.exception.ForbiddenException
@@ -104,5 +105,16 @@ class ReservationServiceImpl(
 
     override suspend fun cancelExpiredReservations() {
         repo.cancelExpiredReservation().returnValue()
+    }
+
+    override suspend fun getUserReservationTicket(
+        userId: Long,
+        status: ReservationStatus,
+        limit: Int,
+        offset: Long
+    ): List<ReservationTicket> {
+        return repo.getUserReservationTicket(
+            userId, status, limit, offset
+        ).returnValue()
     }
 }
