@@ -29,7 +29,8 @@ class ReservationServiceImpl(
         seatIds: List<Long>
     ): Reservation {
 
-        val showtime = showtimeService.getShowtimeById(showtimeId) // throws NotfoundException if missing
+        val showtime =
+            showtimeService.getShowtimeById(showtimeId) // throws NotfoundException if missing
         if (showtime.status != ShowtimeStatus.SCHEDULED) {
             throw BadRequestException("Showtime is not available for booking")
         }
@@ -61,10 +62,6 @@ class ReservationServiceImpl(
         val reservation = repo.getReservationById(id).returnValue()
         if (reservation.userId != userId) throw ForbiddenException()
         return reservation
-    }
-
-    override suspend fun getMyReservations(userId: Long): List<Reservation> {
-        return repo.getReservationsByUserId(userId).returnValue()
     }
 
     override suspend fun getAllReservations(

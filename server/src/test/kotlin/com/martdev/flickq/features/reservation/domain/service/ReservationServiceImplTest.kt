@@ -4,6 +4,7 @@ import com.martdev.flickq.features.reservation.domain.repository.ReservationRepo
 import com.martdev.flickq.features.showtime.domain.service.ShowtimeService
 import com.martdev.flickq.reservation.model.Reservation
 import com.martdev.flickq.reservation.model.ReservationStatus
+import com.martdev.flickq.reservation.model.ReservationTicket
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.exception.ConflictException
 import com.martdev.flickq.shared.domain.exception.ForbiddenException
@@ -16,12 +17,15 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 
@@ -76,7 +80,9 @@ class ReservationServiceImplTest {
     @Test
     fun `createReservation returns reservation on success`() = runTest {
         coEvery { showtimeService.getShowtimeById(showtimeId) } returns scheduledShowtime
-        coEvery { repo.createReservation(any(), listOf(1L, 2L)) } returns DataResult.Success(pendingReservation)
+        coEvery { repo.createReservation(any(), listOf(1L, 2L)) } returns DataResult.Success(
+            pendingReservation
+        )
 
         val result = service.createReservation(userId, showtimeId, listOf(1L, 2L))
 
@@ -86,7 +92,12 @@ class ReservationServiceImplTest {
     @Test
     fun `createReservation throws ConflictException when repo returns Conflict`() = runTest {
         coEvery { showtimeService.getShowtimeById(showtimeId) } returns scheduledShowtime
-        coEvery { repo.createReservation(any(), any()) } returns DataResult.Failure.Conflict("seat unavailable")
+        coEvery {
+            repo.createReservation(
+                any(),
+                any()
+            )
+        } returns DataResult.Failure.Conflict("seat unavailable")
 
         assertThrows<ConflictException> {
             service.createReservation(userId, showtimeId, listOf(1L, 2L))
@@ -96,7 +107,12 @@ class ReservationServiceImplTest {
     @Test
     fun `createReservation throws NotFoundException when repo returns NotFound`() = runTest {
         coEvery { showtimeService.getShowtimeById(showtimeId) } returns scheduledShowtime
-        coEvery { repo.createReservation(any(), any()) } returns DataResult.Failure.NotFound("seats missing")
+        coEvery {
+            repo.createReservation(
+                any(),
+                any()
+            )
+        } returns DataResult.Failure.NotFound("seats missing")
 
         assertThrows<NotFoundException> {
             service.createReservation(userId, showtimeId, listOf(1L, 2L))
@@ -104,20 +120,28 @@ class ReservationServiceImplTest {
     }
 
     @Test
-    fun `createReservation throws InternalServerException when repo returns UnknownError`() = runTest {
-        coEvery { showtimeService.getShowtimeById(showtimeId) } returns scheduledShowtime
-        coEvery { repo.createReservation(any(), any()) } returns DataResult.Failure.UnknownError("boom")
+    fun `createReservation throws InternalServerException when repo returns UnknownError`() =
+        runTest {
+            coEvery { showtimeService.getShowtimeById(showtimeId) } returns scheduledShowtime
+            coEvery {
+                repo.createReservation(
+                    any(),
+                    any()
+                )
+            } returns DataResult.Failure.UnknownError("boom")
 
-        assertThrows<InternalServerException> {
-            service.createReservation(userId, showtimeId, listOf(1L, 2L))
+            assertThrows<InternalServerException> {
+                service.createReservation(userId, showtimeId, listOf(1L, 2L))
+            }
         }
-    }
 
     // -- getReservationById --
 
     @Test
     fun `getReservationById returns reservation on success`() = runTest {
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(pendingReservation)
+        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(
+            pendingReservation
+        )
 
         val result = service.getReservationById(reservationId)
 
@@ -137,7 +161,9 @@ class ReservationServiceImplTest {
 
     @Test
     fun `getMyReservationById returns reservation when caller owns it`() = runTest {
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(pendingReservation)
+        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(
+            pendingReservation
+        )
 
         val result = service.getMyReservationById(reservationId, userId)
 
@@ -145,27 +171,69 @@ class ReservationServiceImplTest {
     }
 
     @Test
-    fun `getMyReservationById throws ForbiddenException when caller does not own the reservation`() = runTest {
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(pendingReservation)
+    fun `getMyReservationById throws ForbiddenException when caller does not own the reservation`() =
+        runTest {
+            coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(
+                pendingReservation
+            )
 
-        assertThrows<ForbiddenException> {
-            service.getMyReservationById(reservationId, userId = 999L)
+            assertThrows<ForbiddenException> {
+                service.getMyReservationById(reservationId, userId = 999L)
+            }
         }
-    }
 
-    // -- getMyReservations --
+    private val tickets = listOf(
+        ReservationTicket(
+            status = ReservationStatus.PENDING
+        ),
+        ReservationTicket(
+            status = ReservationStatus.CONFIRMED
+        ),
+        ReservationTicket(
+            status = ReservationStatus.CONFIRMED
+        )
+    )
+    @Test
+    fun `get user reservation ticket returns confirmed only`() = runTest {
+        val pendingList = tickets.filter { it.status == ReservationStatus.PENDING }
+        val statusSlot = slot<ReservationStatus>()
+        coEvery {
+            repo.getUserReservationTicket(
+                any(),
+                capture(statusSlot),
+                any(),
+                any()
+            )
+        } answers {
+            assertEquals(ReservationStatus.PENDING, statusSlot.captured)
+            DataResult.Success(tickets.filter { it.status == statusSlot.captured })
+        }
+
+        val result = service.getUserReservationTicket(userId, ReservationStatus.PENDING, 10, 0)
+
+        assertEquals(pendingList, result)
+    }
 
     @Test
-    fun `getMyReservations returns the user's reservations`() = runTest {
-        val list = listOf(pendingReservation)
-        coEvery { repo.getReservationsByUserId(userId) } returns DataResult.Success(list)
+    fun `get user reservation ticket returns empty list`() = runTest {
+        val cancelledList = tickets.filter { it.status == ReservationStatus.CANCELLED }
+        val statusSlot = slot<ReservationStatus>()
+        coEvery {
+            repo.getUserReservationTicket(
+                any(),
+                capture(statusSlot),
+                any(),
+                any()
+            )
+        } answers {
+            assertNotEquals(ReservationStatus.PENDING, statusSlot.captured)
+            DataResult.Success(tickets.filter { it.status == statusSlot.captured })
+        }
 
-        val result = service.getMyReservations(userId)
+        val result = service.getUserReservationTicket(userId, ReservationStatus.CANCELLED, 10, 0)
 
-        assertEquals(list, result)
+        assertTrue(cancelledList.isEmpty())
     }
-
-    // -- getAllReservations --
 
     @Test
     fun `getAllReservations delegates to the repository`() = runTest {
@@ -177,32 +245,34 @@ class ReservationServiceImplTest {
         assertEquals(list, result)
     }
 
-    // -- confirmReservationFromPayment --
-
     @Test
-    fun `confirmReservationFromPayment is a no-op when reservation is already CONFIRMED`() = runTest {
-        val confirmed = pendingReservation.copy(status = ReservationStatus.CONFIRMED)
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(confirmed)
+    fun `confirmReservationFromPayment is a no-op when reservation is already CONFIRMED`() =
+        runTest {
+            val confirmed = pendingReservation.copy(status = ReservationStatus.CONFIRMED)
+            coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(confirmed)
 
-        val result = service.confirmReservationFromPayment(reservationId)
+            val result = service.confirmReservationFromPayment(reservationId)
 
-        assertEquals(confirmed, result)
-    }
-
-    @Test
-    fun `confirmReservationFromPayment throws BadRequestException when reservation is CANCELLED`() = runTest {
-        coEvery { repo.getReservationById(reservationId) } returns
-                DataResult.Success(pendingReservation.copy(status = ReservationStatus.CANCELLED))
-
-        assertThrows<BadRequestException> {
-            service.confirmReservationFromPayment(reservationId)
+            assertEquals(confirmed, result)
         }
-    }
+
+    @Test
+    fun `confirmReservationFromPayment throws BadRequestException when reservation is CANCELLED`() =
+        runTest {
+            coEvery { repo.getReservationById(reservationId) } returns
+                    DataResult.Success(pendingReservation.copy(status = ReservationStatus.CANCELLED))
+
+            assertThrows<BadRequestException> {
+                service.confirmReservationFromPayment(reservationId)
+            }
+        }
 
     @Test
     fun `confirmReservationFromPayment returns the confirmed reservation on success`() = runTest {
         val confirmed = pendingReservation.copy(status = ReservationStatus.CONFIRMED)
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(pendingReservation)
+        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(
+            pendingReservation
+        )
         coEvery {
             repo.updateReservationStatus(reservationId, ReservationStatus.CONFIRMED)
         } returns DataResult.Success(confirmed)
@@ -212,26 +282,28 @@ class ReservationServiceImplTest {
         assertEquals(confirmed, result)
     }
 
-    // -- cancelReservation --
+    @Test
+    fun `cancelReservation throws ForbiddenException when caller does not own the reservation`() =
+        runTest {
+            coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(
+                pendingReservation
+            )
+
+            assertThrows<ForbiddenException> {
+                service.cancelReservation(reservationId, userId = 999L)
+            }
+        }
 
     @Test
-    fun `cancelReservation throws ForbiddenException when caller does not own the reservation`() = runTest {
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(pendingReservation)
+    fun `cancelReservation throws ConflictException when reservation is already CANCELLED`() =
+        runTest {
+            coEvery { repo.getReservationById(reservationId) } returns
+                    DataResult.Success(pendingReservation.copy(status = ReservationStatus.CANCELLED))
 
-        assertThrows<ForbiddenException> {
-            service.cancelReservation(reservationId, userId = 999L)
+            assertThrows<ConflictException> {
+                service.cancelReservation(reservationId, userId)
+            }
         }
-    }
-
-    @Test
-    fun `cancelReservation throws ConflictException when reservation is already CANCELLED`() = runTest {
-        coEvery { repo.getReservationById(reservationId) } returns
-                DataResult.Success(pendingReservation.copy(status = ReservationStatus.CANCELLED))
-
-        assertThrows<ConflictException> {
-            service.cancelReservation(reservationId, userId)
-        }
-    }
 
     @Test
     fun `cancelReservation throws BadRequestException when reservation is CONFIRMED`() = runTest {
@@ -246,7 +318,9 @@ class ReservationServiceImplTest {
     @Test
     fun `cancelReservation returns the cancelled reservation on success`() = runTest {
         val cancelled = pendingReservation.copy(status = ReservationStatus.CANCELLED)
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(pendingReservation)
+        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(
+            pendingReservation
+        )
         coEvery {
             repo.updateReservationStatus(reservationId, ReservationStatus.CANCELLED)
         } returns DataResult.Success(cancelled)
@@ -259,20 +333,23 @@ class ReservationServiceImplTest {
     // -- cancelReservationAdmin --
 
     @Test
-    fun `cancelReservationAdmin throws ConflictException when reservation is already CANCELLED`() = runTest {
-        coEvery { repo.getReservationById(reservationId) } returns
-                DataResult.Success(pendingReservation.copy(status = ReservationStatus.CANCELLED))
+    fun `cancelReservationAdmin throws ConflictException when reservation is already CANCELLED`() =
+        runTest {
+            coEvery { repo.getReservationById(reservationId) } returns
+                    DataResult.Success(pendingReservation.copy(status = ReservationStatus.CANCELLED))
 
-        assertThrows<ConflictException> {
-            service.cancelReservationAdmin(reservationId)
+            assertThrows<ConflictException> {
+                service.cancelReservationAdmin(reservationId)
+            }
         }
-    }
 
     @Test
     fun `cancelReservationAdmin cancels regardless of ownership`() = runTest {
         val cancelled = pendingReservation.copy(status = ReservationStatus.CANCELLED)
         // owner of pendingReservation is `userId`, but admin doesn't get a userId — no ownership check
-        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(pendingReservation)
+        coEvery { repo.getReservationById(reservationId) } returns DataResult.Success(
+            pendingReservation
+        )
         coEvery {
             repo.updateReservationStatus(reservationId, ReservationStatus.CANCELLED)
         } returns DataResult.Success(cancelled)
@@ -294,11 +371,12 @@ class ReservationServiceImplTest {
     }
 
     @Test
-    fun `cancelExpiredReservations throws InternalServerException when repository fails`() = runTest {
-        coEvery { repo.cancelExpiredReservation() } returns DataResult.Failure.UnknownError("db down")
+    fun `cancelExpiredReservations throws InternalServerException when repository fails`() =
+        runTest {
+            coEvery { repo.cancelExpiredReservation() } returns DataResult.Failure.UnknownError("db down")
 
-        assertThrows<InternalServerException> {
-            service.cancelExpiredReservations()
+            assertThrows<InternalServerException> {
+                service.cancelExpiredReservations()
+            }
         }
-    }
 }
