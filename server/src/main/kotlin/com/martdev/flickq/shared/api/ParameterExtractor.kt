@@ -11,7 +11,7 @@ fun RoutingContext.getLimitAndOffset(): Pair<Int, Long> {
     val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 10
     val offset = call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L
     if (limit <= 0 || offset < 0) {
-        throw BadRequestException("'limit' must be positive and 'offset' must be non-negative.")
+        throw BadRequestException("'limit' and 'offset' must be positive")
     }
 
     return Pair(limit, offset)

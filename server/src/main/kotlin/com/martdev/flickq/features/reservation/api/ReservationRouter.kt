@@ -5,12 +5,14 @@ import com.martdev.flickq.features.reservation.domain.service.ReservationCancell
 import com.martdev.flickq.features.reservation.domain.service.ReservationService
 import com.martdev.flickq.features.reservation.domain.service.ShowtimeSeatService
 import com.martdev.flickq.reservation.CreateReservationRequest
+import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
-import com.martdev.flickq.shared.api.withRole
-import com.martdev.flickq.shared.util.extractUserId
 import com.martdev.flickq.shared.api.getLimitAndOffset
 import com.martdev.flickq.shared.api.getParameterFromPath
+import com.martdev.flickq.shared.api.withRole
+import com.martdev.flickq.shared.domain.exception.BadRequestException
+import com.martdev.flickq.shared.util.extractUserId
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -46,7 +48,8 @@ private fun Route.adminReservationRoutes(
                 post("/populate-seats/{showtime_id}") {
                     val showtimeId = getParameterFromPath("showtime_id")
                     showtimeSeatService.populateShowtimeSeats(showtimeId)
-                    call.respond(HttpStatusCode.Created,
+                    call.respond(
+                        HttpStatusCode.Created,
                         DataResponse("Seats populated successfully")
                     )
                 }
@@ -60,7 +63,8 @@ private fun Route.adminReservationRoutes(
 
                 get("/get-by-id/{reservation_id}") {
                     val reservationId = getParameterFromPath("reservation_id")
-                    val result = reservationService.getReservationById(reservationId).toReservationDTO()
+                    val result =
+                        reservationService.getReservationById(reservationId).toReservationDTO()
                     call.respond(HttpStatusCode.OK, DataResponse(result))
                 }
 
@@ -92,8 +96,11 @@ private fun Route.userReservationRoutes(
 
             get("/my-reservations") {
                 val userId = call.extractUserId()
-                val result = reservationService.getMyReservations(userId)
-                    .map { it.toReservationDTO() }
+                val (limit, offset) = getLimitAndOffset()
+                val status = parseReservationStatus(call.queryParameters["status"])
+
+                val result = reservationService.getUserReservationTicket(userId, status, limit, offset)
+                    .map { it.toReservationTicketDTO() }
                 call.respond(HttpStatusCode.OK, DataResponse(result))
             }
 
@@ -117,9 +124,17 @@ private fun Route.userReservationRoutes(
             patch("/cancel/{reservation_id}") {
                 val reservationId = getParameterFromPath("reservation_id")
                 val userId = call.extractUserId()
-                val result = reservationService.cancelReservation(reservationId, userId).toReservationDTO()
+                val result =
+                    reservationService.cancelReservation(reservationId, userId).toReservationDTO()
                 call.respond(HttpStatusCode.OK, DataResponse(result))
             }
         }
     }
+}
+
+private fun parseReservationStatus(status: String?) = when(status?.uppercase()) {
+    null, "CONFIRMED" -> ReservationStatus.CONFIRMED
+    "PENDING" -> ReservationStatus.PENDING
+    "CANCELLED" -> ReservationStatus.CANCELLED
+    else -> throw BadRequestException("Invalid filtered status. Status must be 'PENDING', 'CONFIRMED', 'CANCELLED'")
 }

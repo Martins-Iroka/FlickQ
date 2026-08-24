@@ -6,7 +6,7 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 @Serializable
-data class TicketDTO(
+data class ReservationTicketDTO(
     val status: String = "",
     @SerialName("total_amount")
     val totalAmount: Long = 0,
@@ -22,7 +22,7 @@ data class TicketDTO(
     val posterUrl: String = "",
     @SerialName("room_name")
     val roomName: String = "",
-    val seats: List<String> = emptyList(),
+    val seats: String = "",
     val payment: TicketPaymentDTO? = null
 )
 
