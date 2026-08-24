@@ -84,24 +84,25 @@ private fun Route.userReservationRoutes(
 ) {
     authenticate(AUTH_JWT) {
         route(reservationPath) {
+            withRole(Role.USER) {
+                post("/create") {
+                    val userId = call.extractUserId()
+                    val request = call.receive<CreateReservationRequest>()
+                    val result = reservationService
+                        .createReservation(userId, request.showtimeId, request.seatIds)
+                        .toReservationDTO()
+                    call.respond(HttpStatusCode.Created, DataResponse(result))
+                }
 
-            post("/create") {
-                val userId = call.extractUserId()
-                val request = call.receive<CreateReservationRequest>()
-                val result = reservationService
-                    .createReservation(userId, request.showtimeId, request.seatIds)
-                    .toReservationDTO()
-                call.respond(HttpStatusCode.Created, DataResponse(result))
-            }
+                get("/my-reservations") {
+                    val userId = call.extractUserId()
+                    val (limit, offset) = getLimitAndOffset()
+                    val status = parseReservationStatus(call.queryParameters["status"])
 
-            get("/my-reservations") {
-                val userId = call.extractUserId()
-                val (limit, offset) = getLimitAndOffset()
-                val status = parseReservationStatus(call.queryParameters["status"])
-
-                val result = reservationService.getUserReservationTicket(userId, status, limit, offset)
-                    .map { it.toReservationTicketDTO() }
-                call.respond(HttpStatusCode.OK, DataResponse(result))
+                    val result = reservationService.getUserReservationTicket(userId, status, limit, offset)
+                        .map { it.toReservationTicketDTO() }
+                    call.respond(HttpStatusCode.OK, DataResponse(result))
+                }
             }
 
             get("/{reservation_id}") {

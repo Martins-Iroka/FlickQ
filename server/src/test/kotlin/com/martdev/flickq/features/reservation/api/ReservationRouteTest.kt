@@ -7,6 +7,7 @@ import com.martdev.flickq.features.reservation.domain.service.ReservationService
 import com.martdev.flickq.features.reservation.domain.service.ShowtimeSeatService
 import com.martdev.flickq.reservation.CreateReservationRequest
 import com.martdev.flickq.reservation.model.Reservation
+import com.martdev.flickq.reservation.model.ReservationTicket
 import com.martdev.flickq.reservation.model.ShowtimeSeat
 import com.martdev.flickq.utils.clientConfiguration
 import com.martdev.flickq.utils.testAppConfiguration
@@ -25,6 +26,7 @@ import io.mockk.junit5.MockKExtension
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.koin.dsl.module
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
 @ExtendWith(MockKExtension::class)
@@ -141,17 +143,52 @@ class ReservationRouteTest {
     }
 
     @Test
-    fun testGetReservationMyreservations() = testApplication {
+    fun testGetReservationMyReservations_returnsOK() = testApplication {
         coEvery {
-            reservationService.getMyReservations(any())
-        } returns listOf(Reservation())
+            reservationService.getUserReservationTicket(any(), any(), any(), any())
+        } returns listOf(ReservationTicket())
 
         application {
             appConfig()
         }
         val client = clientConfiguration(userToken)
-        client.get("/reservation/my-reservations").apply {
+        client.get("/reservation/my-reservations?status=CONFIRMED").apply {
             assertEquals(HttpStatusCode.OK, status, bodyAsText())
+        }
+    }
+
+    @Test
+    fun testGetMyReservations_invalidLimitOrOffsets_returnsBadRequest() = testApplication {
+        application {
+            appConfig()
+        }
+        val client = clientConfiguration(userToken)
+        client.get("/reservation/my-reservations?status=CONFIRMED&limit=-1").apply {
+            assertEquals(HttpStatusCode.BadRequest, status)
+        }
+    }
+
+    @Test
+    fun testGetMyReservations_invalidReservationStatus_returnsBadRequest() = testApplication {
+        application {
+            appConfig()
+        }
+        val client = clientConfiguration(userToken)
+        client.get("/reservation/my-reservations?status=CONFIRME").apply {
+            assertEquals(HttpStatusCode.BadRequest, status)
+            val body = bodyAsText()
+            assertContains(body, "Invalid filtered status. Status must be 'PENDING', 'CONFIRMED', 'CANCELLED'")
+        }
+    }
+
+    @Test
+    fun testGetMyReservations_returnsForbiddenForAdminAccess() = testApplication {
+        application {
+            appConfig()
+        }
+        val client = clientConfiguration(adminToken)
+        client.get("/reservation/my-reservations?status=CONFIRMED").apply {
+            assertEquals(HttpStatusCode.Forbidden, status, bodyAsText())
         }
     }
 
