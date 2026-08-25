@@ -12,6 +12,9 @@ import com.martdev.flickq.features.movie.infrasturcture.repository.GenreReposito
 import com.martdev.flickq.features.movie.infrasturcture.repository.MovieRepositoryImpl
 import com.martdev.flickq.features.movie.infrasturcture.tables.GenresTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
+import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
+import com.martdev.flickq.features.payment.infrastructure.db.repository.PaymentRepositoryImpl
+import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentTable
 import com.martdev.flickq.features.reservation.domain.repository.ReservationRepository
 import com.martdev.flickq.features.reservation.domain.repository.ShowtimeSeatRepository
 import com.martdev.flickq.features.reservation.infrastructure.db.table.ReservationTable
@@ -26,6 +29,8 @@ import com.martdev.flickq.features.showtime.infrastructure.db.repository.Showtim
 import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTable
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
+import com.martdev.flickq.payment.model.Payment
+import com.martdev.flickq.payment.model.PaymentStatus
 import com.martdev.flickq.reservation.model.Reservation
 import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.reservation.model.SeatStatus
@@ -64,6 +69,8 @@ class ReservationRepositoryImplTest {
         private lateinit var movieRepo: MovieRepository
         private lateinit var genreRepo: GenreRepository
         private lateinit var userRepo: UserRepository
+        private lateinit var paymentRepo: PaymentRepository
+        private lateinit var reservationRepo: ReservationRepository
         private val clock = Clock.System.now()
 
         @Container
@@ -81,12 +88,15 @@ class ReservationRepositoryImplTest {
             movieRepo = MovieRepositoryImpl()
             genreRepo = GenreRepositoryImpl()
             userRepo = UserRepositoryImpl()
+            paymentRepo = PaymentRepositoryImpl()
+            reservationRepo = ReservationRepositoryImpl()
         }
     }
 
     @BeforeEach
     fun cleanDatabase() {
         transaction {
+            PaymentTable.deleteAll()
             ShowtimeSeatTable.deleteAll()
             ReservationTable.deleteAll()
             ShowtimeTable.deleteAll()
@@ -389,6 +399,87 @@ class ReservationRepositoryImplTest {
         assertEquals(ReservationStatus.PENDING, activeAfter.status)
         assertTrue(activeAfter.seats.all { it.status == SeatStatus.HELD })
     }
+
+    @Test
+    fun `get user reservation ticket returns list of confirmed tickets`() = runTest {
+        val ctx = setupContext(3)
+        val reservation = (reservationRepo.createReservation(
+            Reservation(
+                userId = ctx.userId,
+                showtimeId = ctx.showtimeId,
+                totalAmount = 5_000,
+                expiresAt = clock.plus(15.minutes)
+            ), ctx.seatIds
+        ) as DataResult.Success).value
+
+        paymentRepo.createPayment(payment(reservation.id, ctx.userId, "ref_charge", amount = 500_000L)) as DataResult.Success
+        val paidAt = clock.minus(5.minutes)
+
+        val payment = (paymentRepo.applyChargeResult(
+            reference = "ref_charge",
+            status = PaymentStatus.SUCCESS,
+            gatewayResponse = "Approved",
+            paystackTransactionId = "tx_123",
+            paidAt = paidAt,
+            amountFromGateway = 500_000L
+        ) as DataResult.Success).value
+
+        reservationRepo.updateReservationStatus(payment.reservationId, ReservationStatus.CONFIRMED)
+
+        val ticketResult = reservationRepo.getUserReservationTicket(
+            ctx.userId,
+            ReservationStatus.CONFIRMED,
+            1, 0
+        )
+
+        assertTrue(ticketResult is DataResult.Success, ticketResult.toString())
+        assertTrue(ticketResult.value.isNotEmpty())
+    }
+
+    @Test
+    fun `get user reservation ticket returns empty list of pending tickets`() = runTest {
+        val ctx = setupContext(3)
+        val reservation = (reservationRepo.createReservation(
+            Reservation(
+                userId = ctx.userId,
+                showtimeId = ctx.showtimeId,
+                totalAmount = 3_000,
+                expiresAt = clock.plus(15.minutes)
+            ), ctx.seatIds
+        ) as DataResult.Success).value
+
+        paymentRepo.createPayment(payment(reservation.id, ctx.userId, "ref_charge2", amount = 300_000L)) as DataResult.Success
+        val paidAt = clock.minus(5.minutes)
+
+        val payment = (paymentRepo.applyChargeResult(
+            reference = "ref_charge2",
+            status = PaymentStatus.SUCCESS,
+            gatewayResponse = "Approved",
+            paystackTransactionId = "tx_123",
+            paidAt = paidAt,
+            amountFromGateway = 300_000L
+        ) as DataResult.Success).value
+
+        reservationRepo.updateReservationStatus(payment.reservationId, ReservationStatus.PENDING)
+
+        val ticketResult = reservationRepo.getUserReservationTicket(
+            ctx.userId,
+            ReservationStatus.CONFIRMED,
+            1, 0
+        )
+
+        assertTrue(ticketResult is DataResult.Success, ticketResult.toString())
+        assertTrue(ticketResult.value.isEmpty())
+    }
+
+    private fun payment(reservationId: Long, userId: Long, reference: String, amount: Long = 500_000L) = Payment(
+        reservationId = reservationId,
+        userId = userId,
+        reference = reference,
+        amount = amount,
+        currency = "NGN",
+        status = PaymentStatus.PENDING,
+    )
 
     private data class TestContext(
         val userId: Long,

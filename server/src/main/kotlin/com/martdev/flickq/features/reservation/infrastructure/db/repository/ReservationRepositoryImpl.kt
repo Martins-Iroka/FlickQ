@@ -109,82 +109,85 @@ class ReservationRepositoryImpl : ReservationRepository {
         status: ReservationStatus,
         limit: Int,
         offset: Long
-    ): DataResult<List<ReservationTicket>> {
-        val joined = ReservationTable
-            .innerJoin(ShowtimeTable)
-            .innerJoin(MoviesTable)
-            .innerJoin(RoomTable)
-            .select(
-                ReservationTable.status,
-                ReservationTable.totalAmount,
-                ReservationTable.expiresAt,
-                ShowtimeTable.startsAt,
-                ShowtimeTable.endsAt,
-                MoviesTable.title,
-                MoviesTable.posterUrl,
-                RoomTable.name
-            ).where {
-                (ReservationTable.userId eq userId) and (ReservationTable.status eq status)
-            }.orderBy(
-                ReservationTable.createdAt to SortOrder.DESC,
-                ReservationTable.id to SortOrder.DESC
-            ).limit(limit)
-            .offset(offset)
-            .toList()
+    ): DataResult<List<ReservationTicket>> = withSuspendTransaction {
+            val joined = ReservationTable
+                .innerJoin(ShowtimeTable)
+                .innerJoin(MoviesTable)
+                .innerJoin(RoomTable)
+                .select(
+                    ReservationTable.id,
+                    ReservationTable.status,
+                    ReservationTable.totalAmount,
+                    ReservationTable.expiresAt,
+                    ShowtimeTable.startsAt,
+                    ShowtimeTable.endsAt,
+                    MoviesTable.title,
+                    MoviesTable.posterUrl,
+                    RoomTable.name
+                ).where {
+                    (ReservationTable.userId eq userId) and (ReservationTable.status eq status)
+                }.orderBy(
+                    ReservationTable.createdAt to SortOrder.DESC,
+                    ReservationTable.id to SortOrder.DESC
+                ).limit(limit)
+                .offset(offset)
+                .toList()
 
-        if (joined.isEmpty()) {
-            return DataResult.Success(emptyList())
-        }
-
-        val reservationIds = joined.map { it[ReservationTable.id] }
-
-        val seatMap = ShowtimeSeatTable
-            .innerJoin(SeatTable)
-            .select(
-                SeatTable.rowLabel,
-                SeatTable.seatNumber
-            ).where {
-                ShowtimeSeatTable.reservationId inList reservationIds
-            }.orderBy(
-                SeatTable.rowLabel to SortOrder.ASC,
-                SeatTable.seatNumber to SortOrder.ASC
-            ).toList().groupBy {
-                it[ShowtimeSeatTable.reservationId]?.value
+            if (joined.isEmpty()) {
+                return@withSuspendTransaction DataResult.Success(emptyList())
             }
 
-        val paymentMap = PaymentTable.select(
-            PaymentTable.status,
-            PaymentTable.reference,
-            PaymentTable.paidAt
-        ).where {
-            PaymentTable.reservationId inList reservationIds
-        }.toList().groupBy {
-            it[PaymentTable.reservationId].value
-        }
-        val reservation = joined.map {
-            val reservationId = it[ReservationTable.id].value
-            val seats = seatMap[reservationId]?.joinToString(",") { seatRow ->
-                val rowLabel = seatRow[SeatTable.rowLabel]
-                val seatNumber = seatRow[SeatTable.seatNumber]
-                "$rowLabel$seatNumber"
-            }.orEmpty()
+            val reservationIds = joined.map { it[ReservationTable.id] }
 
-            val payment = pickLatestPayment(paymentMap[reservationId].orEmpty())
+            val seatMap = ShowtimeSeatTable
+                .innerJoin(SeatTable)
+                .select(
+                    ShowtimeSeatTable.reservationId,
+                    SeatTable.rowLabel,
+                    SeatTable.seatNumber
+                ).where {
+                    ShowtimeSeatTable.reservationId inList reservationIds
+                }.orderBy(
+                    SeatTable.rowLabel to SortOrder.ASC,
+                    SeatTable.seatNumber to SortOrder.ASC
+                ).toList().groupBy {
+                    it[ShowtimeSeatTable.reservationId]?.value
+                }
 
-            ReservationTicket(
-                status = it[ReservationTable.status],
-                totalAmount = it[ReservationTable.totalAmount],
-                expiresAt = it[ReservationTable.expiresAt],
-                showtimeStartsAt = it[ShowtimeTable.startsAt],
-                showtimeEndsAt = it[ShowtimeTable.endsAt],
-                movieTitle = it[MoviesTable.title],
-                posterUrl = it[MoviesTable.posterUrl],
-                roomName = it[RoomTable.name],
-                seat = seats,
-                payment = payment
-            )
-        }
-        return DataResult.Success(reservation)
+            val paymentMap = PaymentTable.select(
+                PaymentTable.reservationId,
+                PaymentTable.status,
+                PaymentTable.reference,
+                PaymentTable.paidAt
+            ).where {
+                PaymentTable.reservationId inList reservationIds
+            }.toList().groupBy {
+                it[PaymentTable.reservationId].value
+            }
+            val reservation = joined.map {
+                val reservationId = it[ReservationTable.id].value
+                val seats = seatMap[reservationId]?.joinToString(",") { seatRow ->
+                    val rowLabel = seatRow[SeatTable.rowLabel]
+                    val seatNumber = seatRow[SeatTable.seatNumber]
+                    "$rowLabel$seatNumber"
+                }.orEmpty()
+
+                val payment = pickLatestPayment(paymentMap[reservationId].orEmpty())
+
+                ReservationTicket(
+                    status = it[ReservationTable.status],
+                    totalAmount = it[ReservationTable.totalAmount],
+                    expiresAt = it[ReservationTable.expiresAt],
+                    showtimeStartsAt = it[ShowtimeTable.startsAt],
+                    showtimeEndsAt = it[ShowtimeTable.endsAt],
+                    movieTitle = it[MoviesTable.title],
+                    posterUrl = it[MoviesTable.posterUrl],
+                    roomName = it[RoomTable.name],
+                    seat = seats,
+                    payment = payment
+                )
+            }
+            return@withSuspendTransaction DataResult.Success(reservation)
     }
 
     override suspend fun getAllReservations(
