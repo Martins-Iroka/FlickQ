@@ -20,6 +20,8 @@ data class ReservationTicketDTO(
     val movieTitle: String = "",
     @SerialName("poster_url")
     val posterUrl: String = "",
+    @SerialName("released_date")
+    val releasedDate: String = "",
     @SerialName("room_name")
     val roomName: String = "",
     val seats: String = "",

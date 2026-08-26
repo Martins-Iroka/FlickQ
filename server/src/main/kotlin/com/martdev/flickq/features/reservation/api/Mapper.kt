@@ -36,6 +36,7 @@ fun ReservationTicket.toReservationTicketDTO() = ReservationTicketDTO(
     endsAt = showtimeEndsAt,
     movieTitle = movieTitle,
     posterUrl = posterUrl,
+    releasedDate = releasedDate.toString(),
     roomName = roomName,
     seats = seat,
     payment = payment?.toTicketPaymentDTO()

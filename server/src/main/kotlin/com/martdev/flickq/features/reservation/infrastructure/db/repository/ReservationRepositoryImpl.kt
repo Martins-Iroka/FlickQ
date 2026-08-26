@@ -123,6 +123,7 @@ class ReservationRepositoryImpl : ReservationRepository {
                     ShowtimeTable.endsAt,
                     MoviesTable.title,
                     MoviesTable.posterUrl,
+                    MoviesTable.releasedDate,
                     RoomTable.name
                 ).where {
                     (ReservationTable.userId eq userId) and (ReservationTable.status eq status)
@@ -182,6 +183,7 @@ class ReservationRepositoryImpl : ReservationRepository {
                     showtimeEndsAt = it[ShowtimeTable.endsAt],
                     movieTitle = it[MoviesTable.title],
                     posterUrl = it[MoviesTable.posterUrl],
+                    releasedDate = it[MoviesTable.releasedDate],
                     roomName = it[RoomTable.name],
                     seat = seats,
                     payment = payment
