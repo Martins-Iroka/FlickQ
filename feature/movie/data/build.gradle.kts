@@ -1,24 +1,8 @@
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidMultiplatformLibrary)
+    alias(libs.plugins.flickq.kmp.library)
 }
 
 kotlin {
-    jvm()
-    iosArm64()
-    iosSimulatorArm64()
-
-    js {
-        browser()
-    }
-
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
-    }
-
     android {
         namespace = "com.martdev.flickq.feature.movie.data"
         compileSdk { version = release(36) }
@@ -27,19 +11,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.feature.movie.domain)
-            implementation(projects.core.common)
-            implementation(projects.core.domain)
-            implementation(projects.core.data)
-            implementation(projects.core.api)
-            implementation(libs.ktor.client.core)
-            implementation(libs.kotlin.datetime)
-            implementation(libs.koin.core)
-        }
-        commonTest.dependencies {
-            implementation(libs.bundles.client.test)
-            implementation(libs.ktor.client.mock)
-            implementation(libs.ktor.client.contentNegotiation)
-            implementation(libs.ktor.serialization.kotlinx.json)
         }
     }
 }

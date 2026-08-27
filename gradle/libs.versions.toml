@@ -145,6 +145,11 @@ firebase-analytics = { module = "com.google.firebase:firebase-analytics"}
 firebase-appdistribution = { module = "com.google.firebase:firebase-appdistribution", version.ref = "firebase-appdistribution"}
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics"}
 
+android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp"}
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin"}
+compose-gradle-plugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "composeMultiplatform" }
+compose-compiler-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+
 [bundles]
 client-ktor-libs = ["ktor-client-core", "ktor-client-contentNegotiation", "ktor-client-logging", "ktor-serialization-kotlinx-json",]
 client-koin-compose = ["koin-core", "koin-compose", "koin-compose-viewmodel"]
@@ -175,3 +180,6 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 ksp = { id = "com.google.devtools.ksp", version = "2.3.8" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow"}
+
+# Plugins defined by this project
+flickq-kmp-library = { id = "flickq.kmp.library" }
