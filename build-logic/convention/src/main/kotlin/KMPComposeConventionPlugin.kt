@@ -21,6 +21,7 @@ class KMPComposeConventionPlugin : Plugin<Project> {
                         implementation(libs.findLibrary("compose-runtime").get())
                         implementation(libs.findLibrary("compose-foundation").get())
                         implementation(libs.findLibrary("compose-material3").get())
+                        implementation(libs.findLibrary("compose-material-icons").get())
                         implementation(libs.findLibrary("compose-ui").get())
                         implementation(libs.findLibrary("androidx-lifecycle-viewmodelCompose").get())
                         implementation(libs.findLibrary("androidx-lifecycle-runtimeCompose").get())
