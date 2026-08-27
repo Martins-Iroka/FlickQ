@@ -182,4 +182,5 @@ ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow"}
 
 # Plugins defined by this project
-flickq-kmp-library = { id = "flickq.kmp.library" }
+flickq-feature-data = { id = "flickq.feature.data.library" }
+flickq-feature-presentation = { id = "flickq.feature.presentation.library"}

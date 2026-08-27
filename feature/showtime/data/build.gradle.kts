@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.flickq.kmp.library)
+    alias(libs.plugins.flickq.feature.data)
 }
 
 kotlin {

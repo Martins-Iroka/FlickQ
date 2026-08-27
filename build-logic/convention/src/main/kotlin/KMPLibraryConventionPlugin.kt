@@ -31,18 +31,6 @@ class KMPLibraryConventionPlugin : Plugin<Project> {
                 sourceSets {
                     commonMain.dependencies {
                         implementation(project(":core:common"))
-                        implementation(project(":core:domain"))
-                        implementation(project(":core:data"))
-                        implementation(project(":core:api"))
-                        implementation(libs.findLibrary("ktor-client-core").get())
-                        implementation(libs.findLibrary("koin-core").get())
-                        implementation(libs.findLibrary("kotlin-datetime").get())
-                    }
-                    commonTest.dependencies {
-                        implementation(libs.findBundle("client-test").get())
-                        implementation(libs.findLibrary("ktor-client-mock").get())
-                        implementation(libs.findLibrary("ktor-client-contentNegotiation").get())
-                        implementation(libs.findLibrary("ktor-serialization-kotlinx-json").get())
                     }
                 }
             }
