@@ -25,6 +25,8 @@ object FlickQColors {
 
     val Error = Color(0xFFEF4444)
     val OnGold = AlmostBlack
+
+    val Green = Color(0xFF22C55E)
 }
 
 val PremiumGoldGradient = Brush.linearGradient(

@@ -21,6 +21,7 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.koin.android)
+    implementation(projects.feature.reservation.presentation)
 
     implementation(libs.compose.uiToolingPreview)
     implementation(platform(libs.firebase.bom))
