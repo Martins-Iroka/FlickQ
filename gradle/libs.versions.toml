@@ -184,3 +184,4 @@ shadow = { id = "com.gradleup.shadow", version.ref = "shadow"}
 # Plugins defined by this project
 flickq-feature-data = { id = "flickq.feature.data.library" }
 flickq-feature-presentation = { id = "flickq.feature.presentation.library"}
+flickq-kmp-library = { id = "flickq.kmp.library" }

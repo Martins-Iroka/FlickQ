@@ -31,6 +31,7 @@ class KMPLibraryConventionPlugin : Plugin<Project> {
                 sourceSets {
                     commonMain.dependencies {
                         implementation(project(":core:common"))
+                        implementation(project(":core:domain"))
                     }
                 }
             }

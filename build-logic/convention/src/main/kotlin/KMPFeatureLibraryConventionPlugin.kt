@@ -17,7 +17,6 @@ class KMPFeatureLibraryConventionPlugin : Plugin<Project> {
             extensions.configure<KotlinMultiplatformExtension> {
                 sourceSets {
                     commonMain.dependencies {
-                        implementation(project(":core:domain"))
                         implementation(project(":core:data"))
                     }
                     commonTest.dependencies {
