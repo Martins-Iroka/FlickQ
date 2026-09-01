@@ -5,7 +5,7 @@ plugins {
 kotlin {
 
     android {
-        namespace = "com.martdev.flickq.feature.reservation.presentation"
+        namespace = "com.martdev.flickq.feature.reservation.data"
         compileSdk { version = release(36) }
     }
 

@@ -16,7 +16,7 @@ class MobileReservationRepoImpl(
     override suspend fun getMyReservationTickets(
         status: ReservationStatus,
         limit: Int,
-        offset: Long
+        offset: Int
     ): Result<List<ReservationTicket>, DataError> {
        return client.getData<List<ReservationTicketDTO>>(
             "/reservation/my-reservations",
