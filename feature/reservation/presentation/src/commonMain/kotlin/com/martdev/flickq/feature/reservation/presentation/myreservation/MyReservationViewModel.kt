@@ -10,6 +10,7 @@ import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.reservation.domain.MobileReservationRepository
 import com.martdev.flickq.feature.reservation.presentation.ReservationTicketUI
 import com.martdev.flickq.feature.reservation.presentation.toReservationTicketUI
+import com.martdev.flickq.reservation.model.ReservationStatus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +23,9 @@ data class ReservationListState(
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val endReached: Boolean = false,
-    val error: UiText? = null
+    val error: UiText? = null,
+    val showDialogBox: Boolean = false,
+    val status: String = "ALL"
 ) {
     val canLoadMore: Boolean get() = !isLoading && !isLoadingMore && !endReached && error == null
 }
@@ -31,6 +34,8 @@ sealed interface ReservationListAction {
     data object OnReservationClicked : ReservationListAction
     data object OnLoadMore : ReservationListAction
     data object OnRetry : ReservationListAction
+    data object OnShowStatusDialog : ReservationListAction
+    data class OnStatusSelected(val status: String?) : ReservationListAction
 }
 
 sealed interface ReservationListEvent {
@@ -60,10 +65,26 @@ class MyReservationViewModel(
                 }
             }
             ReservationListAction.OnRetry -> loadFirstPage()
+            ReservationListAction.OnShowStatusDialog -> state.update {
+                it.copy(showDialogBox = true)
+            }
+
+            is ReservationListAction.OnStatusSelected -> {
+                state.update {
+                    it.copy(
+                        status = action.status.orEmpty().ifEmpty { "ALL" },
+                        showDialogBox = false
+                    )
+                }
+                val s = runCatching {
+                    ReservationStatus.valueOf(action.status.orEmpty())
+                }.getOrNull()
+                loadFirstPage(s)
+            }
         }
     }
 
-    private fun loadFirstPage() {
+    private fun loadFirstPage(status: ReservationStatus? = null) {
         state.update {
             it.copy(
                 isLoading = true,
@@ -72,7 +93,7 @@ class MyReservationViewModel(
                 endReached = false
             )
         }
-        viewModelScope.launch { fetchPage(true) }
+        viewModelScope.launch { fetchPage(true, status) }
     }
 
     private fun loadMore() {
@@ -81,10 +102,10 @@ class MyReservationViewModel(
         viewModelScope.launch { fetchPage(false) }
     }
 
-    private suspend fun fetchPage(replace: Boolean) {
+    private suspend fun fetchPage(replace: Boolean, status: ReservationStatus? = null) {
         val offset = if (replace) 0 else state.value.reservations.size
         reservationRepository.getMyReservationTickets(
-            status = null,
+            status = status,
             limit = PAGE_SIZE,
             offset = offset
         ).onSuccess { page ->
