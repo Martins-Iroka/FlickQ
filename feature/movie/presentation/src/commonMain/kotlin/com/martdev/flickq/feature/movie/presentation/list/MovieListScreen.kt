@@ -197,6 +197,15 @@ fun MovieListScreen(
                     )
                 }
 
+                state.movies.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "No movie schedule to show", color = FlickQColors.Error)
+                    }
+                }
+
                 else -> LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 150.dp),
                     modifier = Modifier.fillMaxSize(),

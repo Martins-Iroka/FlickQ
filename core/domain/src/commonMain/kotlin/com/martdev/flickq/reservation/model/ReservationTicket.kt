@@ -7,6 +7,7 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 data class ReservationTicket(
+    val id: Long = 0,
     val status: ReservationStatus = ReservationStatus.PENDING,
     val totalAmount: Long = 0,
     val expiresAt: Instant = Clock.System.now(),

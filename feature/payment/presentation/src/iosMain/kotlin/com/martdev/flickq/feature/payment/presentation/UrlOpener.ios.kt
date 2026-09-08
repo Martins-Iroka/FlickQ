@@ -39,7 +39,7 @@ class IosPaystackLauncher : UrlOpener {
         // Configures presentation context (required for iOS 13+)
         session?.prefersEphemeralWebBrowserSession = true
         session?.presentationContextProvider = object : NSObject(), ASWebAuthenticationPresentationContextProvidingProtocol {
-            override fun presentationAnchorForWebAuthenticationSession(session: ASWebAuthenticationSession): ASPresentationAnchor? {
+            override fun presentationAnchorForWebAuthenticationSession(session: ASWebAuthenticationSession): ASPresentationAnchor {
                 return UIApplication.sharedApplication.keyWindow ?: UIWindow()
             }
 

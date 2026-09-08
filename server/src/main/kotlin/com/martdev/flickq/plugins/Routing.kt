@@ -9,13 +9,22 @@ import com.martdev.flickq.features.reservation.api.reservationRoute
 import com.martdev.flickq.features.room.api.roomRoute
 import com.martdev.flickq.features.room.api.seatRoute
 import com.martdev.flickq.features.showtime.api.showtimeRoute
+import com.martdev.flickq.shared.DataResponse
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 
 const val apiV1Path = "/api/v1"
 fun Application.configureRouting() {
     routing {
+        route("/") {
+            get("health") {
+                call.respond(HttpStatusCode.OK, DataResponse("OK"))
+            }
+        }
         route(apiV1Path) {
             authRoutes()
             movieRoute()

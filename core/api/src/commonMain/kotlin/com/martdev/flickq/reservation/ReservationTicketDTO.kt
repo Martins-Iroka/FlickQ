@@ -7,6 +7,7 @@ import kotlin.time.Instant
 
 @Serializable
 data class ReservationTicketDTO(
+    val id: Long = 0,
     val status: String = "",
     @SerialName("total_amount")
     val totalAmount: Long = 0,

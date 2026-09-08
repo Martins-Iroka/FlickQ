@@ -29,6 +29,7 @@ fun ShowtimeSeat.toShowtimeSeatDTO() = ShowtimeSeatDTO(
 )
 
 fun ReservationTicket.toReservationTicketDTO() = ReservationTicketDTO(
+    id = id,
     status = status.name,
     totalAmount = totalAmount,
     expiresAt = expiresAt,

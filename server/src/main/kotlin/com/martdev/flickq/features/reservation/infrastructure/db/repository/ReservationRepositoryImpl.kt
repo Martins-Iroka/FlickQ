@@ -176,6 +176,7 @@ class ReservationRepositoryImpl : ReservationRepository {
                 val payment = pickLatestPayment(paymentMap[reservationId].orEmpty())
 
                 ReservationTicket(
+                    id = reservationId,
                     status = it[ReservationTable.status],
                     totalAmount = it[ReservationTable.totalAmount],
                     expiresAt = it[ReservationTable.expiresAt],

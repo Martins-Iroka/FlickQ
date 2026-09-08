@@ -9,6 +9,7 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 data class ReservationTicketUI(
+    val id: Long,
     val status: ReservationStatus,
     val totalAmount: Long = 0,
     val expiresAt: Instant = Clock.System.now(),
@@ -22,6 +23,7 @@ data class ReservationTicketUI(
 )
 
 fun ReservationTicket.toReservationTicketUI() = ReservationTicketUI(
+    id,
     status,
     totalAmount,
     expiresAt,

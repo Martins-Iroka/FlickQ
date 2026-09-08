@@ -4,15 +4,17 @@ import com.martdev.flickq.core.data.coreDataModule
 import com.martdev.flickq.core.data.platformDataModule
 import com.martdev.flickq.feature.auth.data.authDataModule
 import com.martdev.flickq.feature.auth.presentation.authPresentationModule
-import com.martdev.flickq.feature.movie.data.movieDataModule
-import com.martdev.flickq.feature.movie.presentation.moviePresentationModule
-import com.martdev.flickq.feature.showtime.data.showtimeDataModule
-import com.martdev.flickq.feature.showtime.presentation.showtimePresentationModule
 import com.martdev.flickq.feature.booking.data.bookingDataModule
 import com.martdev.flickq.feature.booking.presentation.bookingPresentationModule
+import com.martdev.flickq.feature.movie.data.movieDataModule
+import com.martdev.flickq.feature.movie.presentation.moviePresentationModule
 import com.martdev.flickq.feature.payment.data.paymentDataModule
 import com.martdev.flickq.feature.payment.presentation.paymentPlatformModule
 import com.martdev.flickq.feature.payment.presentation.paymentPresentationModule
+import com.martdev.flickq.feature.reservation.data.reservationDataModule
+import com.martdev.flickq.feature.reservation.presentation.reservationPresentationModule
+import com.martdev.flickq.feature.showtime.data.showtimeDataModule
+import com.martdev.flickq.feature.showtime.presentation.showtimePresentationModule
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
 
@@ -36,6 +38,8 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
             bookingPresentationModule,
             paymentDataModule,
             paymentPresentationModule,
+            reservationDataModule,
+            reservationPresentationModule,
             paymentPlatformModule()
         )
     }

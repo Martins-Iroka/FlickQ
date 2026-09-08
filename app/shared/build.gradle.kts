@@ -66,6 +66,7 @@ kotlin {
             implementation(projects.feature.booking.presentation)
             implementation(projects.feature.payment.data)
             api(projects.feature.payment.presentation)
+            implementation(projects.feature.reservation.data)
             implementation(projects.feature.reservation.presentation)
 
             implementation(libs.compose.runtime)
@@ -78,6 +79,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.navigation.compose)
             implementation(libs.bundles.client.koin.compose)
+            implementation(libs.compose.material.icons)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

@@ -7,6 +7,7 @@ import com.martdev.flickq.reservation.model.ReservationTicket
 import kotlinx.datetime.LocalDate
 
 fun ReservationTicketDTO.toReservationTicketModel() = ReservationTicket(
+    id = id,
     status = runCatching { ReservationStatus.valueOf(status) }.getOrDefault(ReservationStatus.PENDING),
     totalAmount = totalAmount,
     expiresAt = expiresAt,
