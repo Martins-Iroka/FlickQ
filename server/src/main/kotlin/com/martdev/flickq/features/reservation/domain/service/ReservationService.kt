@@ -15,7 +15,7 @@ interface ReservationService {
     suspend fun cancelExpiredReservations()                                  // background job
     suspend fun getUserReservationTicket(
         userId: Long,
-        status: ReservationStatus,
+        status: ReservationStatus?,
         limit: Int,
         offset: Long
     ): List<ReservationTicket>

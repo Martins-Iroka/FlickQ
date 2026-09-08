@@ -15,7 +15,7 @@ interface ReservationRepository {
     suspend fun getReservationsByUserId(userId: Long): DataResult<List<Reservation>>
     suspend fun getUserReservationTicket(
         userId: Long,
-        status: ReservationStatus,
+        status: ReservationStatus?,
         limit: Int,
         offset: Long
     ): DataResult<List<ReservationTicket>>

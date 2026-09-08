@@ -10,7 +10,6 @@ import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.reservation.domain.MobileReservationRepository
 import com.martdev.flickq.feature.reservation.presentation.ReservationTicketUI
 import com.martdev.flickq.feature.reservation.presentation.toReservationTicketUI
-import com.martdev.flickq.reservation.model.ReservationStatus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -85,7 +84,7 @@ class MyReservationViewModel(
     private suspend fun fetchPage(replace: Boolean) {
         val offset = if (replace) 0 else state.value.reservations.size
         reservationRepository.getMyReservationTickets(
-            status = ReservationStatus.PENDING,
+            status = null,
             limit = PAGE_SIZE,
             offset = offset
         ).onSuccess { page ->

@@ -14,13 +14,17 @@ class MobileReservationRepoImpl(
     private val client: HttpClient
 ) : MobileReservationRepository {
     override suspend fun getMyReservationTickets(
-        status: ReservationStatus,
+        status: ReservationStatus?,
         limit: Int,
         offset: Int
     ): Result<List<ReservationTicket>, DataError> {
+        val query = mutableMapOf<String, Any>("limit" to limit, "offset" to offset)
+        if (status != null) {
+            query["status"] = status.toString()
+        }
        return client.getData<List<ReservationTicketDTO>>(
             "/reservation/my-reservations",
-            queryParameters = mapOf("status" to status.toString(), "limit" to limit, "offset" to offset)
+            queryParameters = query
         ).map { items -> items.map {
             it.toReservationTicketModel()
         } }

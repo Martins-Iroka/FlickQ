@@ -134,7 +134,8 @@ private fun Route.userReservationRoutes(
 }
 
 private fun parseReservationStatus(status: String?) = when(status?.uppercase()) {
-    null, "CONFIRMED" -> ReservationStatus.CONFIRMED
+    null -> null
+    "CONFIRMED" -> ReservationStatus.CONFIRMED
     "PENDING" -> ReservationStatus.PENDING
     "CANCELLED" -> ReservationStatus.CANCELLED
     else -> throw BadRequestException("Invalid filtered status. Status must be 'PENDING', 'CONFIRMED', 'CANCELLED'")

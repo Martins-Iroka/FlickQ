@@ -6,5 +6,5 @@ import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.reservation.model.ReservationTicket
 
 interface MobileReservationRepository {
-    suspend fun getMyReservationTickets(status: ReservationStatus, limit: Int, offset: Int): Result<List<ReservationTicket>, DataError>
+    suspend fun getMyReservationTickets(status: ReservationStatus?, limit: Int, offset: Int): Result<List<ReservationTicket>, DataError>
 }
