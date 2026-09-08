@@ -29,7 +29,9 @@ import com.martdev.flickq.core.designsystem.FlickQButton
 import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.PosterImage
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
+import com.martdev.flickq.core.designsystem.formatNaira
 import com.martdev.flickq.feature.reservation.presentation.ReservationTicketUI
+import com.martdev.flickq.reservation.model.ReservationStatus
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -54,7 +56,7 @@ internal fun MyReservationCompose(
             color = FlickQColors.Gold,
             fontSize = 20.sp,
             fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(start = 16.dp)
+            modifier = Modifier.padding(start = 20.dp, top = 12.dp)
         )
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -79,8 +81,8 @@ internal fun MyReservationCompose(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         items(state.reservations, key = { it.id }) {
                             ReservationCard(
@@ -116,6 +118,11 @@ internal fun MyReservationCompose(
 private fun ReservationCard(
     reservationTicketUI: ReservationTicketUI
 ) {
+    val statusColor = when(reservationTicketUI.status) {
+        ReservationStatus.PENDING -> FlickQColors.GoldEdge
+        ReservationStatus.CONFIRMED -> FlickQColors.Green
+        ReservationStatus.CANCELLED -> FlickQColors.Error
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -141,26 +148,28 @@ private fun ReservationCard(
             )
 
             Text(
-                text = "#${reservationTicketUI.totalAmount}",
+                text = formatNaira(reservationTicketUI.totalAmount),
                 color = FlickQColors.TicketPaper,
                 fontSize = 18.sp
             )
 
             Text(
                 text = reservationTicketUI.status.toString(),
-                color = FlickQColors.Green,
+                color = statusColor,
                 fontSize = 16.sp
             )
             
-            Text(
-                text = reservationTicketUI.expiresAt.toString(),
-                color = FlickQColors.TicketPaper
-            )
+            if (reservationTicketUI.status == ReservationStatus.PENDING) {
+                Text(
+                    text = "Expires at ${reservationTicketUI.timeExpiration}",
+                    color = FlickQColors.Error
+                )
 
-            FlickQButton(
-                text = "Pay",
-                onClick = {},
-            )
+                FlickQButton(
+                    text = "Pay",
+                    onClick = {},
+                )
+            }
         }
     }
 }

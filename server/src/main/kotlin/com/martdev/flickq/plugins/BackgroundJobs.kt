@@ -10,7 +10,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.ktor.ext.inject
-import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 fun Application.configureBackgroundJobs() {
@@ -19,7 +18,7 @@ fun Application.configureBackgroundJobs() {
     val paymentService by inject<PaymentService>()
     launch {
         while (isActive) {
-            delay(24.hours)
+            delay(15.minutes)
             userService.deleteExpiredRefreshToken()
         }
     }

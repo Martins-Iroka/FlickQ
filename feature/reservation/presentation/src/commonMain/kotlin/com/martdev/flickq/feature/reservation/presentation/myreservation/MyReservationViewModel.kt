@@ -85,7 +85,7 @@ class MyReservationViewModel(
     private suspend fun fetchPage(replace: Boolean) {
         val offset = if (replace) 0 else state.value.reservations.size
         reservationRepository.getMyReservationTickets(
-            status = ReservationStatus.CONFIRMED,
+            status = ReservationStatus.PENDING,
             limit = PAGE_SIZE,
             offset = offset
         ).onSuccess { page ->

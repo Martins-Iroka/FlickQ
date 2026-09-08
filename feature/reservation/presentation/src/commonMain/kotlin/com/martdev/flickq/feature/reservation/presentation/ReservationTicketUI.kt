@@ -20,18 +20,26 @@ data class ReservationTicketUI(
     val releasedDate: LocalDate = Clock.System.now().toLocalDateTime(TimeZone.UTC).date,
     val roomName: String = "",
     val seat: String = "",
+    val timeExpiration: String = ""
 )
 
-fun ReservationTicket.toReservationTicketUI() = ReservationTicketUI(
-    id,
-    status,
-    totalAmount,
-    expiresAt,
-    showtimeStartsAt,
-    showtimeEndsAt,
-    movieTitle,
-    posterUrl,
-    releasedDate,
-    roomName,
-    seat
-)
+fun ReservationTicket.toReservationTicketUI(): ReservationTicketUI {
+    val time = expiresAt.toLocalDateTime(TimeZone.currentSystemDefault())
+        .time
+    val hour = time.hour
+    val minutes = time.minute
+    return ReservationTicketUI(
+        id,
+        status,
+        totalAmount,
+        expiresAt,
+        showtimeStartsAt,
+        showtimeEndsAt,
+        movieTitle,
+        posterUrl,
+        releasedDate,
+        roomName,
+        seat,
+        "$hour:$minutes"
+    )
+}

@@ -70,6 +70,15 @@ fun FlickQApp() {
         var selectedItem by remember {
             mutableIntStateOf(0)
         }
+
+        var showNavBar by remember {
+            mutableStateOf(false)
+        }
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            destination.route?.let {
+                showNavBar = it.contains(MovieListRoute.toString()) || it.contains(ReservationListRoute.toString())
+            }
+        }
         // Refresh token expired/revoked anywhere in the app → clear the stack and re-auth.
         ObserveAsEvents(sessionManager.events) {
             navController.navigate(AuthGraphRoute) {
@@ -79,46 +88,44 @@ fun FlickQApp() {
         }
         Scaffold(
             bottomBar = {
-                navController.currentDestination?.route?.let {
-                    if (it.contains(MovieListRoute.toString()) || it.contains(ReservationListRoute.toString())) {
-                        NavigationBar(
-                            modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            NavigationBarItem(
-                                selectedItem == 0,
-                                onClick = {
-                                    selectedItem = 0
-                                    navController.navigate(MovieGraphRoute)
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selectedItem == 0) selectedIcons.first() else unselectedIcons.first(),
-                                        contentDescription = "movie"
-                                    )
-                                },
-                                label = {
-                                    Text("Movies")
-                                }
-                            )
+                if (showNavBar) {
+                    NavigationBar(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        NavigationBarItem(
+                            selectedItem == 0,
+                            onClick = {
+                                selectedItem = 0
+                                navController.navigate(MovieGraphRoute)
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selectedItem == 0) selectedIcons.first() else unselectedIcons.first(),
+                                    contentDescription = "movie"
+                                )
+                            },
+                            label = {
+                                Text("Movies")
+                            }
+                        )
 
-                            NavigationBarItem(
-                                selectedItem == 1,
-                                onClick = {
-                                    selectedItem = 1
-                                    navController.navigate(ReservationGraphRoute)
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selectedItem == 1) selectedIcons.last() else unselectedIcons.last(),
-                                        contentDescription = "ticket"
-                                    )
-                                },
-                                label = {
-                                    Text("Reservation")
-                                }
-                            )
-                        }
+                        NavigationBarItem(
+                            selectedItem == 1,
+                            onClick = {
+                                selectedItem = 1
+                                navController.navigate(ReservationGraphRoute)
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selectedItem == 1) selectedIcons.last() else unselectedIcons.last(),
+                                    contentDescription = "ticket"
+                                )
+                            },
+                            label = {
+                                Text("Reservation")
+                            }
+                        )
                     }
                 }
             }
