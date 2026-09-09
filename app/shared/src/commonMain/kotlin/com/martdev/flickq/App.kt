@@ -192,7 +192,13 @@ fun FlickQApp() {
                 )
                 reservationGraph(
                     navController = navController
-                )
+                ) { reservationId ->
+                    navController.navigate(
+                        PaymentRoute(
+                            reservationId, true
+                        )
+                    )
+                }
             }
         }
     }

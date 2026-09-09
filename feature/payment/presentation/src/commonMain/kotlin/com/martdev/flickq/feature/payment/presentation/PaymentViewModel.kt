@@ -62,6 +62,7 @@ sealed interface PaymentEvent {
  */
 class PaymentViewModel(
     private val reservationId: Long,
+    private val isInitialized: Boolean,
     private val paymentRepository: PaymentRepository,
     private val urlOpener: UrlOpener,
     private val pollDelayMillis: Long = DEFAULT_POLL_DELAY_MILLIS,

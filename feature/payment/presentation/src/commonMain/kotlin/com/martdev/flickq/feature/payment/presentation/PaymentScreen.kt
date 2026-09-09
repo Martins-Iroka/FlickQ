@@ -29,10 +29,11 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun PaymentRoot(
     reservationId: Long,
+    isPaymentInitialized: Boolean,
     onDone: () -> Unit,
     onNavigateBack: () -> Unit,
     onReservationExpired: () -> Unit,
-    viewModel: PaymentViewModel = koinViewModel { parametersOf(reservationId) }
+    viewModel: PaymentViewModel = koinViewModel { parametersOf(reservationId, isPaymentInitialized) }
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 

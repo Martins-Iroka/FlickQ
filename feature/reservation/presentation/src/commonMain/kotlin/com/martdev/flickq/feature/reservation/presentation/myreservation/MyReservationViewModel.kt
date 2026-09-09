@@ -36,10 +36,12 @@ sealed interface ReservationListAction {
     data object OnRetry : ReservationListAction
     data object OnShowStatusDialog : ReservationListAction
     data class OnStatusSelected(val status: String?) : ReservationListAction
+    data class OnPayForPendingReservation(val reservationId: Long) : ReservationListAction
 }
 
 sealed interface ReservationListEvent {
     data object NavigateToDetail : ReservationListEvent
+    data class NavigateToPayment(val reservationId: Long) : ReservationListEvent
 }
 
 class MyReservationViewModel(
@@ -80,6 +82,12 @@ class MyReservationViewModel(
                     ReservationStatus.valueOf(action.status.orEmpty())
                 }.getOrNull()
                 loadFirstPage(s)
+            }
+
+            is ReservationListAction.OnPayForPendingReservation -> {
+                viewModelScope.launch {
+                    _events.send(ReservationListEvent.NavigateToPayment(action.reservationId))
+                }
             }
         }
     }

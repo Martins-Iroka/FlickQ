@@ -7,7 +7,7 @@ import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class PaymentRoute(val reservationId: Long)
+data class PaymentRoute(val reservationId: Long, val isPaymentInitialized: Boolean = false)
 
 /**
  * The payment feature's nav graph: initialize + verify a payment for a
@@ -25,6 +25,7 @@ fun NavGraphBuilder.paymentGraph(
         val route = backStackEntry.toRoute<PaymentRoute>()
         PaymentRoot(
             reservationId = route.reservationId,
+            isPaymentInitialized = route.isPaymentInitialized,
             onDone = onDone,
             onNavigateBack = { navController.popBackStack() },
             onReservationExpired = onReservationExpired,

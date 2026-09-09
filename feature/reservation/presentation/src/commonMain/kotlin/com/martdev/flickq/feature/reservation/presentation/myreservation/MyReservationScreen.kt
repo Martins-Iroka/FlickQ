@@ -40,17 +40,25 @@ import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.PosterImage
 import com.martdev.flickq.core.designsystem.RoomBackgroundBrush
 import com.martdev.flickq.core.designsystem.formatNaira
+import com.martdev.flickq.core.presentation.ObserveAsEvents
 import com.martdev.flickq.feature.reservation.presentation.ReservationTicketUI
 import com.martdev.flickq.reservation.model.ReservationStatus
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun MyReservationScreen(
-    viewModel: MyReservationViewModel = koinViewModel()
+    viewModel: MyReservationViewModel = koinViewModel(),
+    onPayClicked: (Long) -> Unit
 ) {
 
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    ObserveAsEvents(viewModel.event) {
+        when(it) {
+            ReservationListEvent.NavigateToDetail -> TODO()
+            is ReservationListEvent.NavigateToPayment -> onPayClicked(it.reservationId)
+        }
+    }
     MyReservationCompose(state, viewModel::onAction)
 }
 
@@ -120,7 +128,8 @@ fun MyReservationCompose(
                     ) {
                         items(state.reservations, key = { it.id }) {
                             ReservationCard(
-                                it
+                                it,
+                                onAction
                             )
                         }
 
@@ -210,7 +219,8 @@ private fun RadioButtonRow(
 
 @Composable
 private fun ReservationCard(
-    reservationTicketUI: ReservationTicketUI
+    reservationTicketUI: ReservationTicketUI,
+    onAction: (ReservationListAction) -> Unit
 ) {
     val statusColor = when(reservationTicketUI.status) {
         ReservationStatus.PENDING -> FlickQColors.GoldEdge
@@ -261,7 +271,9 @@ private fun ReservationCard(
 
                 FlickQButton(
                     text = "Pay",
-                    onClick = {},
+                    onClick = {
+                        onAction(ReservationListAction.OnPayForPendingReservation(reservationTicketUI.id))
+                    },
                 )
             }
         }

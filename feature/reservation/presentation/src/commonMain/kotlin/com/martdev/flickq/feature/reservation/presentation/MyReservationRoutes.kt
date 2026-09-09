@@ -14,11 +14,14 @@ data object ReservationGraphRoute
 data object ReservationListRoute
 
 fun NavGraphBuilder.reservationGraph(
-    navController: NavController
+    navController: NavController,
+    onPay: (Long) -> Unit
 ) {
     navigation<ReservationGraphRoute>(startDestination = ReservationListRoute) {
         composable<ReservationListRoute> {
-            MyReservationScreen()
+            MyReservationScreen {
+                onPay(it)
+            }
         }
     }
 }
