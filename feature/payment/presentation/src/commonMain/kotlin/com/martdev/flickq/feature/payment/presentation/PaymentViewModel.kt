@@ -80,8 +80,6 @@ class PaymentViewModel(
 
     fun onAction(action: PaymentAction) {
         when (action) {
-            // Open synchronously in the gesture's call stack so the browser honors it,
-            // then poll on a coroutine.
             PaymentAction.OnProceedToPayment -> openCheckoutAndPoll()
             PaymentAction.OnDoneClick -> viewModelScope.launch {
                 _events.send(PaymentEvent.Done)

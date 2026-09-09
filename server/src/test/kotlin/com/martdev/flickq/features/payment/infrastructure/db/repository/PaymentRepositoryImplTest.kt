@@ -180,31 +180,22 @@ class PaymentRepositoryImplTest {
     }
 
     @Test
+    fun `getPaymentByReservationId returns payment with valid authorization url and status`() = runTest {
+        val ctx = setupPaymentContext()
+        (repo.createPayment(payment(ctx, reference = "ref_12345", authorizationUrl = "auth_url_1")))
+
+        val result = repo.getPaymentByReservationId(ctx.reservationId)
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals("auth_url_1", result.value.authorizationUrl)
+        assertEquals(PaymentStatus.PENDING, result.value.status)
+    }
+
+    @Test
     fun `getPaymentsByReservationId returns empty list when reservation has no payments`() = runTest {
         val ctx = setupPaymentContext()
 
         val result = repo.getPaymentsByReservationId(ctx.reservationId)
-
-        assertTrue(result is DataResult.Success, result.toString())
-        assertTrue(result.value.isEmpty())
-    }
-
-    @Test
-    fun `getPaymentsByUserId returns the user's payments`() = runTest {
-        val ctx = setupPaymentContext()
-        repo.createPayment(payment(ctx, reference = "ref_user_1"))
-        repo.createPayment(payment(ctx, reference = "ref_user_2"))
-
-        val result = repo.getPaymentsByUserId(ctx.userId)
-
-        assertTrue(result is DataResult.Success, result.toString())
-        assertEquals(2, result.value.size)
-        assertTrue(result.value.all { it.userId == ctx.userId })
-    }
-
-    @Test
-    fun `getPaymentsByUserId returns empty list when user has no payments`() = runTest {
-        val result = repo.getPaymentsByUserId(Random.nextLong(1_000_000, 2_000_000))
 
         assertTrue(result is DataResult.Success, result.toString())
         assertTrue(result.value.isEmpty())
@@ -439,13 +430,14 @@ class PaymentRepositoryImplTest {
 
     private data class PaymentContext(val userId: Long, val reservationId: Long)
 
-    private fun payment(ctx: PaymentContext, reference: String, amount: Long = 500_000L) = Payment(
+    private fun payment(ctx: PaymentContext, reference: String, amount: Long = 500_000L, authorizationUrl: String = "") = Payment(
         reservationId = ctx.reservationId,
         userId = ctx.userId,
         reference = reference,
         amount = amount,
         currency = "NGN",
         status = PaymentStatus.PENDING,
+        authorizationUrl = authorizationUrl
     )
 
     private suspend fun setupPaymentContext(): PaymentContext {

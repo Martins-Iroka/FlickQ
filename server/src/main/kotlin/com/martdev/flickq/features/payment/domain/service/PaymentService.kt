@@ -16,16 +16,17 @@ interface PaymentService {
 
     suspend fun refundPaymentForReservation(reservationId: Long): Payment?
 
-    suspend fun getMyPayments(userId: Long): List<Payment>
 
     suspend fun getPaymentsByReservationId(reservationId: Long): List<Payment>
 
     suspend fun reconcilePendingPayments()
+
+    suspend fun retrieveInitializedPaymentInfo(reservationId: Long, userId: Long) : InitializePaymentResult
 }
 
 data class InitializePaymentResult(
-    val authorizationUrl: String,
-    val accessCode: String,
-    val reference: String,
-    val reservationId: Long,
+    val authorizationUrl: String = "",
+    val accessCode: String = "",
+    val reference: String = "",
+    val reservationId: Long = 0,
 )

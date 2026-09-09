@@ -87,10 +87,12 @@ private fun Route.userPaymentRoutes(paymentService: PaymentService) {
                 call.respond(HttpStatusCode.OK, DataResponse(payment.toPaymentDTO()))
             }
 
-            get("/my-payments") {
+            get("/initialized-payment-data/{reservation-id}") {
                 val userId = call.extractUserId()
-                val result = paymentService.getMyPayments(userId).map { it.toPaymentDTO() }
-                call.respond(HttpStatusCode.OK, DataResponse(result))
+                val reservationId = call.parameters["reservation-id"]?.toLongOrNull()
+                    ?: throw BadRequestException("Missing reservation id")
+                val result = paymentService.retrieveInitializedPaymentInfo(reservationId, userId)
+                call.respond(HttpStatusCode.OK, DataResponse(result.toInitializeResponse()))
             }
         }
     }

@@ -92,6 +92,33 @@ class PaymentServiceImpl(
         )
     }
 
+    override suspend fun retrieveInitializedPaymentInfo(
+        reservationId: Long,
+        userId: Long
+    ): InitializePaymentResult {
+        val reservation = reservationService.getMyReservationById(reservationId, userId)
+
+        if (reservation.status != ReservationStatus.PENDING) {
+            throw BadRequestException("Reservation is not pending payment")
+        }
+
+        if (Clock.System.now() > reservation.expiresAt) {
+            throw BadRequestException("Reservation has expired")
+        }
+
+        userRepository.getUserById(userId).returnValue()
+
+        val existing = paymentRepository.getPaymentByReservationId(reservationId).returnValue()
+        if (existing.status != PaymentStatus.PENDING ) {
+            throw ConflictException("Payment status is ${existing.status}")
+        }
+
+        return InitializePaymentResult(
+            authorizationUrl = existing.authorizationUrl.orEmpty().ifEmpty { "NA" },
+            reservationId = reservationId
+        )
+    }
+
     override suspend fun verifyPayment(reference: String, requestingUserId: Long?): Payment {
         val payment = paymentRepository.getPaymentByReference(reference).returnValue()
 
@@ -179,10 +206,6 @@ class PaymentServiceImpl(
         }
         // Final REFUNDED state is confirmed by webhook (refund.processed).
         return paymentRepository.getPaymentByReference(successful.reference).returnValue()
-    }
-
-    override suspend fun getMyPayments(userId: Long): List<Payment> {
-        return paymentRepository.getPaymentsByUserId(userId).returnValue()
     }
 
     override suspend fun getPaymentsByReservationId(reservationId: Long): List<Payment> {

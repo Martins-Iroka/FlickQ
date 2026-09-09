@@ -7,10 +7,13 @@ import com.martdev.flickq.features.payment.domain.api.paystackSignatureHeader
 import com.martdev.flickq.features.payment.domain.service.InitializePaymentResult
 import com.martdev.flickq.features.payment.domain.service.PaymentService
 import com.martdev.flickq.payment.InitializePaymentRequest
+import com.martdev.flickq.payment.InitializePaymentResponse
 import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.payment.model.PaymentStatus
+import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.utils.clientConfiguration
 import com.martdev.flickq.utils.testAppConfiguration
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -94,6 +97,24 @@ class PaymentRouterTest {
             assertEquals(HttpStatusCode.OK, status, bodyAsText())
         }
         coVerify { paymentService.handleWebhook(body, "abc123") }
+    }
+
+    @Test
+    fun `GET initialized payment data returns 200`() = testApplication {
+        coEvery {
+            paymentService.retrieveInitializedPaymentInfo(any(), any())
+        } returns InitializePaymentResult(authorizationUrl = "auth_url", reservationId = 55)
+
+        application { appConfig() }
+
+        val client = clientConfiguration(userToken)
+
+        client.get("/payment/initialized-payment-data/55").apply {
+            assertEquals(HttpStatusCode.OK, status, bodyAsText())
+            val data = body<DataResponse<InitializePaymentResponse>>()
+            assertEquals("auth_url", data.data.authorizationUrl)
+            assertEquals(55, data.data.reservationId)
+        }
     }
 
     /*@Test

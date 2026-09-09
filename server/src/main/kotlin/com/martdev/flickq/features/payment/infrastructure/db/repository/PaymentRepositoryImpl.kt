@@ -16,6 +16,7 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.koin.core.annotation.Single
 import kotlin.time.Clock
@@ -57,11 +58,26 @@ class PaymentRepositoryImpl : PaymentRepository {
             DataResult.Success(payments)
         }
 
-    override suspend fun getPaymentsByUserId(userId: Long): DataResult<List<Payment>> = withSuspendTransaction {
-        val payments = PaymentEntity.find { PaymentTable.userId eq userId }
-            .orderBy(PaymentTable.createdAt to SortOrder.DESC)
-            .map { it.toPayment() }
-        DataResult.Success(payments)
+    override suspend fun getPaymentByReservationId(reservationId: Long): DataResult<Payment> {
+        return withSuspendTransaction {
+            val result = PaymentTable.select(
+                PaymentTable.authorizationUrl,
+                PaymentTable.status
+            ).where {
+                PaymentTable.reservationId eq reservationId
+            }.firstOrNull()
+                ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment by reservation id not found")
+
+            val authorizationUrl = result[PaymentTable.authorizationUrl]
+            val status = result[PaymentTable.status]
+
+            DataResult.Success(
+                Payment(
+                    authorizationUrl = authorizationUrl,
+                    status = status
+                )
+            )
+        }
     }
 
     override suspend fun applyChargeResult(

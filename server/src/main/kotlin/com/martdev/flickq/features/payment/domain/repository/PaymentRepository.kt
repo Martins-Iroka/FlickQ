@@ -12,7 +12,7 @@ interface PaymentRepository {
 
     suspend fun getPaymentsByReservationId(reservationId: Long): DataResult<List<Payment>>
 
-    suspend fun getPaymentsByUserId(userId: Long): DataResult<List<Payment>>
+    suspend fun getPaymentByReservationId(reservationId: Long): DataResult<Payment>
 
     suspend fun applyChargeResult(
         reference: String,

@@ -156,6 +156,25 @@ class PaymentServiceImplTest {
     }
 
     @Test
+    fun `retrieve initialized payment returns result`() {
+        val authorizationUrl = "authorization_url"
+        runTest {
+            coEvery { reservationService.getMyReservationById(any(), any()) } returns pendingReservation
+            coEvery { userRepository.getUserById(any()) } returns DataResult.Success(UserData())
+            coEvery { paymentRepository.getPaymentByReservationId(any()) } returns DataResult.Success(
+                Payment(
+                    status = PaymentStatus.PENDING,
+                    authorizationUrl = authorizationUrl
+                )
+            )
+
+            val result = service.retrieveInitializedPaymentInfo(reservationId, userId)
+
+            assertEquals(authorizationUrl, result.authorizationUrl)
+        }
+    }
+
+    @Test
     fun `verifyPayment is a no-op when payment is already SUCCESS`() = runTest {
         val confirmed = pendingPayment.copy(status = PaymentStatus.SUCCESS)
         coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(confirmed)
