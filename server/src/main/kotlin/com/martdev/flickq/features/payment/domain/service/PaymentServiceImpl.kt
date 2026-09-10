@@ -40,7 +40,10 @@ class PaymentServiceImpl(
         ignoreUnknownKeys = true
     }
 
-    override suspend fun initializePayment(reservationId: Long, userId: Long): InitializePaymentResult {
+    override suspend fun initializePayment(
+        reservationId: Long,
+        userId: Long
+    ): InitializePaymentResult {
         val reservation = reservationService.getMyReservationById(reservationId, userId)
 
         if (reservation.status != ReservationStatus.PENDING) {
@@ -106,10 +109,57 @@ class PaymentServiceImpl(
             throw BadRequestException("Reservation has expired")
         }
 
-        userRepository.getUserById(userId).returnValue()
+        val user = userRepository.getUserById(userId).returnValue()
 
-        val existing = paymentRepository.getPaymentByReservationId(reservationId).returnValue()
-        if (existing.status != PaymentStatus.PENDING ) {
+        val e = runCatching {
+            paymentRepository.getPaymentByReservationId(reservationId).returnValue()
+        }.getOrNull()
+
+        return if (e != null) {
+            if (e.status != PaymentStatus.PENDING)
+                throw ConflictException("Payment status is ${e.status}")
+
+            InitializePaymentResult(
+                authorizationUrl = e.authorizationUrl.orEmpty().ifEmpty { "NA" },
+                reservationId = reservationId,
+                reference = e.reference
+            )
+        } else {
+            val email = user.email.ifBlank {
+                throw BadRequestException("Cannot initialize payment without a user email")
+            }
+            val paystackAmount = reservation.totalAmount * 100L
+
+            val response = paystackClient.initializeTransaction(
+                email = email,
+                amount = paystackAmount,
+                callbackUrl = config.callbackUrl.ifBlank { null }
+            )
+
+            val data = response.data
+                ?: throw BadRequestException(response.message.ifBlank { "Paystack rejected the transaction" })
+
+            val payment = Payment(
+                reservationId = reservationId,
+                userId = userId,
+                reference = data.reference,
+                amount = paystackAmount,
+                currency = config.currency,
+                status = PaymentStatus.PENDING,
+                authorizationUrl = data.authorizationUrl,
+                accessCode = data.accessCode
+            )
+            paymentRepository.createPayment(payment).returnValue()
+
+            InitializePaymentResult(
+                authorizationUrl = data.authorizationUrl,
+                accessCode = data.accessCode,
+                reference = data.reference,
+                reservationId = reservationId,
+            )
+        }
+        /*val existing = paymentRepository.getPaymentByReservationId(reservationId).returnValue()
+        if (existing.status != PaymentStatus.PENDING) {
             throw ConflictException("Payment status is ${existing.status}")
         }
 
@@ -117,7 +167,7 @@ class PaymentServiceImpl(
             authorizationUrl = existing.authorizationUrl.orEmpty().ifEmpty { "NA" },
             reservationId = reservationId,
             reference = existing.reference
-        )
+        )*/
     }
 
     override suspend fun verifyPayment(reference: String, requestingUserId: Long?): Payment {
@@ -152,11 +202,12 @@ class PaymentServiceImpl(
             throw UnauthorizedException("Invalid webhook signature")
         }
 
-        val event = runCatching { json.decodeFromString(PaystackWebhookEvent.serializer(), rawBody) }
-            .getOrElse {
-                log.warn("Paystack webhook rejected: malformed body", it)
-                throw BadRequestException("Malformed webhook payload")
-            }
+        val event =
+            runCatching { json.decodeFromString(PaystackWebhookEvent.serializer(), rawBody) }
+                .getOrElse {
+                    log.warn("Paystack webhook rejected: malformed body", it)
+                    throw BadRequestException("Malformed webhook payload")
+                }
 
         val data = event.data
         log.info("Paystack webhook event: event={}", event.event)
@@ -179,11 +230,16 @@ class PaymentServiceImpl(
             }
 
             "refund.failed" -> {
-                paymentRepository.markRefundFailed(data.reference, data.gatewayResponse).returnValue()
+                paymentRepository.markRefundFailed(data.reference, data.gatewayResponse)
+                    .returnValue()
             }
 
             else -> {
-                log.info("Paystack webhook ignored: event={}, reference={}", event.event, data.reference)
+                log.info(
+                    "Paystack webhook ignored: event={}, reference={}",
+                    event.event,
+                    data.reference
+                )
             }
         }
     }
@@ -218,13 +274,20 @@ class PaymentServiceImpl(
         val verifyAfter = now.minus(15.minutes)
         val giveUpBefore = now.minus(24.hours)
 
-        val pending = paymentRepository.findPendingPaymentsOlderThan(verifyAfter, giveUpBefore).returnValue()
+        val pending =
+            paymentRepository.findPendingPaymentsOlderThan(verifyAfter, giveUpBefore).returnValue()
         if (pending.isEmpty()) return
 
         log.info("Reconciling {} stuck PENDING payment(s)", pending.size)
         pending.forEach { payment ->
             runCatching { verifyPayment(payment.reference, requestingUserId = null) }
-                .onFailure { log.warn("Reconciliation failed for payment ref={}", payment.reference, it) }
+                .onFailure {
+                    log.warn(
+                        "Reconciliation failed for payment ref={}",
+                        payment.reference,
+                        it
+                    )
+                }
         }
     }
 
@@ -257,6 +320,7 @@ class PaymentServiceImpl(
 //                paymentEvents.refundProcessed(reservationId, paystackAmount)
                 PaymentStatus.REFUNDED
             }
+
             "abandoned" -> PaymentStatus.ABANDONED
             else -> PaymentStatus.PENDING
         }

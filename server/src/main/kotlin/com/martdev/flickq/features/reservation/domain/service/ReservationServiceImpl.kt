@@ -8,9 +8,6 @@ import com.martdev.flickq.reservation.model.ReservationTicket
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.exception.ConflictException
 import com.martdev.flickq.shared.domain.exception.ForbiddenException
-import com.martdev.flickq.shared.domain.exception.InternalServerException
-import com.martdev.flickq.shared.domain.exception.NotFoundException
-import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.util.returnValue
 import com.martdev.flickq.showtime.model.ShowtimeStatus
 import org.koin.core.annotation.Single
@@ -43,12 +40,7 @@ class ReservationServiceImpl(
             expiresAt = Clock.System.now().plus(15.minutes)
         )
 
-        return when (val result = repo.createReservation(reservation, seatIds)) {
-            is DataResult.Success -> result.value
-            is DataResult.Failure.Conflict -> throw ConflictException(result.errorMessage)
-            is DataResult.Failure.NotFound -> throw NotFoundException(result.errorMessage)
-            else -> throw InternalServerException()
-        }
+        return repo.createReservation(reservation, seatIds).returnValue()
     }
 
     override suspend fun getReservationById(id: Long): Reservation {
