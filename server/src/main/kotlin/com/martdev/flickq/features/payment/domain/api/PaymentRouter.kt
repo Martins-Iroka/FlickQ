@@ -3,7 +3,6 @@ package com.martdev.flickq.features.payment.domain.api
 import com.martdev.flickq.auth.model.Role
 import com.martdev.flickq.features.payment.domain.service.PaymentService
 import com.martdev.flickq.payment.InitializePaymentRequest
-import com.martdev.flickq.payment.model.PaymentStatus
 import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
 import com.martdev.flickq.shared.api.getParameterFromPath
@@ -12,7 +11,6 @@ import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.util.extractUserId
 import com.martdev.flickq.shared.util.getLoggerFactory
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.encodeURLParameter
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
@@ -49,20 +47,7 @@ private fun Route.publicPaymentRoutes(paymentService: PaymentService) {
 
         // Public redirect target from Paystack-hosted checkout.
         get("/callback") {
-            val reference = call.request.queryParameters["reference"]
-                ?: call.request.queryParameters["trxref"]
-                ?: throw BadRequestException("Missing reference")
-            val payment = runCatching { paymentService.verifyPayment(reference, null) }
-                .onFailure {
-                    log.warn("Callback verify failed for reference={}", reference, it)
-                }
-                .getOrNull()
-            val redirectUrl = if (payment?.status == PaymentStatus.SUCCESS) {
-                "$mobileDeepLink?status=success&reference=${payment.reference.encodeURLParameter()}&amount=${payment.amount}"
-            } else {
-                val ref = (payment?.reference ?: reference).encodeURLParameter()
-                "$mobileDeepLink?status=failed&reference=$ref"
-            }
+            val redirectUrl = mobileDeepLink
             call.respondRedirect(redirectUrl)
         }
     }
@@ -87,7 +72,7 @@ private fun Route.userPaymentRoutes(paymentService: PaymentService) {
                 call.respond(HttpStatusCode.OK, DataResponse(payment.toPaymentDTO()))
             }
 
-            get("/initialized-payment-data/{reservation-id}") {
+            get("/make-payment/{reservation-id}") {
                 val userId = call.extractUserId()
                 val reservationId = call.parameters["reservation-id"]?.toLongOrNull()
                     ?: throw BadRequestException("Missing reservation id")

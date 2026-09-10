@@ -29,7 +29,6 @@ class AndroidPaystackUrl : UrlOpener {
     }
 
     override fun handleRedirect() {
-        println("HandleRedirect called")
         if (!awaitingRedirect) return
         awaitingRedirect = false
         resultCallback?.invoke()

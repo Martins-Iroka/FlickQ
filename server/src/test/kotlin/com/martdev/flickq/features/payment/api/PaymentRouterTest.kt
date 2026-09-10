@@ -103,17 +103,18 @@ class PaymentRouterTest {
     fun `GET initialized payment data returns 200`() = testApplication {
         coEvery {
             paymentService.retrieveInitializedPaymentInfo(any(), any())
-        } returns InitializePaymentResult(authorizationUrl = "auth_url", reservationId = 55)
+        } returns InitializePaymentResult(authorizationUrl = "auth_url", reservationId = 55, reference = "ref_value")
 
         application { appConfig() }
 
         val client = clientConfiguration(userToken)
 
-        client.get("/payment/initialized-payment-data/55").apply {
+        client.get("/payment/make-payment/55").apply {
             assertEquals(HttpStatusCode.OK, status, bodyAsText())
             val data = body<DataResponse<InitializePaymentResponse>>()
             assertEquals("auth_url", data.data.authorizationUrl)
             assertEquals(55, data.data.reservationId)
+            assertEquals("ref_value", data.data.reference)
         }
     }
 

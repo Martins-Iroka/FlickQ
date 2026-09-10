@@ -55,4 +55,8 @@ class FakePaymentDataSource : PaymentRepository {
         payments[reference] = paid
         return Result.Success(paid)
     }
+
+    override suspend fun getInitializedPaymentData(reservationId: Long): Result<Payment, DataError> {
+        TODO("Not yet implemented")
+    }
 }

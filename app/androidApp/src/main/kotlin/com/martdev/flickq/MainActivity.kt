@@ -35,7 +35,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         payStackUrl.onResume()
-        setupFirebaseAppDistribution()
+        if (!BuildKonfig.IS_DEBUG) {
+            setupFirebaseAppDistribution()
+        }
     }
 
     override fun onDestroy() {
@@ -65,6 +67,7 @@ class MainActivity : ComponentActivity() {
                         FirebaseAppDistributionException.Status.NOT_IMPLEMENTED -> {
                             // SDK did nothing. This is expected when building for Play.
                         }
+
                         else -> {
                             // Handle other errors.
                         }

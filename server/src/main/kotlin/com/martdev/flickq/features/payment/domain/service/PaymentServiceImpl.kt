@@ -115,7 +115,8 @@ class PaymentServiceImpl(
 
         return InitializePaymentResult(
             authorizationUrl = existing.authorizationUrl.orEmpty().ifEmpty { "NA" },
-            reservationId = reservationId
+            reservationId = reservationId,
+            reference = existing.reference
         )
     }
 

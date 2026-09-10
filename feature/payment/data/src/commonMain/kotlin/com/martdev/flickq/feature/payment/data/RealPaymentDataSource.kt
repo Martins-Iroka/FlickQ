@@ -30,4 +30,10 @@ class RealPaymentDataSource(
     override suspend fun verifyPayment(reference: String): Result<Payment, DataError> =
         client.getData<PaymentDTO>("/payment/verify/$reference")
             .map { it.toPayment() }
+
+    override suspend fun getInitializedPaymentData(reservationId: Long): Result<Payment, DataError> {
+        return client.getData<InitializePaymentResponse>(
+            "/payment/make-payment/$reservationId",
+        ).map { it.toPayment() }
+    }
 }

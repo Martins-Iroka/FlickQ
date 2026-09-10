@@ -83,7 +83,7 @@ class MyReservationViewModel(
                 }.getOrNull()
                 loadFirstPage(s)
             }
-
+            // TODO: check whether reservation is expired before proceeding
             is ReservationListAction.OnPayForPendingReservation -> {
                 viewModelScope.launch {
                     _events.send(ReservationListEvent.NavigateToPayment(action.reservationId))

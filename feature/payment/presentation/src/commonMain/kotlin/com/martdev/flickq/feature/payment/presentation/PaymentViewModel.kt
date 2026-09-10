@@ -14,7 +14,7 @@ import com.martdev.flickq.payment.model.PaymentStatus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -62,15 +62,15 @@ sealed interface PaymentEvent {
  */
 class PaymentViewModel(
     private val reservationId: Long,
-    private val isInitialized: Boolean,
+    private val isPaymentInitialized: Boolean,
     private val paymentRepository: PaymentRepository,
     private val urlOpener: UrlOpener,
     private val pollDelayMillis: Long = DEFAULT_POLL_DELAY_MILLIS,
     private val maxPollAttempts: Int = DEFAULT_MAX_POLL_ATTEMPTS,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(PaymentState())
-    val state = _state.asStateFlow()
+    val state: StateFlow<PaymentState>
+        field = MutableStateFlow(PaymentState())
 
     private val _events = Channel<PaymentEvent>()
     val events = _events.receiveAsFlow()
@@ -85,6 +85,7 @@ class PaymentViewModel(
             PaymentAction.OnDoneClick -> viewModelScope.launch {
                 _events.send(PaymentEvent.Done)
             }
+
             PaymentAction.OnRetry -> retry()
             PaymentAction.OnBackClick -> viewModelScope.launch {
                 _events.send(PaymentEvent.NavigateBack)
@@ -93,19 +94,18 @@ class PaymentViewModel(
     }
 
     private fun openCheckoutAndPoll() {
-        val url = _state.value.authorizationUrl ?: return
-        val reference = _state.value.reference
-        _state.update { it.copy(phase = PaymentPhase.AWAITING_PAYMENT, error = null) }
-        urlOpener.launchCheckout(url,
+        val url = state.value.authorizationUrl ?: return
+        val reference = state.value.reference
+        state.update { it.copy(phase = PaymentPhase.AWAITING_PAYMENT, error = null) }
+        urlOpener.launchCheckout(
+            url,
             "flickq",
             onCancel = {
-                println("onCancel called")
-                _state.update {
+                state.update {
                     it.copy(error = UiText.DynamicString("Payment process was cancelled."))
                 }
             },
             onResult = {
-                println("onResult called")
                 viewModelScope.launch { pollUntilResolved(reference) }
             })
     }
@@ -116,7 +116,7 @@ class PaymentViewModel(
      * re-initializing would create a duplicate transaction.
      */
     private fun retry() {
-        val reference = _state.value.reference
+        val reference = state.value.reference
         if (reference.isBlank()) {
             pay()
         } else {
@@ -126,15 +126,23 @@ class PaymentViewModel(
 
     private fun pay() {
         viewModelScope.launch {
-            _state.update {
-                it.copy(phase = PaymentPhase.INITIALIZING, error = null, reference = "", authorizationUrl = null)
+            state.update {
+                it.copy(
+                    phase = PaymentPhase.INITIALIZING,
+                    error = null,
+                    reference = "",
+                    authorizationUrl = null
+                )
             }
-            paymentRepository.initializePayment(reservationId)
+            val result = if (isPaymentInitialized)
+                paymentRepository.getInitializedPaymentData(reservationId) else paymentRepository.initializePayment(reservationId)
+
+            result
                 .onSuccess { initiated ->
                     val url = initiated.authorizationUrl?.takeIf { it.isNotBlank() }
-                    if (url != null) {
+                    if (url != null && url != "NA") {
                         // Real gateway: wait for the user to tap "Proceed to payment".
-                        _state.update {
+                        state.update {
                             it.copy(
                                 phase = PaymentPhase.READY_TO_PAY,
                                 reference = initiated.reference,
@@ -143,10 +151,7 @@ class PaymentViewModel(
                         }
                     } else {
                         // No hand-off (fakes): go straight to verifying.
-                        _state.update {
-                            it.copy(phase = PaymentPhase.AWAITING_PAYMENT, reference = initiated.reference)
-                        }
-                        pollUntilResolved(initiated.reference)
+                        _events.send(PaymentEvent.ReservationExpired)
                     }
                 }
                 .onFailure { error, message ->
@@ -156,7 +161,14 @@ class PaymentViewModel(
                     if (error.isReservationNoLongerPayable()) {
                         _events.send(PaymentEvent.ReservationExpired)
                     } else {
-                        _state.update { it.copy(error = resolveErrorText(message, error.toUiText())) }
+                        state.update {
+                            it.copy(
+                                error = resolveErrorText(
+                                    message,
+                                    error.toUiText()
+                                )
+                            )
+                        }
                     }
                 }
         }
@@ -179,7 +191,7 @@ class PaymentViewModel(
                     when (payment.status) {
                         PaymentStatus.SUCCESS -> {
                             val amount = payment.amount.div(100)
-                            _state.update {
+                            state.update {
                                 it.copy(
                                     phase = PaymentPhase.CONFIRMED,
                                     reference = payment.reference,
@@ -189,8 +201,9 @@ class PaymentViewModel(
                             }
                             return
                         }
+
                         PaymentStatus.FAILED, PaymentStatus.ABANDONED -> {
-                            _state.update {
+                            state.update {
                                 it.copy(error = UiText.DynamicString("Payment was not completed. Please try again."))
                             }
                             return
@@ -207,7 +220,7 @@ class PaymentViewModel(
                 }
             }
         }
-        _state.update {
+        state.update {
             it.copy(
                 error = lastError?.let { error -> resolveErrorText(lastMessage, error.toUiText()) }
                     ?: UiText.DynamicString("We couldn't confirm your payment yet. If you've completed it, tap retry.")

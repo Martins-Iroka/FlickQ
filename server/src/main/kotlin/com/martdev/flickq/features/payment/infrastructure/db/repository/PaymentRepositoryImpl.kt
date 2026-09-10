@@ -62,19 +62,22 @@ class PaymentRepositoryImpl : PaymentRepository {
         return withSuspendTransaction {
             val result = PaymentTable.select(
                 PaymentTable.authorizationUrl,
-                PaymentTable.status
+                PaymentTable.status,
+                PaymentTable.reference
             ).where {
                 PaymentTable.reservationId eq reservationId
             }.firstOrNull()
                 ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment by reservation id not found")
 
             val authorizationUrl = result[PaymentTable.authorizationUrl]
+            val reference = result[PaymentTable.reference]
             val status = result[PaymentTable.status]
 
             DataResult.Success(
                 Payment(
                     authorizationUrl = authorizationUrl,
-                    status = status
+                    status = status,
+                    reference = reference
                 )
             )
         }

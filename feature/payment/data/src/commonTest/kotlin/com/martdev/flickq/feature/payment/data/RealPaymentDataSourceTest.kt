@@ -73,4 +73,20 @@ class RealPaymentDataSourceTest {
         assertThat(payment.status).isEqualTo(PaymentStatus.SUCCESS)
         assertThat(path.endsWith("/payment/verify/FQ-PAY-000001")).isEqualTo(true)
     }
+
+    @Test
+    fun `get initialized payment data and maps to payment domain`() = runTest {
+        val client = jsonClient { _ ->
+            jsonOk(
+                """{"data":{"authorization_url":"auth_url","reservation_id":"7","reference":"ref_value"}}""",
+                HttpStatusCode.OK
+            )
+        }
+
+        val payment = (RealPaymentDataSource(client).getInitializedPaymentData(7) as? Result.Success)?.data
+            ?: fail("expected success")
+        assertThat(payment.reservationId).isEqualTo(7)
+        assertThat(payment.authorizationUrl).isEqualTo("auth_url")
+        assertThat(payment.reference).isEqualTo("ref_value")
+    }
 }
