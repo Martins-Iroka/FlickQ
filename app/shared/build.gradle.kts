@@ -1,3 +1,4 @@
+import com.codingfeline.buildkonfig.compiler.FieldSpec
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -7,6 +8,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.buildkonfig)
 }
 
 kotlin {
@@ -28,7 +30,7 @@ kotlin {
     wasmJs {
         browser()
     }
-    
+
     androidLibrary {
        namespace = "com.martdev.flickq.app.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -92,4 +94,17 @@ kotlin {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+}
+
+buildkonfig {
+    packageName = "com.martdev.flickq"
+    exposeObjectWithName = "BuildKonfig"
+
+    defaultConfigs {
+        buildConfigField(FieldSpec.Type.BOOLEAN, "IS_DEBUG", "false")
+    }
+
+    defaultConfigs("debug") {
+        buildConfigField(FieldSpec.Type.BOOLEAN, "IS_DEBUG", "true")
+    }
 }
