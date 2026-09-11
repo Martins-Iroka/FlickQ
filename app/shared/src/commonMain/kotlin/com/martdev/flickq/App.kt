@@ -71,12 +71,18 @@ fun FlickQApp() {
             mutableIntStateOf(0)
         }
 
+        var currentDestination by remember {
+            mutableStateOf(MovieListRoute.toString())
+        }
+
         var showNavBar by remember {
             mutableStateOf(false)
         }
         navController.addOnDestinationChangedListener { _, destination, _ ->
             destination.route?.let {
-                showNavBar = it.contains(MovieListRoute.toString()) || it.contains(ReservationListRoute.toString())
+                currentDestination = it
+                showNavBar =
+                    it.contains(MovieListRoute.toString()) || it.contains(ReservationListRoute.toString())
             }
         }
         // Refresh token expired/revoked anywhere in the app → clear the stack and re-auth.
@@ -94,14 +100,13 @@ fun FlickQApp() {
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         NavigationBarItem(
-                            selectedItem == 0,
+                            currentDestination.contains(MovieListRoute.toString()),
                             onClick = {
-                                selectedItem = 0
                                 navController.navigate(MovieGraphRoute)
                             },
                             icon = {
                                 Icon(
-                                    imageVector = if (selectedItem == 0) selectedIcons.first() else unselectedIcons.first(),
+                                    imageVector = if (currentDestination.contains(MovieListRoute.toString())) selectedIcons.first() else unselectedIcons.first(),
                                     contentDescription = "movie"
                                 )
                             },
@@ -111,14 +116,16 @@ fun FlickQApp() {
                         )
 
                         NavigationBarItem(
-                            selectedItem == 1,
+                            currentDestination.contains(ReservationListRoute.toString()),
                             onClick = {
-                                selectedItem = 1
                                 navController.navigate(ReservationGraphRoute)
                             },
                             icon = {
                                 Icon(
-                                    imageVector = if (selectedItem == 1) selectedIcons.last() else unselectedIcons.last(),
+                                    imageVector = if (currentDestination.contains(
+                                            ReservationListRoute.toString()
+                                        )
+                                    ) selectedIcons.last() else unselectedIcons.last(),
                                     contentDescription = "ticket"
                                 )
                             },

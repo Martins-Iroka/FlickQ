@@ -87,7 +87,6 @@ class MyReservationViewModel(
                 }.getOrNull()
                 loadFirstPage(s)
             }
-            // TODO: check whether reservation is expired before proceeding
             is ReservationListAction.OnPayForPendingReservation -> {
                 val now = Clock.System.now()
                 if (now >= action.expiry) {
