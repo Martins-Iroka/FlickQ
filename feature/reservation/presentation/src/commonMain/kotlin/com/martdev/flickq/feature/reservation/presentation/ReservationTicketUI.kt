@@ -1,5 +1,6 @@
 package com.martdev.flickq.feature.reservation.presentation
 
+import com.martdev.flickq.core.common.pad
 import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.reservation.model.ReservationTicket
 import kotlinx.datetime.LocalDate
@@ -26,8 +27,8 @@ data class ReservationTicketUI(
 fun ReservationTicket.toReservationTicketUI(): ReservationTicketUI {
     val time = expiresAt.toLocalDateTime(TimeZone.currentSystemDefault())
         .time
-    val hour = time.hour
-    val minutes = time.minute
+    val hour = time.hour.pad()
+    val minutes = time.minute.pad()
     return ReservationTicketUI(
         id,
         status,

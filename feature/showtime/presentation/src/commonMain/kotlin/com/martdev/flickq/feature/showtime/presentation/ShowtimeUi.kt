@@ -1,5 +1,6 @@
 package com.martdev.flickq.feature.showtime.presentation
 
+import com.martdev.flickq.core.common.pad
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
 import kotlinx.datetime.DayOfWeek
@@ -27,8 +28,6 @@ fun Showtime.toShowtimeUi(): ShowtimeUi {
         selectable = status == ShowtimeStatus.SCHEDULED
     )
 }
-
-private fun Int.pad(): String = toString().padStart(2, '0')
 
 private fun Int.grouped(): String =
     toString().reversed().chunked(3).joinToString(",").reversed()

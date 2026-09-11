@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
     private fun setupFirebaseAppDistribution() {
         val firebaseAppDistribution = Firebase.appDistribution
         firebaseAppDistribution.updateIfNewReleaseAvailable()
-            .addOnProgressListener { updateProgress ->
+            .addOnProgressListener { _ ->
                 // (Optional) Implement custom progress updates in addition to
                 // automatic NotificationManager updates.
             }

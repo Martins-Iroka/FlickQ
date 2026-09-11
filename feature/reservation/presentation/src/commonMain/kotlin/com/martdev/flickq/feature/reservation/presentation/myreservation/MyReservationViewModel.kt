@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 data class ReservationListState(
     val reservations: List<ReservationTicketUI> = emptyList(),
@@ -36,7 +38,7 @@ sealed interface ReservationListAction {
     data object OnRetry : ReservationListAction
     data object OnShowStatusDialog : ReservationListAction
     data class OnStatusSelected(val status: String?) : ReservationListAction
-    data class OnPayForPendingReservation(val reservationId: Long) : ReservationListAction
+    data class OnPayForPendingReservation(val reservationId: Long, val expiry: Instant) : ReservationListAction
 }
 
 sealed interface ReservationListEvent {
@@ -53,6 +55,8 @@ class MyReservationViewModel(
 
     private val _events = Channel<ReservationListEvent>()
     val event = _events.receiveAsFlow()
+
+    var status: ReservationStatus? = null
 
     init {
         loadFirstPage()
@@ -85,8 +89,13 @@ class MyReservationViewModel(
             }
             // TODO: check whether reservation is expired before proceeding
             is ReservationListAction.OnPayForPendingReservation -> {
-                viewModelScope.launch {
-                    _events.send(ReservationListEvent.NavigateToPayment(action.reservationId))
+                val now = Clock.System.now()
+                if (now >= action.expiry) {
+                    loadFirstPage(status)
+                } else {
+                    viewModelScope.launch {
+                        _events.send(ReservationListEvent.NavigateToPayment(action.reservationId))
+                    }
                 }
             }
         }

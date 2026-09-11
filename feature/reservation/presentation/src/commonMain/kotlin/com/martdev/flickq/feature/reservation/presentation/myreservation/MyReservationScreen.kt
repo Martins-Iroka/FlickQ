@@ -272,7 +272,7 @@ private fun ReservationCard(
                 FlickQButton(
                     text = "Pay",
                     onClick = {
-                        onAction(ReservationListAction.OnPayForPendingReservation(reservationTicketUI.id))
+                        onAction(ReservationListAction.OnPayForPendingReservation(reservationTicketUI.id, reservationTicketUI.expiresAt))
                     },
                 )
             }
