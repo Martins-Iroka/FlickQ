@@ -6,6 +6,10 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Instant
 
+data class ReservationDomain(
+    val reservationTickets: List<ReservationTicket> = emptyList(),
+    val nextOffset: Long = 0
+)
 data class ReservationTicket(
     val id: Long = 0,
     val status: ReservationStatus = ReservationStatus.PENDING,

@@ -12,6 +12,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.feature.reservation.domain)
             implementation(libs.kotlin.datetime)
+            implementation(libs.bundles.paging.libs)
         }
     }
 }

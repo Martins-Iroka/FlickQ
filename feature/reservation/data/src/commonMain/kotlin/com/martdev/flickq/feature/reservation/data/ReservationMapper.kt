@@ -1,10 +1,17 @@
 package com.martdev.flickq.feature.reservation.data
 
+import com.martdev.flickq.reservation.ReservationData
 import com.martdev.flickq.reservation.ReservationTicketDTO
+import com.martdev.flickq.reservation.model.ReservationDomain
 import com.martdev.flickq.reservation.model.ReservationPayment
 import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.reservation.model.ReservationTicket
 import kotlinx.datetime.LocalDate
+
+fun ReservationData.toReservationDomain() = ReservationDomain(
+    reservationTickets = reservations.map { it.toReservationTicketModel() },
+    nextOffset
+)
 
 fun ReservationTicketDTO.toReservationTicketModel() = ReservationTicket(
     id = id,

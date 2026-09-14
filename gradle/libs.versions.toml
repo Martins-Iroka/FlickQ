@@ -12,6 +12,7 @@ androidx-testExt = "1.3.0"
 bcrypt = "0.10.2"
 buildkonfig = "0.22.0"
 composeMultiplatform = "1.11.0"
+paging = "3.5.1"
 datetime = "0.8.0"
 dotenv = "6.5.1"
 exposed = "1.2.0"
@@ -63,6 +64,7 @@ compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", v
 compose-html-core = { module = "org.jetbrains.compose.html:html-core", version.ref = "composeMultiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 compose-material-icons = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "material-icon" }
+compose-paging = { group = "androidx.paging", name = "paging-compose", version.ref = "paging"}
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
@@ -130,6 +132,8 @@ ktor-server-swagger = { group = "io.ktor", name = "ktor-server-swagger", version
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host-jvm", version.ref = "ktor" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 mockK = { module = "io.mockk:mockk", version.ref = "mockk" }
+paging-common = { group = "androidx.paging", name = "paging-common", version.ref = "paging"}
+paging-testing = { group = "androidx.paging", name = "paging-testing", version.ref = "paging" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 stytch = { module = "com.stytch.java:sdk", version.ref = "stytch" }
 testcontainers-junit5 = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainer" }
@@ -163,6 +167,7 @@ ktor-libs = ["logback", "ktor-client-cio", "ktor-client-core", "ktor-client-cont
     "ktor-server-auth", "ktor-server-auth-jwt", "ktor-server-callId", "ktor-server-config-yaml", "ktor-server-contentNegotiation", "ktor-server-cors", "ktor-server-netty",
     "ktor-server-openapi", "ktor-server-rateLimit", "ktor-server-requestValidation", "ktor-server-routingOpenapi", "ktor-server-statusPages",
     "ktor-server-swagger", "ktor-server-callLogging"]
+paging-libs = ["compose-paging", "paging-common"]
 server-test-libs = ["ktor-client-mock", "ktor-server-test-host", "kotlin-testJunit", "junit5", "koin-test", "koin-test-junit", "mockK", "testcontainers-junit5"]
 
 [plugins]

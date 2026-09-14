@@ -6,6 +6,13 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 @Serializable
+data class ReservationData(
+    val reservations: List<ReservationTicketDTO>,
+    @SerialName("next_offset")
+    val nextOffset: Long
+)
+
+@Serializable
 data class ReservationTicketDTO(
     val id: Long = 0,
     val status: String = "",

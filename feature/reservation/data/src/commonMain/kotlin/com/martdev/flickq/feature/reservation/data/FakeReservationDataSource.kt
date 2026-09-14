@@ -3,6 +3,7 @@ package com.martdev.flickq.feature.reservation.data
 import com.martdev.flickq.core.common.DataError
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.feature.reservation.domain.MobileReservationRepository
+import com.martdev.flickq.reservation.model.ReservationDomain
 import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.reservation.model.ReservationTicket
 import kotlin.time.Clock
@@ -33,5 +34,13 @@ class FakeReservationDataSource : MobileReservationRepository {
         offset: Int
     ): Result<List<ReservationTicket>, DataError> {
         return Result.Success(reservations)
+    }
+
+    override suspend fun getReservationTickets(
+        status: ReservationStatus?,
+        limit: Int,
+        offset: Int
+    ): Result<ReservationDomain, DataError> {
+        TODO("Not yet implemented")
     }
 }

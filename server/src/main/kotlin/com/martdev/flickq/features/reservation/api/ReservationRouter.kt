@@ -5,6 +5,7 @@ import com.martdev.flickq.features.reservation.domain.service.ReservationCancell
 import com.martdev.flickq.features.reservation.domain.service.ReservationService
 import com.martdev.flickq.features.reservation.domain.service.ShowtimeSeatService
 import com.martdev.flickq.reservation.CreateReservationRequest
+import com.martdev.flickq.reservation.ReservationData
 import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
@@ -101,7 +102,8 @@ private fun Route.userReservationRoutes(
 
                     val result = reservationService.getUserReservationTicket(userId, status, limit, offset)
                         .map { it.toReservationTicketDTO() }
-                    call.respond(HttpStatusCode.OK, DataResponse(result))
+                    val nextOffset = if (result.size < limit)  -1L else limit + offset
+                    call.respond(HttpStatusCode.OK, DataResponse(ReservationData(result, nextOffset)))
                 }
             }
 

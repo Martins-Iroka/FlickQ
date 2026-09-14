@@ -2,6 +2,10 @@ package com.martdev.flickq.feature.reservation.presentation.myreservation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.martdev.flickq.core.common.onFailure
 import com.martdev.flickq.core.common.onSuccess
 import com.martdev.flickq.core.presentation.UiText
@@ -27,7 +31,8 @@ data class ReservationListState(
     val endReached: Boolean = false,
     val error: UiText? = null,
     val showDialogBox: Boolean = false,
-    val status: String = "ALL"
+    val status: String = "ALL",
+    val reservationTickets: PagingData<ReservationTicketUI> = PagingData.empty()
 ) {
     val canLoadMore: Boolean get() = !isLoading && !isLoadingMore && !endReached && error == null
 }
@@ -58,9 +63,19 @@ class MyReservationViewModel(
 
     var status: ReservationStatus? = null
 
-    init {
+    val reservationList = Pager(
+        PagingConfig(
+            pageSize = 5
+        )
+    ) {
+        MyReservationPagingSource(
+            reservationRepository
+        )
+    }.flow.cachedIn(viewModelScope)
+
+   /* init {
         loadFirstPage()
-    }
+    }*/
 
     fun onAction(action: ReservationListAction) {
         when (action) {
@@ -70,7 +85,9 @@ class MyReservationViewModel(
                     _events.send(ReservationListEvent.NavigateToDetail)
                 }
             }
-            ReservationListAction.OnRetry -> loadFirstPage()
+            ReservationListAction.OnRetry -> {
+//                loadFirstPage()
+            }
             ReservationListAction.OnShowStatusDialog -> state.update {
                 it.copy(showDialogBox = true)
             }
@@ -85,12 +102,12 @@ class MyReservationViewModel(
                 val s = runCatching {
                     ReservationStatus.valueOf(action.status.orEmpty())
                 }.getOrNull()
-                loadFirstPage(s)
+//                loadFirstPage(s)
             }
             is ReservationListAction.OnPayForPendingReservation -> {
                 val now = Clock.System.now()
                 if (now >= action.expiry) {
-                    loadFirstPage(status)
+//                    loadFirstPage(status)
                 } else {
                     viewModelScope.launch {
                         _events.send(ReservationListEvent.NavigateToPayment(action.reservationId))
@@ -98,18 +115,6 @@ class MyReservationViewModel(
                 }
             }
         }
-    }
-
-    private fun loadFirstPage(status: ReservationStatus? = null) {
-        state.update {
-            it.copy(
-                isLoading = true,
-                isLoadingMore = false,
-                error = null,
-                endReached = false
-            )
-        }
-        viewModelScope.launch { fetchPage(true, status) }
     }
 
     private fun loadMore() {

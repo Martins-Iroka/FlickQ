@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterAlt
@@ -24,7 +23,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,8 +31,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.martdev.flickq.core.designsystem.FlickQButton
 import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.PosterImage
@@ -51,7 +51,7 @@ fun MyReservationScreen(
     onPayClicked: (Long) -> Unit
 ) {
 
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val reservationList = viewModel.reservationList.collectAsLazyPagingItems()
 
     ObserveAsEvents(viewModel.event) {
         when(it) {
@@ -59,12 +59,12 @@ fun MyReservationScreen(
             is ReservationListEvent.NavigateToPayment -> onPayClicked(it.reservationId)
         }
     }
-    MyReservationCompose(state, viewModel::onAction)
+    MyReservationCompose(reservationList, viewModel::onAction)
 }
 
 @Composable
 fun MyReservationCompose(
-    state: ReservationListState= ReservationListState(showDialogBox = true),
+    tickets: LazyPagingItems<ReservationTicketUI>,
     onAction: (ReservationListAction) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize()
@@ -92,7 +92,49 @@ fun MyReservationCompose(
             }
         }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            items(count = tickets.itemCount,
+                key = tickets.itemKey {
+                    it.id
+                }) {
+                val item = tickets[it]
+                item?.let { r ->
+                    ReservationCard(
+                        r,
+                        onAction
+                    )
+                }
+            }
+
+            tickets.loadState.apply {
+                val refreshState = refresh
+                val appendState = append
+
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        when {
+                            refreshState is LoadState.Loading || appendState is LoadState.Loading -> {
+                                CircularProgressIndicator(color = FlickQColors.Gold)
+                            }
+                            refreshState is LoadState.Error -> {
+                                Text("Error: ${refreshState.error.message}")
+                            }
+                            appendState is LoadState.Error -> {
+                                Text("Error: ${appendState.error.message}")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        /*Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
                 state.isLoading -> CircularProgressIndicator(
                     color = FlickQColors.Gold,
@@ -121,36 +163,7 @@ fun MyReservationCompose(
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        items(state.reservations, key = { it.id }) {
-                            ReservationCard(
-                                it,
-                                onAction
-                            )
-                        }
 
-                        if (state.isLoadingMore || state.canLoadMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (state.isLoadingMore) {
-                                        CircularProgressIndicator(color = FlickQColors.Gold)
-                                    } else {
-                                        FlickQButton(
-                                            text = "Load more",
-                                            onClick = {}
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -192,7 +205,7 @@ fun MyReservationCompose(
                     }
                 }
             }
-        }
+        }*/
     }
 }
 
