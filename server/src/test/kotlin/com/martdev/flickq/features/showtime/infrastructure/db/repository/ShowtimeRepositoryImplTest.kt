@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeAll
@@ -176,6 +177,23 @@ class ShowtimeRepositoryImplTest {
     }
 
     @Test
+    fun `get show time movie ids`() = runTest {
+        createMovieRoomAndShowtime("Movie Title 1")
+        createMovieRoomAndShowtime(
+            "Movie Title 2", clock.plus(3.hours), endAt = clock.plus(5.hours),
+            "fantasy"
+        )
+        createMovieRoomAndShowtime(
+            "Movie Title 3", clock.plus(24.hours), endAt = clock.plus(26.hours),
+            "drama"
+        )
+
+        val result = repo.getShowtimeMovieIds(clock.toLocalDateTime(TimeZone.UTC).date)
+        assertTrue(result is DataResult.Success)
+        assertEquals(2, result.value.size)
+    }
+
+    @Test
     fun `update show time`() = runTest {
         val (movieId, roomId) = createMovieAndRoom("X-MEN")
         var showtime = Showtime(
@@ -216,9 +234,14 @@ class ShowtimeRepositoryImplTest {
 
     @Test
     fun `has overlapping showtime`() = runTest {
-        val startDate = LocalDateTime(year = 2026, month = 5, day = 18, hour = 12, minute = 37).toInstant(
-            TimeZone.UTC)
-        val endDate = LocalDateTime(year = 2026, month = 5, day = 18, hour = 14, minute = 37).toInstant(TimeZone.UTC)
+        val startDate =
+            LocalDateTime(year = 2026, month = 5, day = 18, hour = 12, minute = 37).toInstant(
+                TimeZone.UTC
+            )
+        val endDate =
+            LocalDateTime(year = 2026, month = 5, day = 18, hour = 14, minute = 37).toInstant(
+                TimeZone.UTC
+            )
         val (movieId, roomId) = createMovieAndRoom("APEX", "Adventure")
         val (movieId2, _) = createMovieAndRoom("X-MEN")
         val showtime = Showtime(
@@ -267,9 +290,10 @@ class ShowtimeRepositoryImplTest {
     private suspend fun createMovieRoomAndShowtime(
         movieTitle: String = "Hulk",
         startAt: Instant = clock,
-        endAt: Instant = clock.plus(1.hours)
+        endAt: Instant = clock.plus(1.hours),
+        genreTitle: String = "Action"
     ): Showtime {
-        val (movieId, roomId) = createMovieAndRoom(movieTitle)
+        val (movieId, roomId) = createMovieAndRoom(movieTitle, genreTitle)
         val showtime = Showtime(
             movieId = movieId,
             roomId = roomId,

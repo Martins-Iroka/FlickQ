@@ -12,11 +12,15 @@ import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 @ExtendWith(MockKExtension::class)
 class ShowtimeServiceImplTest {
@@ -138,5 +142,17 @@ class ShowtimeServiceImplTest {
         assertThrows<InternalServerException> {
             service.getShowtimeById(1L)
         }
+    }
+
+    @Test
+    fun `get showtime movies ids`() = runTest {
+        coEvery { repo.getShowtimeMovieIds(any()) } returns DataResult.Success(
+            listOf(1, 2, 3)
+        )
+        val today = Clock.System.todayIn(TimeZone.UTC)
+        val result = service.getShowtimeMovieIds(today)
+
+        assertTrue(result.isNotEmpty())
+        assertEquals(3, result.size)
     }
 }

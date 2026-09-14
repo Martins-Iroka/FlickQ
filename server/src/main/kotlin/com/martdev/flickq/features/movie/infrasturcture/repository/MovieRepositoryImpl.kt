@@ -6,26 +6,15 @@ import com.martdev.flickq.features.movie.infrasturcture.tables.MovieGenreTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesEntity
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.toMovie
-import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTable
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
-import com.martdev.flickq.showtime.model.ShowtimeStatus
-import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.plus
-import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.SizedCollection
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
 
 @Single
@@ -51,43 +40,22 @@ class MovieRepositoryImpl : MovieRepository {
     override suspend fun getMovies(
         limit: Int,
         offset: Long,
-        date: LocalDate?
     ): DataResult<List<Movie>> {
         return withSuspendTransaction {
 
-            val result = if (date != null) {
-                val from = date.atStartOfDayIn(TimeZone.UTC)
-                val to = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(TimeZone.UTC)
-                val movieIds = ShowtimeTable
-                    .select(ShowtimeTable.movieId)
-                    .where { (ShowtimeTable.status eq ShowtimeStatus.SCHEDULED) and
-                            (ShowtimeTable.startsAt greaterEq from) and
-                            (ShowtimeTable.startsAt less to) }
-                    .withDistinct()
-                    .map { it[ShowtimeTable.movieId].value }
-                MoviesEntity.find {
-                    MoviesTable.id inList movieIds
+            val result = MoviesEntity.all()
+                .limit(limit)
+                .offset(offset)
+                .map {
+                    it.toMovie()
                 }
-                    .limit(limit)
-                    .offset(offset)
-                    .map {
-                        it.toMovie()
-                    }
-            } else {
-                MoviesEntity.all()
-                    .limit(limit)
-                    .offset(offset)
-                    .map {
-                        it.toMovie()
-                    }
-            }
 
             DataResult.Success(result)
         }
     }
 
-    override suspend fun getScheduledMovies(movieIds: List<Long>, limit: Int,
-                                            offset: Long): DataResult<List<Movie>> {
+    override suspend fun getMoviesByIds(movieIds: List<Long>, limit: Int,
+                                        offset: Long): DataResult<List<Movie>> {
         return withSuspendTransaction {
             val result = MoviesEntity.find {
                 MoviesTable.id inList movieIds

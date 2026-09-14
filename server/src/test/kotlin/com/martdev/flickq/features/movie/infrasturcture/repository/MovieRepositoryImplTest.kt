@@ -13,15 +13,11 @@ import com.martdev.flickq.features.showtime.infrastructure.db.repository.Showtim
 import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTable
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
-import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.shared.domain.model.DataResult
-import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeAll
@@ -32,7 +28,6 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.hours
 
 @Testcontainers
 class MovieRepositoryImplTest {
@@ -43,7 +38,6 @@ class MovieRepositoryImplTest {
         private lateinit var showtimeRepo: ShowtimeRepository
         private lateinit var roomRepo: RoomRepository
         private val clock = Clock.System.now()
-        private val date = clock.toLocalDateTime(TimeZone.UTC).date
 
         @Container
         val postgres = PostgresContainer.initPostgres()
@@ -103,7 +97,7 @@ class MovieRepositoryImplTest {
             // Assert
             assertTrue(result is DataResult.Failure.NotFound, "Movie should be not be saved")
 
-            val movies = movieRepo.getMovies(limit = 10, offset = 0, date) as DataResult.Success
+            val movies = movieRepo.getMovies(limit = 10, offset = 0) as DataResult.Success
             assertEquals(0, movies.value.size, "Failed save should not persist the movie")
         }
 
@@ -131,46 +125,31 @@ class MovieRepositoryImplTest {
     }
 
     @Test
-    fun `getMovies by date should return a paginated list of movies`() = runTest {
-        val genres = createAndSaveGenres("Fantasy")
-        val movieId = createAndSaveMovie(title = "Movie 1", genres = genres)
-        val movieId2 = createAndSaveMovie(title = "Movie 2", genres = genres)
-        val saveRoom = (roomRepo.createRoom(
-            Room(
-                name = "Room 5",
-                rows = 5,
-                columns = 10
-            )
-        ) as DataResult.Success).value
-        showtimeRepo.createShowtime(
-            Showtime(
-                movieId = movieId,
-                roomId = saveRoom.id,
-                startsAt = clock,
-                endsAt = clock.plus(2.hours),
-                price = 5000
-            )
-        )
+    fun `getMovies by movies id should return a paginated list of movies`() = runTest {
+        val genres = createAndSaveGenres("Sci-Fi")
+        val id1 = createAndSaveMovie(title = "Movie 1", genres = genres)
+        val id2 =createAndSaveMovie(title = "Movie 2", genres = genres)
+        val id3 =createAndSaveMovie(title = "Movie 3", genres = genres)
 
-        showtimeRepo.createShowtime(
-            Showtime(
-                movieId = movieId2,
-                roomId = saveRoom.id,
-                startsAt = clock.plus(3.hours),
-                endsAt = clock.plus(5.hours),
-                price = 5000
-            )
-        )
+        // Act: Get the first page with 2 items
+        val ids = listOf(id1, id2, id3)
+        val page1Result = movieRepo.getMoviesByIds(limit = 2, offset = 0, movieIds = ids)
 
-        val result = movieRepo.getMovies(2, 0, date)
+        // Assert: Page 1
+        assertTrue(page1Result is DataResult.Success)
+        assertEquals(2, page1Result.value.size)
 
-        assertTrue(result is DataResult.Success)
-        assertTrue(result.value.isNotEmpty())
+        // Act: Get the second page with 2 items (should only have 1 left)
+        val page2Result = movieRepo.getMoviesByIds(limit = 2, offset = 2, movieIds = ids)
+
+        // Assert: Page 2
+        assertTrue(page2Result is DataResult.Success)
+        assertEquals(1, page2Result.value.size)
     }
 
     @Test
     fun `getMovies should return empty list of movies`() = runTest {
-        val emptyListResult = movieRepo.getMovies(2, 0, date)
+        val emptyListResult = movieRepo.getMovies(2, 0)
 
         assertTrue(emptyListResult is DataResult.Success)
         assertTrue(emptyListResult.value.isEmpty())
