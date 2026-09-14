@@ -23,6 +23,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -52,6 +58,7 @@ fun MyReservationScreen(
 ) {
 
     val reservationList = viewModel.reservationList.collectAsLazyPagingItems()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     ObserveAsEvents(viewModel.event) {
         when(it) {
@@ -59,14 +66,18 @@ fun MyReservationScreen(
             is ReservationListEvent.NavigateToPayment -> onPayClicked(it.reservationId)
         }
     }
-    MyReservationCompose(reservationList, viewModel::onAction)
+    MyReservationCompose(state,reservationList, viewModel::onAction)
 }
 
 @Composable
 fun MyReservationCompose(
+    state: ReservationListState,
     tickets: LazyPagingItems<ReservationTicketUI>,
     onAction: (ReservationListAction) -> Unit = {}
 ) {
+    var showDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
     Column(modifier = Modifier.fillMaxSize()
         .background(RoomBackgroundBrush)) {
 
@@ -84,7 +95,7 @@ fun MyReservationCompose(
             )
 
             IconButton(onClick = {
-                onAction(ReservationListAction.OnShowStatusDialog)
+                showDialog = true
             }) {
                 Icon(imageVector = Icons.Filled.FilterAlt,
                     contentDescription = "",
@@ -124,7 +135,16 @@ fun MyReservationCompose(
                                 CircularProgressIndicator(color = FlickQColors.Gold)
                             }
                             refreshState is LoadState.Error -> {
-                                Text("Error: ${refreshState.error.message}")
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("Error: ${refreshState.error.message}")
+                                    FlickQButton(
+                                        text = "Retry",
+                                        onClick = { onAction(ReservationListAction.OnRetry) },
+                                        modifier = Modifier.padding(top = 16.dp)
+                                    )
+                                }
                             }
                             appendState is LoadState.Error -> {
                                 Text("Error: ${appendState.error.message}")
@@ -134,78 +154,48 @@ fun MyReservationCompose(
                 }
             }
         }
-        /*Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                state.isLoading -> CircularProgressIndicator(
-                    color = FlickQColors.Gold,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+        if (showDialog) {
+            Dialog(onDismissRequest = { }) {
+                Column(modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White)
+                    .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
-                state.error != null -> Column(
-                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(text = state.error.asString(), color = FlickQColors.Error)
-                    FlickQButton(
-                        text = "Retry",
-                        onClick = {},
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                }
+                    Text("Filter by status", color = Color.Black)
 
-                state.reservations.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                        contentAlignment = Alignment.Center
+                    RadioButtonRow(
+                        status = "ALL",
+                        selected = state.status == "ALL"
                     ) {
-                        Text(text = "No reservations", color = FlickQColors.Error)
+                        showDialog = false
+                        onAction(ReservationListAction.OnStatusSelected(null))
                     }
-                }
 
-                else -> {
-
-                }
-            }
-
-            if (state.showDialogBox) {
-                Dialog(onDismissRequest = { }) {
-                    Column(modifier = Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White)
-                        .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                        Text("Filter by status", color = Color.Black)
-
-                        RadioButtonRow(
-                            status = "ALL",
-                            selected = state.status == "ALL"
-                        ) {
-                            onAction(ReservationListAction.OnStatusSelected(null))
-                        }
-
-                        RadioButtonRow(
-                            status = ReservationStatus.CONFIRMED.toString(),
-                            selected = state.status == ReservationStatus.CONFIRMED.toString()
-                        ) {
-                            onAction(ReservationListAction.OnStatusSelected(ReservationStatus.CONFIRMED.toString()))
-                        }
-                        RadioButtonRow(
-                            status = ReservationStatus.CANCELLED.toString(),
-                            selected = state.status == ReservationStatus.CANCELLED.toString()
-                        ) {
-                            onAction(ReservationListAction.OnStatusSelected(ReservationStatus.CANCELLED.toString()))
-                        }
-                        RadioButtonRow(
-                            status = ReservationStatus.PENDING.toString(),
-                            selected = state.status == ReservationStatus.PENDING.toString()
-                        ) {
-                            onAction(ReservationListAction.OnStatusSelected(ReservationStatus.PENDING.toString()))
-                        }
+                    RadioButtonRow(
+                        status = ReservationStatus.CONFIRMED.toString(),
+                        selected = state.status == ReservationStatus.CONFIRMED.toString()
+                    ) {
+                        showDialog = false
+                        onAction(ReservationListAction.OnStatusSelected(ReservationStatus.CONFIRMED.toString()))
+                    }
+                    RadioButtonRow(
+                        status = ReservationStatus.CANCELLED.toString(),
+                        selected = state.status == ReservationStatus.CANCELLED.toString()
+                    ) {
+                        showDialog = false
+                        onAction(ReservationListAction.OnStatusSelected(ReservationStatus.CANCELLED.toString()))
+                    }
+                    RadioButtonRow(
+                        status = ReservationStatus.PENDING.toString(),
+                        selected = state.status == ReservationStatus.PENDING.toString()
+                    ) {
+                        showDialog = false
+                        onAction(ReservationListAction.OnStatusSelected(ReservationStatus.PENDING.toString()))
                     }
                 }
             }
-        }*/
+        }
     }
 }
 
