@@ -1,6 +1,14 @@
 package com.martdev.flickq.movie
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+@Serializable
+data class MovieData(
+    val movies: List<MovieDTO>,
+    @SerialName("next_offset")
+    val nextOffset: Long
+)
 
 @Serializable
 data class MovieDTO(

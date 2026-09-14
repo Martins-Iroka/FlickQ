@@ -6,6 +6,7 @@ import com.martdev.flickq.features.movie.api.toMovieDto
 import com.martdev.flickq.features.movie.api.toMovieItemDto
 import com.martdev.flickq.features.movie.domain.service.movie.MovieService
 import com.martdev.flickq.movie.MovieDTO
+import com.martdev.flickq.movie.MovieData
 import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
 import com.martdev.flickq.shared.api.getLimitAndOffset
@@ -24,7 +25,10 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.ktor.ext.inject
+import kotlin.time.Clock
 
 const val moviePath = "/movie"
 const val adminMoviePath = "/admin/$moviePath"
@@ -65,13 +69,14 @@ private fun Route.adminMovieRoute(service: MovieService) {
 
 private fun Route.moviePublicRoute(service: MovieService) {
     route(moviePath) {
-        get("/get-movies") {
+        get("/scheduled-movies") {
             val (limit, offset) = getLimitAndOffset()
             val date = getLocalDate("date")
-            val response = service.getMovies(limit, offset, date).map {
+            val response = service.getScheduledMovies(limit, offset, date).map {
                 it.toMovieDto()
             }
-            val dataResponse = DataResponse(response)
+            val nextOffset = if (response.size < limit) -1L else limit + offset
+            val dataResponse = DataResponse(MovieData(response, nextOffset))
             call.respond(HttpStatusCode.OK, dataResponse)
         }
 
@@ -95,9 +100,9 @@ private fun Route.moviePublicRoute(service: MovieService) {
     }
 }
 
-private fun RoutingContext.getLocalDate(name: String): LocalDate? {
+private fun RoutingContext.getLocalDate(name: String): LocalDate {
     val raw = call.request.queryParameters[name]?.trim()
-    if (raw.isNullOrBlank()) return null
+    if (raw.isNullOrBlank()) return Clock.System.todayIn(TimeZone.UTC)
     return runCatching { LocalDate.parse(raw) }.getOrNull()
         ?: throw BadRequestException("Invalid '$name' (expected ISO-8601 date, yyyy-MM-dd")
 }

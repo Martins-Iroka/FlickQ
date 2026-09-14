@@ -66,7 +66,7 @@ class MovieServiceImplTest {
             repository.getMovies(any(), any(), any())
         } returns DataResult.Success(listOf(Movie()))
 
-        val result = service.getMovies(5, 0, date)
+        val result = service.getScheduledMovies(5, 0, date)
         assertTrue(result.isNotEmpty())
         assertEquals(1, result.size)
     }
@@ -77,7 +77,7 @@ class MovieServiceImplTest {
             repository.getMovies(any(), any(), any())
         } returns DataResult.Success(emptyList())
 
-        val result = service.getMovies(5, 0, date)
+        val result = service.getScheduledMovies(5, 0, date)
         assertTrue(result.isEmpty())
     }
 

@@ -86,6 +86,19 @@ class MovieRepositoryImpl : MovieRepository {
         }
     }
 
+    override suspend fun getScheduledMovies(movieIds: List<Long>, limit: Int,
+                                            offset: Long): DataResult<List<Movie>> {
+        return withSuspendTransaction {
+            val result = MoviesEntity.find {
+                MoviesTable.id inList movieIds
+            }.limit(limit)
+                .offset(offset)
+                .map { it.toMovie() }
+
+            DataResult.Success(result)
+        }
+    }
+
     override suspend fun getMovieById(movieId: Long): DataResult<Movie> {
         return withSuspendTransaction {
             val entity = MoviesEntity

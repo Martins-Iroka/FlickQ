@@ -138,7 +138,7 @@ class MovieRouteTest {
     @Test
     fun testGetMovies() = testApplication {
         coEvery {
-            service.getMovies(any(), any(), any())
+            service.getScheduledMovies(any(), any(), any())
         } returns listOf(Movie())
 
         application {
@@ -153,7 +153,7 @@ class MovieRouteTest {
     @Test
     fun testGetMovies_dateIsNull_returnList() = testApplication {
         coEvery {
-            service.getMovies(any(), any(), null)
+            service.getScheduledMovies(any(), any(), null)
         } returns listOf(Movie())
 
         application {

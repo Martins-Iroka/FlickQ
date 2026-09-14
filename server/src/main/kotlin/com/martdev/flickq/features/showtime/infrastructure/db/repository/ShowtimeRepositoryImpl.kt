@@ -10,10 +10,19 @@ import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
 
 @Single
@@ -102,6 +111,21 @@ class ShowtimeRepositoryImpl : ShowtimeRepository {
             }?.toShowtime() ?: return@withSuspendTransaction DataResult.Failure.NotFound(notFoundMessage)
 
             DataResult.Success(showtime)
+        }
+    }
+
+    override suspend fun getShowtimeMovieIds(date: LocalDate): DataResult<List<Long>> {
+        return withSuspendTransaction {
+            val from = date.atStartOfDayIn(TimeZone.UTC)
+            val to = date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(TimeZone.UTC)
+            val movieIds = ShowtimeTable
+                .select(ShowtimeTable.movieId)
+                .where { (ShowtimeTable.status eq ShowtimeStatus.SCHEDULED) and
+                        (ShowtimeTable.startsAt greaterEq from) and
+                        (ShowtimeTable.startsAt less to) }
+                .withDistinct()
+                .map { it[ShowtimeTable.movieId].value }
+            DataResult.Success(movieIds)
         }
     }
 }

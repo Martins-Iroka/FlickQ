@@ -8,6 +8,7 @@ import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.util.returnValue
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
+import kotlinx.datetime.LocalDate
 import org.koin.core.annotation.Single
 
 @Single
@@ -56,5 +57,9 @@ class ShowtimeServiceImpl(
         status: ShowtimeStatus
     ): Showtime {
         return repo.updateShowtimeStatus(id, status).returnValue()
+    }
+
+    override suspend fun getShowtimeMovieIds(date: LocalDate): List<Long> {
+        return repo.getShowtimeMovieIds(date).returnValue()
     }
 }

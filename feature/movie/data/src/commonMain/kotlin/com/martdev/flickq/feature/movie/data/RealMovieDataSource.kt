@@ -25,7 +25,7 @@ class RealMovieDataSource(
         date: LocalDate?
     ): Result<List<Movie>, DataError> =
         client.getData<List<MovieListItemDTO>>(
-            "/movie/get-movies",
+            "/movie/scheduled-movies",
             queryParameters = mapOf("limit" to limit, "offset" to offset, "date" to date?.toString()),
         ).map { items -> items.map { it.toMovie() } }
 

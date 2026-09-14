@@ -3,6 +3,7 @@ package com.martdev.flickq.features.showtime.domain.repository
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
+import kotlinx.datetime.LocalDate
 
 interface ShowtimeRepository {
     suspend fun createShowtime(showtime: Showtime): DataResult<Showtime>
@@ -18,4 +19,6 @@ interface ShowtimeRepository {
     suspend fun deleteShowtime(id: Long): DataResult<Int>
 
     suspend fun updateShowtimeStatus(id: Long, status: ShowtimeStatus): DataResult<Showtime>
+
+    suspend fun getShowtimeMovieIds(date: LocalDate): DataResult<List<Long>>
 }
