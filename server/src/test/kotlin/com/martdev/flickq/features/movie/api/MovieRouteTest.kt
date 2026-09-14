@@ -21,10 +21,13 @@ import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.koin.dsl.module
 import kotlin.test.assertEquals
+import kotlin.time.Clock
 
 @ExtendWith(MockKExtension::class)
 class MovieRouteTest {
@@ -136,7 +139,7 @@ class MovieRouteTest {
     }
 
     @Test
-    fun testGetMovies() = testApplication {
+    fun testGetScheduledMovies() = testApplication {
         coEvery {
             service.getScheduledMovies(any(), any(), any())
         } returns listOf(Movie())
@@ -145,35 +148,63 @@ class MovieRouteTest {
             configure()
         }
         val client = clientConfiguration(userToken)
-        client.get("movie/get-movies?date=2026-07-04").apply {
+        client.get("movie/scheduled-movies?date=2026-07-04").apply {
             assertEquals(HttpStatusCode.OK, status)
         }
     }
 
     @Test
-    fun testGetMovies_dateIsNull_returnList() = testApplication {
+    fun testGetScheduledMovies_dateIsNull_returnList() = testApplication {
+        val today = Clock.System.todayIn(TimeZone.UTC)
         coEvery {
-            service.getScheduledMovies(any(), any(), null)
+            service.getScheduledMovies(any(), any(), today)
+        } returns listOf(Movie())
+
+        application {
+            configure()
+        }
+        val client = clientConfiguration(userToken)
+        client.get("movie/scheduled-movies").apply {
+            assertEquals(HttpStatusCode.OK, status)
+        }
+    }
+
+    @Test
+    fun testGetScheduledMovies_throwsBadRequestException() = testApplication {
+        application {
+            configure()
+        }
+
+        val client = clientConfiguration(userToken)
+        client.get("movie/scheduled-movies?date=04-07-2026").apply {
+            assertEquals(HttpStatusCode.BadRequest, status)
+        }
+    }
+
+    @Test
+    fun testGetMovies_returnList() = testApplication {
+        coEvery {
+            service.getMovies(any(), any())
         } returns listOf(Movie())
 
         application {
             configure()
         }
         val client = clientConfiguration(adminToken)
-        client.get("movie/get-movies").apply {
+        client.get("/admin/movie/get-movies").apply {
             assertEquals(HttpStatusCode.OK, status)
         }
     }
 
     @Test
-    fun testGetMovies_throwsBadRequestException() = testApplication {
+    fun testGetMovies_throwsForbiddenException_forInvalidAdminToken() = testApplication {
         application {
             configure()
         }
 
         val client = clientConfiguration(userToken)
-        client.get("movie/get-movies?date=04-07-2026").apply {
-            assertEquals(HttpStatusCode.BadRequest, status)
+        client.get("/admin/movie/get-movies").apply {
+            assertEquals(HttpStatusCode.Forbidden, status)
         }
     }
 

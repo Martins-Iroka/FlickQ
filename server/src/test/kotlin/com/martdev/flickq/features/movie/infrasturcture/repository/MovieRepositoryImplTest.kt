@@ -27,7 +27,6 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.time.Clock
 
 @Testcontainers
 class MovieRepositoryImplTest {
@@ -37,7 +36,6 @@ class MovieRepositoryImplTest {
         private lateinit var genreRepo: GenreRepository
         private lateinit var showtimeRepo: ShowtimeRepository
         private lateinit var roomRepo: RoomRepository
-        private val clock = Clock.System.now()
 
         @Container
         val postgres = PostgresContainer.initPostgres()

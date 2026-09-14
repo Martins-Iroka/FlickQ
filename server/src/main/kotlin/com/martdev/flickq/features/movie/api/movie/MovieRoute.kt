@@ -49,6 +49,16 @@ private fun Route.adminMovieRoute(service: MovieService) {
                     call.respond(HttpStatusCode.Created)
                 }
 
+                get("/get-movies") {
+                    val (limit, offset) = getLimitAndOffset()
+                    val response = service.getMovies(limit, offset).map {
+                        it.toMovieDto()
+                    }
+                    val nextOffset = if (response.size < limit) -1L else limit + offset
+                    val dataResponse = DataResponse(MovieData(response, nextOffset))
+                    call.respond(HttpStatusCode.OK, dataResponse)
+                }
+
                 put("/update-movie/{movie_id}") {
                     val movieId = getParameterFromPath("movie_id")
                     val movie = call.receive<MovieDTO>().toMovie().copy(id = movieId)

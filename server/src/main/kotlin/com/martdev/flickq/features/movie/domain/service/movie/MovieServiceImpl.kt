@@ -16,9 +16,12 @@ class MovieServiceImpl(
         movieRepository.createMovie(movie).returnValue()
     }
 
+    override suspend fun getMovies(limit: Int, offset: Long): List<Movie> {
+        return movieRepository.getMovies(limit, offset).returnValue()
+    }
     override suspend fun getScheduledMovies(limit: Int, offset: Long, date: LocalDate): List<Movie> {
         val movieIds = showtimeService.getShowtimeMovieIds(date)
-        return movieRepository.getScheduledMovies(movieIds, limit, offset).returnValue()
+        return movieRepository.getMoviesByIds(movieIds, limit, offset).returnValue()
     }
 
     override suspend fun getMovieById(movieId: Long): Movie {
