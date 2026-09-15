@@ -39,7 +39,7 @@ class RealAdminCatalogDataSource(
 
     override suspend fun getMovies(limit: Int, offset: Int): Result<List<Movie>, DataError> =
         httpClient.getData<MovieData>(
-            route = "/movie/get-movies",
+            route = "/admin/movie/get-movies",
             queryParameters = mapOf("limit" to limit, "offset" to offset),
         ).map { dataModel -> dataModel.movies.map { it.toMovie() } }
 
