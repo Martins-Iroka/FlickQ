@@ -15,7 +15,7 @@ import com.martdev.flickq.adminkobweb.components.plain
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
-import com.martdev.flickq.core.presentation.ObserveAsEvents
+import com.martdev.flickq.core.presentation.ObserveEvents
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminAddEditAction
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminAddEditEvent
 import com.martdev.flickq.feature.admin.presentation.logic.rooms.AdminAddEditRoomState
@@ -83,7 +83,7 @@ private fun RoomContent() {
     }
     val state by vm.state.collectAsState()
     val onAction = vm::onAction
-    ObserveAsEvents(vm.event) { event ->
+    ObserveEvents(vm.event) { event ->
         when(event) {
             AdminAddEditEvent.NavigateToList -> {
                 ctx.router.navigateTo("/admin/room/list", UpdateHistoryMode.REPLACE)
