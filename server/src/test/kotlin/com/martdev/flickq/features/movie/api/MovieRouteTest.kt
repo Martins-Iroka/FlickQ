@@ -14,6 +14,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.testing.testApplication
@@ -148,7 +149,7 @@ class MovieRouteTest {
             configure()
         }
         val client = clientConfiguration(userToken)
-        client.get("movie/scheduled-movies?date=2026-07-04").apply {
+        client.get("movie/scheduled-movies?date=2026-07-04&limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.OK, status)
         }
     }
@@ -164,8 +165,8 @@ class MovieRouteTest {
             configure()
         }
         val client = clientConfiguration(userToken)
-        client.get("movie/scheduled-movies").apply {
-            assertEquals(HttpStatusCode.OK, status)
+        client.get("movie/scheduled-movies?limit=10&offset=0").apply {
+            assertEquals(HttpStatusCode.OK, status, bodyAsText())
         }
     }
 
