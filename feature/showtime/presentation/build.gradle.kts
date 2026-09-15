@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-
 plugins {
     alias(libs.plugins.flickq.feature.presentation)
 }
@@ -14,6 +12,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.feature.showtime.domain)
             implementation(libs.kotlin.datetime)
+            implementation(libs.kotlinx.collection.immutable)
         }
     }
 }

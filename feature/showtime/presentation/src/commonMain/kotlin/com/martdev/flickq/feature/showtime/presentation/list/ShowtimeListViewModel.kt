@@ -10,6 +10,9 @@ import com.martdev.flickq.core.presentation.toUiText
 import com.martdev.flickq.feature.showtime.domain.ShowtimeRepository
 import com.martdev.flickq.feature.showtime.presentation.ShowtimeUi
 import com.martdev.flickq.feature.showtime.presentation.toShowtimeUi
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ShowtimeListState(
-    val showtimes: List<ShowtimeUi> = emptyList(),
+    val showtimes: ImmutableList<ShowtimeUi> = persistentListOf(),
     val isLoading: Boolean = false,
     val error: UiText? = null
 )
@@ -75,7 +78,7 @@ class ShowtimeListViewModel(
                     state.update {
                         it.copy(
                             isLoading = false,
-                            showtimes = showtimes.map { showtime -> showtime.toShowtimeUi() }
+                            showtimes = showtimes.map { showtime -> showtime.toShowtimeUi() }.toImmutableList()
                         )
                     }
                 }
