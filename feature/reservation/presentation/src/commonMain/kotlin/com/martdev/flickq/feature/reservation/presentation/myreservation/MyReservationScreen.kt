@@ -108,6 +108,16 @@ fun MyReservationCompose(
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            if (tickets.loadState.refresh !is LoadState.Loading && tickets.itemSnapshotList.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().align(Alignment.CenterHorizontally).padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "No ${state.status} reservations", color = FlickQColors.Error)
+                    }
+                }
+            }
             items(count = tickets.itemCount,
                 key = tickets.itemKey {
                     it.id

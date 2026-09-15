@@ -193,7 +193,7 @@ fun MovieListScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (movieList.itemSnapshotList.isEmpty()) {
+                if (movieList.loadState.refresh !is LoadState.Loading && movieList.itemSnapshotList.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(
                             modifier = Modifier.align(Alignment.Center).padding(8.dp),
