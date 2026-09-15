@@ -19,7 +19,7 @@ import com.martdev.flickq.adminkobweb.components.formatDuration
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
-import com.martdev.flickq.core.presentation.ObserveAsEvents
+import com.martdev.flickq.core.presentation.ObserveEvents
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesAction
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesEvent
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMoviesState
@@ -71,7 +71,7 @@ private fun MoviesContent() {
     val state by vm.state.collectAsState()
     val onAction = vm::onAction
 
-    ObserveAsEvents(vm.events) { event ->
+    ObserveEvents(vm.events) { event ->
         when (event) {
             AdminMoviesEvent.AddNewMovie -> ctx.router.navigateTo("/admin/movies/item?mode=add")
             is AdminMoviesEvent.EditMovie -> ctx.router.navigateTo("/admin/movies/item?id=${event.id}&mode=edit")

@@ -20,7 +20,7 @@ import com.martdev.flickq.adminkobweb.components.plain
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
-import com.martdev.flickq.core.presentation.ObserveAsEvents
+import com.martdev.flickq.core.presentation.ObserveEvents
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieAction
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieDetailState
 import com.martdev.flickq.feature.admin.presentation.logic.movies.AdminMovieDetailViewModel
@@ -93,7 +93,7 @@ private fun MovieContent() {
     val form = state.form
     val error = state.error
 
-    ObserveAsEvents(vm.events) { event ->
+    ObserveEvents(vm.events) { event ->
         when(event) {
             AdminMovieEvent.BackToMovieList, AdminMovieEvent.MovieSaved -> {
                 ctx.router.navigateTo(

@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import com.martdev.flickq.adminkobweb.koin.rememberAdminViewModel
 import com.martdev.flickq.adminkobweb.theme.AdminColors
 import com.martdev.flickq.adminkobweb.theme.montserrat
-import com.martdev.flickq.core.presentation.ObserveAsEvents
+import com.martdev.flickq.core.presentation.ObserveEvents
 import com.martdev.flickq.core.presentation.UiText
 import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginAction
 import com.martdev.flickq.feature.admin.presentation.logic.login.AdminLoginEvent
@@ -56,7 +56,7 @@ fun LoginContent(ctx: PageContext) {
     val vm = rememberAdminViewModel<AdminLoginViewModel>()
     val state by vm.state.collectAsState()
 
-    ObserveAsEvents(vm.events) { event ->
+    ObserveEvents(vm.events) { event ->
         when (event) {
             is AdminLoginEvent.Authenticated -> {
                 ctx.router.navigateTo("/admin/dashboard")
