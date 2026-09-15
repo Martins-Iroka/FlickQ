@@ -11,7 +11,7 @@ import com.martdev.flickq.feature.booking.presentation.formatNaira
 import com.martdev.flickq.reservation.model.Reservation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -50,10 +50,10 @@ class TicketViewModel(
     private val bookingRepository: BookingRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(TicketState())
-    val state = _state.asStateFlow()
+    val state: StateFlow<TicketState>
+        field = MutableStateFlow(TicketState())
 
-    private val _events = Channel<TicketEvent>()
+    private val _events = Channel<TicketEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {
@@ -74,13 +74,13 @@ class TicketViewModel(
 
     private fun loadTicket() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            state.update { it.copy(isLoading = true, error = null) }
             when (val result = bookingRepository.getReservation(reservationId)) {
                 is Result.Success -> {
                     val labels = resolveSeatLabels(result.data)
-                    _state.update { it.copy(isLoading = false, ticket = result.data.toTicketUi(labels)) }
+                    state.update { it.copy(isLoading = false, ticket = result.data.toTicketUi(labels)) }
                 }
-                is Result.Error -> _state.update {
+                is Result.Error -> state.update {
                     it.copy(
                         isLoading = false,
                         error = resolveErrorText(result.message, result.error.toUiText()),

@@ -13,7 +13,7 @@ import com.martdev.flickq.feature.booking.domain.SeatMap
 import com.martdev.flickq.reservation.model.SeatStatus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -50,10 +50,10 @@ class SeatSelectionViewModel(
     private val bookingRepository: BookingRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(SeatSelectionState())
-    val state = _state.asStateFlow()
+    val state: StateFlow<SeatSelectionState>
+        field = MutableStateFlow(SeatSelectionState())
 
-    private val _events = Channel<SeatSelectionEvent>()
+    private val _events = Channel<SeatSelectionEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {
@@ -72,9 +72,9 @@ class SeatSelectionViewModel(
     }
 
     private fun toggleSeat(seatId: Long) {
-        val seat = _state.value.seats.firstOrNull { it.id == seatId } ?: return
+        val seat = state.value.seats.firstOrNull { it.id == seatId } ?: return
         if (seat.occupied) return
-        _state.update {
+        state.update {
             val selected = it.selectedIds.toMutableSet()
             if (!selected.add(seatId)) selected.remove(seatId)
             it.copy(selectedIds = selected)
@@ -82,17 +82,17 @@ class SeatSelectionViewModel(
     }
 
     private fun reserve() {
-        val current = _state.value
+        val current = state.value
         if (current.selectedIds.isEmpty()) return
         viewModelScope.launch {
-            _state.update { it.copy(isReserving = true, error = null) }
+            state.update { it.copy(isReserving = true, error = null) }
             bookingRepository.createReservation(showtimeId, current.selectedIds.toList())
                 .onSuccess { reservation ->
-                    _state.update { it.copy(isReserving = false) }
+                    state.update { it.copy(isReserving = false) }
                     _events.send(SeatSelectionEvent.ReservationCreated(reservation.id))
                 }
                 .onFailure { error, message ->
-                    _state.update { it.copy(isReserving = false, error = resolveErrorText(message, error.toUiText())) }
+                    state.update { it.copy(isReserving = false, error = resolveErrorText(message, error.toUiText())) }
                     // Someone may have taken a seat — refresh the map, keeping the error visible.
                     loadSeatMap(clearError = false)
                 }
@@ -101,10 +101,10 @@ class SeatSelectionViewModel(
 
     private fun loadSeatMap(clearError: Boolean = true) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = if (clearError) null else it.error) }
+            state.update { it.copy(isLoading = true, error = if (clearError) null else it.error) }
             bookingRepository.getSeatMap(showtimeId)
                 .onSuccess { seatMap ->
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             rows = seatMap.rows,
@@ -118,7 +118,7 @@ class SeatSelectionViewModel(
                     }
                 }
                 .onFailure { error, message ->
-                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
+                    state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }

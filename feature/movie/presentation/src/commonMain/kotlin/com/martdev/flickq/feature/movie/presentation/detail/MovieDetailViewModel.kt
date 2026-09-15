@@ -12,7 +12,7 @@ import com.martdev.flickq.feature.movie.presentation.MovieUi
 import com.martdev.flickq.feature.movie.presentation.toMovieUi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,10 +39,9 @@ class MovieDetailViewModel(
     private val movieRepository: MovieRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(MovieDetailState())
-    val state = _state.asStateFlow()
-
-    private val _events = Channel<MovieDetailEvent>()
+    val state: StateFlow<MovieDetailState>
+        field = MutableStateFlow(MovieDetailState())
+    private val _events = Channel<MovieDetailEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {
@@ -63,13 +62,13 @@ class MovieDetailViewModel(
 
     private fun loadMovie() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            state.update { it.copy(isLoading = true, error = null) }
             movieRepository.getMovieById(movieId)
                 .onSuccess { movie ->
-                    _state.update { it.copy(isLoading = false, movie = movie.toMovieUi()) }
+                    state.update { it.copy(isLoading = false, movie = movie.toMovieUi()) }
                 }
                 .onFailure { error, message ->
-                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
+                    state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }

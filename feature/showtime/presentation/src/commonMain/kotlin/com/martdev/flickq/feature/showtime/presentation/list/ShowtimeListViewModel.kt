@@ -12,7 +12,7 @@ import com.martdev.flickq.feature.showtime.presentation.ShowtimeUi
 import com.martdev.flickq.feature.showtime.presentation.toShowtimeUi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,10 +39,10 @@ class ShowtimeListViewModel(
     private val showtimeRepository: ShowtimeRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(ShowtimeListState())
-    val state = _state.asStateFlow()
+    val state: StateFlow<ShowtimeListState>
+        field = MutableStateFlow(ShowtimeListState())
 
-    private val _events = Channel<ShowtimeListEvent>()
+    private val _events = Channel<ShowtimeListEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {
@@ -60,7 +60,7 @@ class ShowtimeListViewModel(
     }
 
     private fun onShowtimeClick(showtimeId: Long) {
-        val showtime = _state.value.showtimes.firstOrNull { it.id == showtimeId } ?: return
+        val showtime = state.value.showtimes.firstOrNull { it.id == showtimeId } ?: return
         if (!showtime.selectable) return
         viewModelScope.launch {
             _events.send(ShowtimeListEvent.PickShowtime(showtimeId))
@@ -69,10 +69,10 @@ class ShowtimeListViewModel(
 
     private fun loadShowtimes() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            state.update { it.copy(isLoading = true, error = null) }
             showtimeRepository.getShowtimesByMovieId(movieId)
                 .onSuccess { showtimes ->
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             showtimes = showtimes.map { showtime -> showtime.toShowtimeUi() }
@@ -80,7 +80,7 @@ class ShowtimeListViewModel(
                     }
                 }
                 .onFailure { error, message ->
-                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
+                    state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }

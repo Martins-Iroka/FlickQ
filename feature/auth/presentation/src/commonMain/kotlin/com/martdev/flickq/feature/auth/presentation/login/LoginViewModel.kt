@@ -14,7 +14,7 @@ import com.martdev.flickq.feature.auth.presentation.isValidPassword
 import com.martdev.flickq.feature.auth.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -50,19 +50,19 @@ class LoginViewModel(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(LoginState())
-    val state = _state.asStateFlow()
+    val state: StateFlow<LoginState>
+        field = MutableStateFlow(LoginState())
 
-    private val _events = Channel<LoginEvent>()
+    private val _events = Channel<LoginEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     fun onAction(action: LoginAction) {
         when (action) {
             is LoginAction.OnEmailChange ->
-                _state.update { it.copy(email = action.email, emailError = false, error = null) }
+                state.update { it.copy(email = action.email, emailError = false, error = null) }
 
             is LoginAction.OnPasswordChange ->
-                _state.update {
+                state.update {
                     it.copy(
                         password = action.password,
                         passwordError = false,
@@ -78,7 +78,7 @@ class LoginViewModel(
 
             is LoginAction.OnShowPassword -> {
                 println(action.showPassword)
-                _state.update {
+                state.update {
                     it.copy(
                         showPassword = action.showPassword
                     )
@@ -88,32 +88,35 @@ class LoginViewModel(
     }
 
     private fun login() {
-        val current = _state.value
+        val current = state.value
         val emailValid = isValidEmail(current.email)
         val passwordValid = isValidPassword(current.password)
         if (!emailValid || !passwordValid) {
-            _state.update { it.copy(emailError = !emailValid, passwordError = !passwordValid) }
+            state.update { it.copy(emailError = !emailValid, passwordError = !passwordValid) }
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            state.update { it.copy(isLoading = true, error = null) }
             authRepository.login(Credentials(current.email, current.password))
                 .onSuccess {
-                    _state.update { it.copy(isLoading = false) }
+                    state.update { it.copy(isLoading = false) }
                     _events.send(LoginEvent.Authenticated)
                 }
                 .onFailure { error, message ->
                     if (error == AuthError.EMAIL_NOT_VERIFIED) {
-                        _state.update { it.copy(isLoading = false) }
+                        state.update { it.copy(isLoading = false) }
                         _events.send(
                             LoginEvent.NavigateToVerify(
                                 current.email
                             )
                         )
                     }
-                    _state.update {
-                        it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText()))
+                    state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = resolveErrorText(message, error.toUiText())
+                        )
                     }
                 }
         }

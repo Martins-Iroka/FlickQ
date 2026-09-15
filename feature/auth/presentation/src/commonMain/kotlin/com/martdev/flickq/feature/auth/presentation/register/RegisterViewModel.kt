@@ -13,7 +13,7 @@ import com.martdev.flickq.feature.auth.presentation.isValidPassword
 import com.martdev.flickq.feature.auth.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,19 +45,19 @@ class RegisterViewModel(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(RegisterState())
-    val state = _state.asStateFlow()
+    val state: StateFlow<RegisterState>
+        field = MutableStateFlow(RegisterState())
 
-    private val _events = Channel<RegisterEvent>()
+    private val _events = Channel<RegisterEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     fun onAction(action: RegisterAction) {
         when (action) {
             is RegisterAction.OnEmailChange ->
-                _state.update { it.copy(email = action.email, emailError = false, error = null) }
+                state.update { it.copy(email = action.email, emailError = false, error = null) }
 
             is RegisterAction.OnPasswordChange ->
-                _state.update { it.copy(password = action.password, passwordError = false, error = null) }
+                state.update { it.copy(password = action.password, passwordError = false, error = null) }
 
             RegisterAction.OnRegisterClick -> register()
 
@@ -68,19 +68,19 @@ class RegisterViewModel(
     }
 
     private fun register() {
-        val current = _state.value
+        val current = state.value
         val emailValid = isValidEmail(current.email)
         val passwordValid = isValidPassword(current.password)
         if (!emailValid || !passwordValid) {
-            _state.update { it.copy(emailError = !emailValid, passwordError = !passwordValid) }
+            state.update { it.copy(emailError = !emailValid, passwordError = !passwordValid) }
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            state.update { it.copy(isLoading = true, error = null) }
             authRepository.register(Credentials(current.email, current.password))
                 .onSuccess { result ->
-                    _state.update { it.copy(isLoading = false) }
+                    state.update { it.copy(isLoading = false) }
                     _events.send(
                         RegisterEvent.NavigateToOtp(
                             email = current.email,
@@ -90,7 +90,7 @@ class RegisterViewModel(
                     )
                 }
                 .onFailure { error, message ->
-                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
+                    state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }

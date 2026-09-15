@@ -72,7 +72,9 @@ class PaymentViewModel(
     val state: StateFlow<PaymentState>
         field = MutableStateFlow(PaymentState())
 
-    private val _events = Channel<PaymentEvent>()
+    private val _events = Channel<PaymentEvent>(
+        Channel.BUFFERED
+    )
     val events = _events.receiveAsFlow()
 
     init {

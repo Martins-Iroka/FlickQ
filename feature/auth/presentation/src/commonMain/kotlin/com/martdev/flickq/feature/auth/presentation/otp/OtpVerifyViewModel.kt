@@ -12,7 +12,7 @@ import com.martdev.flickq.feature.auth.presentation.OTP_LENGTH
 import com.martdev.flickq.feature.auth.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,10 +48,10 @@ class OtpVerifyViewModel(
 
     private var verificationToken: String = registrationToken
 
-    private val _state = MutableStateFlow(OtpVerifyState(email = email))
-    val state = _state.asStateFlow()
+    val state: StateFlow<OtpVerifyState>
+        field = MutableStateFlow(OtpVerifyState())
 
-    private val _events = Channel<OtpVerifyEvent>()
+    private val _events = Channel<OtpVerifyEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {
@@ -63,7 +63,7 @@ class OtpVerifyViewModel(
         when (action) {
             is OtpVerifyAction.OnCodeChange -> {
                 val digits = action.code.filter { it.isDigit() }.take(OTP_LENGTH)
-                _state.update { it.copy(code = digits, error = null) }
+                state.update { it.copy(code = digits, error = null) }
             }
 
             OtpVerifyAction.OnVerifyClick -> verify()
@@ -72,11 +72,11 @@ class OtpVerifyViewModel(
     }
 
     private fun verify() {
-        val current = _state.value
+        val current = state.value
         if (current.code.length != OTP_LENGTH) return
 
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null, info = null) }
+            state.update { it.copy(isLoading = true, error = null, info = null) }
             authRepository.verifyOtp(
                 VerificationInput(
                     code = current.code,
@@ -85,22 +85,22 @@ class OtpVerifyViewModel(
                 )
             )
                 .onSuccess {
-                    _state.update { it.copy(isLoading = false) }
+                    state.update { it.copy(isLoading = false) }
                     _events.send(OtpVerifyEvent.Verified)
                 }
                 .onFailure { error, message ->
-                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
+                    state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }
 
     private fun resendOTP() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null, info = null) }
+            state.update { it.copy(isLoading = true, error = null, info = null) }
             authRepository.resendOtp(email)
                 .onSuccess { result ->
                     verificationToken = result.verificationToken
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             info = UiText.DynamicString("A new code has been sent.")
@@ -108,7 +108,7 @@ class OtpVerifyViewModel(
                     }
                 }
                 .onFailure { error, message ->
-                    _state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
+                    state.update { it.copy(isLoading = false, error = resolveErrorText(message, error.toUiText())) }
                 }
         }
     }
