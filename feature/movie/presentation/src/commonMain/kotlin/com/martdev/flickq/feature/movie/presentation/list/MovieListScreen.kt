@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +37,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.martdev.flickq.core.designsystem.FlickQButton
 import com.martdev.flickq.core.designsystem.FlickQColors
 import com.martdev.flickq.core.designsystem.PosterImage
@@ -56,7 +60,9 @@ fun MovieListRoot(
     onLogout: () -> Unit,
     viewModel: MovieListViewModel = koinViewModel()
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.movieState.collectAsStateWithLifecycle()
+
+    val movieList = viewModel.movieList.collectAsLazyPagingItems()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -64,23 +70,24 @@ fun MovieListRoot(
         }
     }
 
-    MovieListScreen(state = state, onAction = viewModel::onAction, onLogout = onLogout)
+    MovieListScreen(state = state, movieList, onAction = viewModel::onAction, onLogout = onLogout)
 }
 
 @Composable
 fun MovieListScreen(
     state: MovieListState,
+    movieList: LazyPagingItems<MovieUi>,
     onAction: (MovieListAction) -> Unit,
     onLogout: () -> Unit = {},
 ) {
     val millis = remember(state) {
-        state.selectedDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+        state.today.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
     }
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = millis,
         selectableDates = SelectableDateRange(millis, state.selectedDate.year)
     )
-    var showDatePicker by remember {
+    var showDatePicker by rememberSaveable {
         mutableStateOf(false)
     }
     Column(
@@ -107,7 +114,7 @@ fun MovieListScreen(
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(start = 8.dp)
+            modifier = Modifier.padding(start = 20.dp)
         ) {
             FilterChip(
                 state.isToday,
@@ -156,9 +163,10 @@ fun MovieListScreen(
         }
 
         if (showDatePicker) {
-            DatePickerDialog(onDismissRequest = {
-                showDatePicker = false
-            },
+            DatePickerDialog(
+                onDismissRequest = {
+                    showDatePicker = false
+                },
                 confirmButton = {
                     Button(onClick = {
                         showDatePicker = false
@@ -178,60 +186,60 @@ fun MovieListScreen(
         }
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                state.isLoading -> CircularProgressIndicator(
-                    color = FlickQColors.Gold,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-
-                state.error != null -> Column(
-                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(text = state.error.asString(), color = FlickQColors.Error)
-                    FlickQButton(
-                        text = "Retry",
-                        onClick = { onAction(MovieListAction.OnRetry) },
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                }
-
-                state.movies.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "No movie schedule to show", color = FlickQColors.Error)
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 150.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (movieList.itemSnapshotList.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            modifier = Modifier.align(Alignment.Center).padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "No movie schedule to show", color = FlickQColors.Error)
+                        }
+                    }
+                } else {
+                    items(
+                        count = movieList.itemCount,
+                        key = movieList.itemKey {
+                            it.id
+                        }) {
+                        val item = movieList[it]
+                        item?.let { movieUi ->
+                            MovieCard(
+                                movie = movieUi,
+                                onClick = { onAction(MovieListAction.OnMovieClick(movieUi.id)) }
+                            )
+                        }
                     }
                 }
-
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 150.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(state.movies, key = { it.id }) { movie ->
-                        MovieCard(
-                            movie = movie,
-                            onClick = { onAction(MovieListAction.OnMovieClick(movie.id)) }
-                        )
-                    }
-                    if (state.isLoadingMore || state.canLoadMore) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (state.isLoadingMore) {
+                movieList.loadState.apply {
+                    val refreshState = refresh
+                    val appendState = append
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when {
+                                refreshState is LoadState.Loading || appendState is LoadState.Loading -> {
                                     CircularProgressIndicator(color = FlickQColors.Gold)
-                                } else {
+                                }
+
+                                refreshState is LoadState.Error -> {
+                                    Text("Error: ${refreshState.error.message}")
                                     FlickQButton(
-                                        text = "Load more",
-                                        onClick = { onAction(MovieListAction.OnLoadMore) }
+                                        text = "Retry",
+                                        onClick = { onAction(MovieListAction.OnRetry) },
+                                        modifier = Modifier.padding(top = 16.dp)
                                     )
                                 }
+
+                                appendState is LoadState.Error -> Text("Error: ${appendState.error.message}")
                             }
                         }
                     }

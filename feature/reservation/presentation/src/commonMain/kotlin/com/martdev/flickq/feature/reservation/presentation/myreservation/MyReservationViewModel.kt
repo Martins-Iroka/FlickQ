@@ -42,12 +42,12 @@ class MyReservationViewModel(
     val state: StateFlow<ReservationListState>
         field = MutableStateFlow(ReservationListState())
 
-    private val _events = Channel<ReservationListEvent>()
+    private val _events = Channel<ReservationListEvent>(Channel.BUFFERED)
     val event = _events.receiveAsFlow()
 
     private var status: String? = null
 
-    val pager = Pager(
+    private val pager = Pager(
         PagingConfig(
             pageSize = PAGE_SIZE
         )

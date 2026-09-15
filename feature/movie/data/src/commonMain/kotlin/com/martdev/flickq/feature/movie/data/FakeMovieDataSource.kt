@@ -5,6 +5,7 @@ import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.feature.movie.domain.MovieRepository
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
+import com.martdev.flickq.movie.model.MovieDataModel
 import kotlinx.datetime.LocalDate
 
 /**
@@ -87,4 +88,12 @@ class FakeMovieDataSource : MovieRepository {
         catalog.firstOrNull { it.id == id }
             ?.let { Result.Success(it) }
             ?: Result.Error(DataError.Network.NOT_FOUND)
+
+    override suspend fun getScheduledMovies(
+        date: LocalDate,
+        limit: Int,
+        offset: Long
+    ): Result<MovieDataModel, DataError> {
+        return Result.Success(MovieDataModel(catalog, -1))
+    }
 }

@@ -13,6 +13,7 @@ import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.feature.movie.domain.MovieRepository
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
+import com.martdev.flickq.movie.model.MovieDataModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -47,6 +48,14 @@ private class FakeMovieRepository(
         movies.firstOrNull { it.id == id }
             ?.let { Result.Success(it) }
             ?: Result.Error(DataError.Network.NOT_FOUND)
+
+    override suspend fun getScheduledMovies(
+        date: LocalDate,
+        limit: Int,
+        offset: Long
+    ): Result<MovieDataModel, DataError> {
+        TODO("Not yet implemented")
+    }
 }
 
 private fun movies(count: Int): List<Movie> =

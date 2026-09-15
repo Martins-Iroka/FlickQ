@@ -5,6 +5,11 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
+data class MovieDataModel(
+    val movies: List<Movie> = emptyList(),
+    val nextOffset: Long = 0
+)
+
 data class Movie(
     val id: Long = 0L,
     val title: String = "",

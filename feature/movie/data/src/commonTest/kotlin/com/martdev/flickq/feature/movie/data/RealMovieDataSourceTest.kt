@@ -17,8 +17,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import kotlin.test.Test
 import kotlin.test.fail
+import kotlin.time.Clock
 
 private fun jsonClient(
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> io.ktor.client.request.HttpResponseData
@@ -26,27 +29,38 @@ private fun jsonClient(
     install(ContentNegotiation) { json(HttpClientFactory.json) }
 }
 
-private fun MockRequestHandleScope.jsonOk(body: String, status: HttpStatusCode = HttpStatusCode.OK) =
-    respond(content = body, status = status, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+private fun MockRequestHandleScope.jsonOk(
+    body: String,
+    status: HttpStatusCode = HttpStatusCode.OK
+) =
+    respond(
+        content = body,
+        status = status,
+        headers = headersOf(HttpHeaders.ContentType, "application/json")
+    )
 
 class RealMovieDataSourceTest {
 
+    private val date = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
     @Test
-    fun `getMovies hits get-movies and maps list items to domain`() = runTest {
+    fun `get scheduled movies hits scheduled-movies and maps list items to domain`() = runTest {
         var path = ""
         val client = jsonClient { request ->
             path = request.url.encodedPath
-            jsonOk("""{"data":[{"id":1,"title":"Neon Skyline","posterUrl":"neon.jpg"}]}""")
+            jsonOk("""{"data":{"movies":[{"id":1,"title":"Neon Skyline","posterUrl":"neon.jpg"}],"next_offset":"2"}}""")
         }
 
-        val result = RealMovieDataSource(client).getMovies()
+        val result = RealMovieDataSource(client).getScheduledMovies(date, 5, 0)
 
-        val movies = (result as? Result.Success)?.data ?: fail("expected success, was $result")
-        assertThat(movies).hasSize(1)
-        assertThat(movies[0].id).isEqualTo(1L)
-        assertThat(movies[0].title).isEqualTo("Neon Skyline")
-        assertThat(movies[0].posterUrl).isEqualTo("neon.jpg")
-        assertThat(path.endsWith("/movie/get-movies")).isEqualTo(true)
+        val movieDataModel =
+            (result as? Result.Success)?.data ?: fail("expected success, was $result")
+        assertThat(movieDataModel.movies).hasSize(1)
+        assertThat(movieDataModel.movies[0].id).isEqualTo(1L)
+        assertThat(movieDataModel.movies[0].title).isEqualTo("Neon Skyline")
+        assertThat(movieDataModel.movies[0].posterUrl).isEqualTo("neon.jpg")
+        assertThat(movieDataModel.nextOffset).isEqualTo(2)
+        assertThat(path.endsWith("/movie/scheduled-movies")).isEqualTo(true)
     }
 
     @Test
@@ -54,13 +68,13 @@ class RealMovieDataSourceTest {
         var query = ""
         val client = jsonClient { request ->
             query = request.url.encodedQuery
-            jsonOk("""{"data":[]}""")
+            jsonOk("""{"data":{"movies":[],"next_offset":"0"}}""")
         }
-        RealMovieDataSource(client).getMovies(limit = 20, offset = 40)
+        RealMovieDataSource(client).getScheduledMovies(date, limit = 20, offset = 40)
 
         assertThat(query.contains("limit=20")).isEqualTo(true)
         assertThat(query.contains("offset=40")).isEqualTo(true)
-        assertThat(query.contains("date=")).isEqualTo(false)
+        assertThat(query.contains("date=2026-09-15")).isEqualTo(true)
     }
 
     @Test
@@ -70,7 +84,7 @@ class RealMovieDataSourceTest {
             path = request.url.encodedPath
             jsonOk(
                 """{"data":{"id":3,"title":"Paper Lanterns","description":"d","posterUrl":"p.jpg",""" +
-                    """"duration":99,"releasedDate":"2026-01-23","genres":[{"id":4,"name":"Animation"}]}}"""
+                        """"duration":99,"releasedDate":"2026-01-23","genres":[{"id":4,"name":"Animation"}]}}"""
             )
         }
 
