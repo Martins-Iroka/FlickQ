@@ -48,6 +48,7 @@ coroutines = "1.10.2"
 multiplatformSettings = "1.3.0"
 androidxSecurityCrypto = "1.1.0-alpha06"
 androidxBrowser = "1.8.0"
+openTele = "2.31.1-alpha"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
@@ -151,6 +152,12 @@ firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "fir
 firebase-analytics = { module = "com.google.firebase:firebase-analytics"}
 firebase-appdistribution = { module = "com.google.firebase:firebase-appdistribution", version.ref = "firebase-appdistribution"}
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics"}
+openTele-bom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha", version.ref = "openTele"}
+openTele-ktor = { module = "io.opentelemetry.instrumentation:opentelemetry-ktor-3.0" }
+openTele-sdk = { module = "io.opentelemetry:opentelemetry-sdk" }
+openTele-exporter = { module = "io.opentelemetry:opentelemetry-exporter-otlp" }
+openTele-semconv = { module = "io.opentelemetry.semconv:opentelemetry-semconv"}
+openTele-logback-appender = { module = "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0" }
 
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp"}
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin"}
@@ -169,6 +176,7 @@ ktor-libs = ["logback", "ktor-client-cio", "ktor-client-core", "ktor-client-cont
     "ktor-server-auth", "ktor-server-auth-jwt", "ktor-server-callId", "ktor-server-config-yaml", "ktor-server-contentNegotiation", "ktor-server-cors", "ktor-server-netty",
     "ktor-server-openapi", "ktor-server-rateLimit", "ktor-server-requestValidation", "ktor-server-routingOpenapi", "ktor-server-statusPages",
     "ktor-server-swagger", "ktor-server-callLogging"]
+openTele-libs = ["openTele-ktor", "openTele-sdk", "openTele-exporter", "openTele-semconv", "openTele-logback-appender"]
 paging-libs = ["compose-paging", "paging-common"]
 server-test-libs = ["ktor-client-mock", "ktor-server-test-host", "kotlin-testJunit", "junit5", "koin-test", "koin-test-junit", "mockK", "testcontainers-junit5"]
 

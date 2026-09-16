@@ -1,10 +1,6 @@
 package com.martdev.flickq.plugins
 
-import com.martdev.flickq.config.SentryConfig
-import io.ktor.server.application.Application
-import io.ktor.server.application.log
-import io.sentry.Sentry
-
+/*
 @Suppress("UnstableApiUsage")
 fun Application.configureSentry() {
     val sentryConfig = SentryConfig.fromEnvironment(environment)
@@ -19,4 +15,4 @@ fun Application.configureSentry() {
         options.logs.isEnabled = true
     }
     log.info("Sentry enabled: environment=${sentryConfig.environment}")
-}
+}*/

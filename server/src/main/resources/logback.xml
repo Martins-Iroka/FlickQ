@@ -4,7 +4,7 @@
             <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+    <!--<appender name="SENTRY" class="io.sentry.logback.SentryAppender">
         <minimumEventLevel>ERROR</minimumEventLevel>
         <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         <minimumLevel>OFF</minimumLevel>
@@ -18,13 +18,11 @@
         <minimumLevel>INFO</minimumLevel>
         <minimumEventLevel>OFF</minimumEventLevel>
         <minimumBreadcrumbLevel>OFF</minimumBreadcrumbLevel>
-    </appender>
+    </appender>-->
     <root level="info">
         <appender-ref ref="STDOUT"/>
-        <appender-ref ref="SENTRY"/>
+<!--        <appender-ref ref="SENTRY"/>-->
     </root>
     <logger name="io.netty" level="INFO"/>
-    <logger name="CallLogging" level="INFO" additivity="true">
-        <appender-ref ref="SENTRY_LOGS"/>
-    </logger>
+    <logger name="CallLogging" level="INFO" additivity="true"/>
 </configuration>
