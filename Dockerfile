@@ -15,5 +15,6 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 COPY --from=build /home/gradle/project/server/build/libs/*-all.jar app.jar
+COPY server/src/main/resources/logback.xml /app/logback.xml
 EXPOSE 3000
-CMD ["java", "-jar", "app.jar"]
+CMD ["java", "-Dlogback.configurationFile=/app/logback.xml", "-jar", "app.jar"]

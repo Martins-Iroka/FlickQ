@@ -35,7 +35,6 @@ material3 = "1.11.0-alpha07"
 material-icon = "1.7.3"
 mockk = "1.14.9"
 postgresql = "42.7.10"
-sentry = "8.52.0"
 shadow = "9.3.0"
 stytch = "6.0.0"
 testcontainer = "2.0.5"
@@ -145,9 +144,6 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
 silk-icons-fa = { module = "com.varabyte.kobwebx:silk-icons-fa", version.ref = "kobweb" }
-sentry-bom = { module = "io.sentry:sentry-bom", version.ref = "sentry"}
-sentry = { module = "io.sentry:sentry"}
-sentry-logback = { module = "io.sentry:sentry-logback"}
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics"}
 firebase-appdistribution = { module = "com.google.firebase:firebase-appdistribution", version.ref = "firebase-appdistribution"}
