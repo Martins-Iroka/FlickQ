@@ -19,8 +19,10 @@
         <minimumEventLevel>OFF</minimumEventLevel>
         <minimumBreadcrumbLevel>OFF</minimumBreadcrumbLevel>
     </appender>-->
+    <appender name="OpenTelemetry" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender"/>
     <root level="info">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="OpenTelemetry"/>
 <!--        <appender-ref ref="SENTRY"/>-->
     </root>
     <logger name="io.netty" level="INFO"/>

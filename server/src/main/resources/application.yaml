@@ -42,3 +42,8 @@ sentry:
   dsn: ${SENTRY_DNS}
   environment: ${SENTRY_ENVIRONMENT}
   trace_rate: ${SENTRY_TRACES_SAMPLE_RATE}
+
+openTele:
+  endpoint: ${OTEL_ENDPOINT}
+  api: ${OTEL_API}
+  auth: ${OTEL_AUTH}

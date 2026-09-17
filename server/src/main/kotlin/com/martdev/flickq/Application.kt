@@ -6,6 +6,7 @@ import com.martdev.flickq.plugins.configureDatabase
 import com.martdev.flickq.plugins.configureHttp
 import com.martdev.flickq.plugins.configureKoin
 import com.martdev.flickq.plugins.configureMonitoring
+import com.martdev.flickq.plugins.configureOpenTelemetry
 import com.martdev.flickq.plugins.configureRateLimiter
 import com.martdev.flickq.plugins.configureRequestValidation
 import com.martdev.flickq.plugins.configureRouting
@@ -26,6 +27,7 @@ fun main(args: Array<String>) {
 fun Application.module() {
 //    configureSentry()
     configureKoin()
+    configureOpenTelemetry()
     configureHttp()
     configureMonitoring()
     configureCallLogging()

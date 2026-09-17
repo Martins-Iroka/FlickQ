@@ -3,6 +3,7 @@ package com.martdev.flickq.plugins
 import com.martdev.flickq.config.CookieConfig
 import com.martdev.flickq.config.CorsConfig
 import com.martdev.flickq.config.DatabaseConfig
+import com.martdev.flickq.config.OpenTeleConfig
 import com.martdev.flickq.config.JWTConfig
 import com.martdev.flickq.config.PaystackConfig
 import com.martdev.flickq.config.SeedConfig
@@ -23,6 +24,7 @@ fun Application.configureKoin() {
         single { PaystackConfig.fromEnvironment(environment) }
         single { CorsConfig.fromEnvironment(environment) }
         single { CookieConfig.fromEnvironment(environment) }
+        single { OpenTeleConfig.fromEnvironment(environment) }
         single { SeedConfig.fromEnvironment() }
     }
 
