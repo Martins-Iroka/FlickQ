@@ -9,6 +9,10 @@ kotlin {
     }
 
     sourceSets {
+        androidMain.dependencies {
+            implementation(libs.androidx.biometrics)
+//            implementation(libs.koin.android)
+        }
         commonMain.dependencies {
             implementation(projects.feature.auth.domain)
         }

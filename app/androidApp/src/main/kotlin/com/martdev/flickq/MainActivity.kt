@@ -2,18 +2,18 @@ package com.martdev.flickq
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.fragment.app.FragmentActivity
 import com.google.firebase.Firebase
 import com.google.firebase.appdistribution.FirebaseAppDistributionException
 import com.google.firebase.appdistribution.appDistribution
 import com.martdev.flickq.feature.payment.presentation.AndroidPaystackUrl
 import org.koin.android.ext.android.inject
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val payStackUrl: AndroidPaystackUrl by inject()
     override fun onCreate(savedInstanceState: Bundle?) {
