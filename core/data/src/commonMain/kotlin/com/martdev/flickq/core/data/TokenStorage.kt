@@ -14,6 +14,10 @@ interface TokenStorage {
     fun getExpiryDate(): String {
         return ""
     }
+    fun saveEncryptedCred(data: String) {}
+    suspend fun getEncryptedCred(): String? {
+        return null
+    }
 }
 
 class InMemoryTokenStorage : TokenStorage {

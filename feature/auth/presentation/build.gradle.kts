@@ -11,6 +11,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.androidx.biometrics)
+            implementation(projects.core.data)
 //            implementation(libs.koin.android)
         }
         commonMain.dependencies {

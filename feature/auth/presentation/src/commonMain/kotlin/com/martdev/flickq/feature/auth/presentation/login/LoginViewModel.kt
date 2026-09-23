@@ -26,7 +26,8 @@ data class LoginState(
     val passwordError: Boolean = false,
     val isLoading: Boolean = false,
     val error: UiText? = null,
-    val showPassword: Boolean = false
+    val showPassword: Boolean = false,
+    val isBiometricsAvailable: Boolean = false
 ) {
     val canSubmit: Boolean get() = email.isNotBlank() && password.isNotBlank() && !isLoading
 }
@@ -37,17 +38,20 @@ sealed interface LoginAction {
     data object OnLoginClick : LoginAction
     data object OnRegisterClick : LoginAction
     data class OnShowPassword(val showPassword: Boolean) : LoginAction
+    data class BiometricsUsed(val email: String, val password: String) : LoginAction
+    data class OnBiometricsAvailable(val isAvailable: Boolean) : LoginAction
+    data object OnBiometricsClicked : LoginAction
 }
 
 sealed interface LoginEvent {
     data object NavigateToRegister : LoginEvent
-    data object Authenticated : LoginEvent
-    data class NavigateToVerify(val email: String) :
-        LoginEvent
+    data class Authenticated(val data: String) : LoginEvent
+    data class NavigateToVerify(val email: String) : LoginEvent
+    data object ShowBiometrics : LoginEvent
 }
 
 class LoginViewModel(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     val state: StateFlow<LoginState>
@@ -84,6 +88,21 @@ class LoginViewModel(
                     )
                 }
             }
+
+            is LoginAction.BiometricsUsed -> {
+                state.update { it.copy(email = action.email, password = action.password) }
+                login()
+            }
+
+            is LoginAction.OnBiometricsAvailable -> state.update {
+                it.copy(isBiometricsAvailable = action.isAvailable)
+            }
+
+            LoginAction.OnBiometricsClicked -> {
+                viewModelScope.launch {
+                    _events.send(LoginEvent.ShowBiometrics)
+                }
+            }
         }
     }
 
@@ -101,7 +120,7 @@ class LoginViewModel(
             authRepository.login(Credentials(current.email, current.password))
                 .onSuccess {
                     state.update { it.copy(isLoading = false) }
-                    _events.send(LoginEvent.Authenticated)
+                    _events.send(LoginEvent.Authenticated("${current.email}_${current.password}"))
                 }
                 .onFailure { error, message ->
                     if (error == AuthError.EMAIL_NOT_VERIFIED) {

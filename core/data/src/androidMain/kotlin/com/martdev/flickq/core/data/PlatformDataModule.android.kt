@@ -23,7 +23,7 @@ actual fun platformDataModule(): Module = module {
 
 private fun resolveTokenStorage(context: Context): TokenStorage {
     try {
-        return SettingsTokenStorage(createEncryptedSettings(context))
+        return AndroidSettingsStorage(createEncryptedSettings(context))
     } catch (e: Exception) {
         Log.w(TAG, "Encrypted token storage unreadable, clearing and retrying once", e)
     }
@@ -31,7 +31,7 @@ private fun resolveTokenStorage(context: Context): TokenStorage {
     context.deleteSharedPreferences(SECURE_PREFS_NAME)
 
     return try {
-        SettingsTokenStorage(createEncryptedSettings(context))
+        AndroidSettingsStorage(createEncryptedSettings(context))
     } catch (e: Exception) {
         Log.e(
             TAG,

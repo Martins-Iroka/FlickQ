@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.collectLatest
  * Used by Root composables for navigation/snackbar side effects.
  */
 @Composable
-fun <T> ObserveAsEvents(events: Flow<T>, onEvent: (T) -> Unit) {
+fun <T> ObserveAsEvents(events: Flow<T>, onEvent: suspend (T) -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {

@@ -6,7 +6,7 @@ import com.russhwolf.settings.Settings
  * [TokenStorage] backed by a multiplatform-settings [Settings]. On Android the settings are
  * over EncryptedSharedPreferences (Keystore); on iOS over the Keychain.
  */
-internal class SettingsTokenStorage(private val settings: Settings) : TokenStorage {
+class AndroidSettingsStorage(private val settings: Settings) : TokenStorage {
 
     override suspend fun getAccessToken(): String? = settings.getStringOrNull(KEY_ACCESS)
 
@@ -22,8 +22,29 @@ internal class SettingsTokenStorage(private val settings: Settings) : TokenStora
         settings.remove(KEY_REFRESH)
     }
 
+    override fun saveEncryptedCred(data: String) {
+        settings.putString(ENCRYPTED_DATA, data)
+    }
+
+    override suspend fun getEncryptedCred(): String? {
+        return settings.getStringOrNull(ENCRYPTED_DATA)
+    }
+
+    fun saveIVParams(data: String) {
+        settings.putString(IV_PARAM_DATA, data)
+    }
+
+    fun getIVParam() = settings.getStringOrNull(IV_PARAM_DATA)
+
+    fun clearEncryptedCredAndIVParam() {
+        settings.remove(ENCRYPTED_DATA)
+        settings.remove(IV_PARAM_DATA)
+    }
+
     private companion object {
         const val KEY_ACCESS = "flickq.access_token"
         const val KEY_REFRESH = "flickq.refresh_token"
+        const val ENCRYPTED_DATA = "flickq.encrypted_data"
+        const val IV_PARAM_DATA = "flickq.iv_param"
     }
 }
