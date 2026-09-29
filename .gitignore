@@ -30,3 +30,4 @@ app/androidApp/appdistribution-service-account.json
 /app/androidApp/google-services.json
 /.wrangler/cache/pages.json
 /.wrangler/cache/wrangler-account.json
+*.json

@@ -47,3 +47,19 @@ openTele:
   endpoint: ${OTEL_ENDPOINT}
   api: ${OTEL_API}
   auth: ${OTEL_AUTH}
+
+fcm:
+  enabled: ${FCM_ENABLED:-false}
+  projectId: ${FCM_PROJECT_ID:-flickq-124ad}
+  credentials: ${FCM_SERVICE_ACCOUNT_B64:-}
+  dryRun: ${FCM_DRY_RUN:-false}
+  topicPrefix: ${FCM_TOPIC_PREFIX:-dev-}
+  worker:
+    batchSize: 100
+    concurrency: 16
+    pollMs: 1000
+  retry:
+    baseMs: 5000
+    capMs: 3600000
+    maxAttempts: ${FCM_RETRY_MAX_ATTEMPTS:-8}
+

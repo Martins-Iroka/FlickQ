@@ -21,7 +21,6 @@ kotlin {
 
 dependencies {
     ksp(libs.koin.annotation.compiler)
-//    implementation(platform(libs.sentry.bom))
     implementation(platform(libs.openTele.bom))
     implementation(projects.core.api)
     implementation(projects.core.domain)
@@ -31,11 +30,10 @@ dependencies {
     implementation(libs.dotenv)
     implementation(libs.flyway.core)
     implementation(libs.flyway.postgresql)
+    implementation(libs.firebase.admin)
     implementation(libs.hikariCP)
     implementation(libs.bundles.koin.libs)
     implementation(libs.postgresql)
-    /*implementation(libs.sentry)
-    implementation(libs.sentry.logback)*/
     implementation(libs.bundles.openTele.libs)
     implementation(libs.stytch)
     implementation(libs.testcontainers.postgresql)
