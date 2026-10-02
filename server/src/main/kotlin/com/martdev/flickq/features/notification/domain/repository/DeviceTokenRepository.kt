@@ -24,5 +24,5 @@ interface DeviceTokenRepository {
         staleBefore: Instant,
         invalidatedBefore: Instant,
         limit: Int = 1000
-    ): DataResult<List<String>>
+    ): DataResult<PruneResult>
 }

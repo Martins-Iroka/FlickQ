@@ -1,6 +1,7 @@
 package com.martdev.flickq.features.notification.infrastructure.db.repository
 
 import com.martdev.flickq.features.notification.domain.repository.DeviceTokenRepository
+import com.martdev.flickq.features.notification.domain.repository.PruneResult
 import com.martdev.flickq.features.notification.infrastructure.db.table.DeviceTokenEntity
 import com.martdev.flickq.features.notification.infrastructure.db.table.DeviceTokenTable
 import com.martdev.flickq.features.notification.infrastructure.db.table.toDeviceToken
@@ -17,7 +18,7 @@ import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
-import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.deleteReturning
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsertReturning
@@ -52,8 +53,6 @@ class DeviceTokenRepositoryImpl : DeviceTokenRepository {
                 it[DeviceTokenTable.locale] = locale
             }.single()
                 .let { row -> DeviceTokenEntity.wrapRow(row).toDeviceToken() }
-            /* val deviceToken =
-                 DeviceTokenEntity.find { DeviceTokenTable.token eq token }.single().toDeviceToken()*/
 
             DataResult.Success(d)
         }
@@ -108,7 +107,7 @@ class DeviceTokenRepositoryImpl : DeviceTokenRepository {
         staleBefore: Instant,
         invalidatedBefore: Instant,
         limit: Int
-    ): DataResult<List<String>> {
+    ): DataResult<PruneResult> {
         return withSuspendTransaction {
             val isStaleActive = DeviceTokenTable.invalidatedAt.isNull() and
                     (DeviceTokenTable.lastSeenAt less staleBefore)
@@ -125,19 +124,31 @@ class DeviceTokenRepositoryImpl : DeviceTokenRepository {
                 .limit(limit)
                 .toList()
 
-            if (victims.isEmpty()) return@withSuspendTransaction DataResult.Success(emptyList())
+            if (victims.isEmpty()) return@withSuspendTransaction DataResult.Success(
+                PruneResult(0, emptyList())
+            )
 
             val ids = victims.map { it[DeviceTokenTable.id] }
-            DeviceTokenTable.deleteWhere {
+            val deleted = DeviceTokenTable.deleteReturning(
+                returning = listOf(
+                    DeviceTokenTable.token,
+                    DeviceTokenTable.invalidatedAt
+                )
+            ) {
                 DeviceTokenTable.id inList ids and (isStaleActive or isLongDead)
-            }
+            }.toList()
 
-            val active = victims.filter {
+            val active = deleted.filter {
                 it[DeviceTokenTable.invalidatedAt] ==
                         null
             }.map { it[DeviceTokenTable.token] }
 
-            DataResult.Success(active)
+            DataResult.Success(
+                PruneResult(
+                    deleted = deleted.size,
+                    activeTokens = active
+                )
+            )
         }
     }
 
