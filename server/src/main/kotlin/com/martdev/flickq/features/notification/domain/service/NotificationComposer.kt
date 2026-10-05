@@ -1,0 +1,98 @@
+package com.martdev.flickq.features.notification.domain.service
+
+import com.martdev.flickq.config.FcmConfig
+import com.martdev.flickq.features.notification.domain.model.NotificationEvent
+import com.martdev.flickq.features.notification.domain.model.OutboxDraft
+import com.martdev.flickq.notification.model.NotificationTargetKind
+import com.martdev.flickq.notification.model.NotificationType
+import org.koin.core.annotation.Single
+import java.security.MessageDigest
+import kotlin.time.Instant
+
+@Single
+class NotificationComposer(private val config: FcmConfig) {
+
+    fun compose(event: NotificationEvent): OutboxDraft = when(event) {
+        is NotificationEvent.BookingConfirmed -> OutboxDraft(
+            type = NotificationType.BOOKING_CONFIRMED,
+            idempotencyKey = "booking_confirmed:${event.reservationId}",
+            targetKind = NotificationTargetKind.USER,
+            userId = event.userId,
+            push = PushMessage(
+                title = "Booking confirmed",
+                body = "Your tickets for ${event.movieTitle} are ready.",
+                data = mapOf("type" to "booking_confirmed",
+                    "reservationId" to "${event.reservationId}",
+                    "startsAt" to event.startsAt.toString(),
+                    "deeplink" to "flickq://ticket/${event.reservationId}"),
+                highPriority = true,
+                collapseKey = "reservation-${event.reservationId}",
+                androidChannelId = "bookings"
+            )
+        )
+        is NotificationEvent.MovieAdded -> OutboxDraft(
+            type = NotificationType.MOVIE_ADDED,
+            idempotencyKey = "movie_added:${event.movieId}",
+            targetKind = NotificationTargetKind.TOPIC,
+            topic = newMoviesTopic(),
+            push = PushMessage(
+                title = "New in cinemas",
+                body = "${event.title} is now showing",
+                data = mapOf("type" to "movie_added", "movieId" to "${event.movieId}",
+                    "deeplink" to "flickq://movie/${event.movieId}"),
+                collapseKey = "new-movies",
+                imageUrl = event.posterUrl,
+                androidChannelId = "new_releases"
+            )
+        )
+        is NotificationEvent.ReservationHeld -> OutboxDraft(
+            type = NotificationType.RESERVATION_HELD,
+            idempotencyKey = "reservation_held:${event.reservationId}",
+            targetKind = NotificationTargetKind.USER,
+            userId = event.userId,
+            expiresAt = event.expiresAt,
+            push = PushMessage(
+                title = "Seats held",
+                body = "${event.seats.joinToString(", ")} for ${event.movieTitle} are held. Pay with 15 minutes.",
+                data = mapOf(
+                    "type" to "reservation_held",
+                    "reservationId" to "${event.reservationId}",
+                    "deeplink" to "flickq://ticket/${event.reservationId}"
+                ),
+                highPriority = true,
+                collapseKey = "reservation-${event.reservationId}",
+                androidChannelId = "bookings"
+            )
+        )
+    }
+
+    fun subscribeToNewMovies(token: String, now: Instant) = topicChange(
+        NotificationType.TOPIC_SUBSCRIBE, "sub", token, now
+    )
+
+    fun unsubscribeFromNewMovies(token: String, now: Instant) = topicChange(
+        NotificationType.TOPIC_UNSUBSCRIBE, "unsub", token, now
+    )
+
+    private fun topicChange(
+        type: NotificationType,
+        prefix: String,
+        token: String,
+        now: Instant
+    ) = OutboxDraft(
+        type = type,
+        idempotencyKey = "$prefix:${fingerprint(token)}:${newMoviesTopic()}:${now.epochSeconds / 86_400}",
+        targetKind = NotificationTargetKind.TOKENS,
+        topic = newMoviesTopic(),
+        pendingTokens = listOf(token),
+        push = PushMessage(title = "", body = "")
+    )
+
+    private fun newMoviesTopic() = TopicNames.newMovies(config.topicPrefix)
+
+    private fun fingerprint(token: String) = MessageDigest.getInstance(
+        "SHA-256"
+    ).digest(token.toByteArray()).joinToString("") {
+        "%02x".format(it)
+    }.take(16)
+}

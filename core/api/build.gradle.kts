@@ -37,6 +37,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlin.datetime)
             implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(projects.core.domain)
         }
     }
 }
