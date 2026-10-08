@@ -49,15 +49,19 @@ class NotificationOutboxRepositoryImpl(
                     IntegerColumnType() to limit
                 ),
                 explicitStatementType = StatementType.SELECT // RETURNING must be read as a result set
-            ) { rs -> buildList {
-                while (rs.next())
-                    add(rs.getLong(1))
-            }}.orEmpty()
+            ) { rs ->
+                buildList {
+                    while (rs.next())
+                        add(rs.getLong(1))
+                }
+            }.orEmpty()
 
             if (ids.isEmpty()) return@withSuspendTransaction DataResult.Success(emptyList())
 
-            val r = NotificationOutboxTable.selectAll().where { NotificationOutboxTable.id inList ids }
-                .orderBy(NotificationOutboxTable.nextAttemptAt to SortOrder.ASC).map { it.toEntry() }
+            val r =
+                NotificationOutboxTable.selectAll().where { NotificationOutboxTable.id inList ids }
+                    .orderBy(NotificationOutboxTable.nextAttemptAt to SortOrder.ASC)
+                    .map { it.toEntry() }
 
             DataResult.Success(r)
         }
