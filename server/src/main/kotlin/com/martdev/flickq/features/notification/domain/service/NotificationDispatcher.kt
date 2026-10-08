@@ -70,7 +70,8 @@ class NotificationDispatcher(
 
     private suspend fun process(entries: List<OutboxEntry>): BatchStats = supervisorScope {
         val stats = BatchStats()
-        val gate = Semaphore(config.concurrency) // keep below the Hikari pool size so the API isn't starved
+        val gate =
+            Semaphore(config.concurrency) // keep below the Hikari pool size so the API isn't starved
         val (topicOps, sends) = entries.partition {
             it.type == NotificationType.TOPIC_SUBSCRIBE || it.type == NotificationType.TOPIC_UNSUBSCRIBE
         }
@@ -85,9 +86,11 @@ class NotificationDispatcher(
         }
 
         topicOps.groupBy { it.type to it.topic!! }.forEach { (key, rows) ->
-            launch { gate.withPermit {
-                topicGroup(key.first, key.second, rows, stats)
-            } }
+            launch {
+                gate.withPermit {
+                    topicGroup(key.first, key.second, rows, stats)
+                }
+            }
         }
         stats
     }
@@ -101,14 +104,18 @@ class NotificationDispatcher(
         } ?: entry.push
 
         return when (entry.targetKind) {
-            NotificationTargetKind.TOPIC -> when(val o = sender.sendToTopic(entry.topic!!, message)) {
+            NotificationTargetKind.TOPIC -> when (val o =
+                sender.sendToTopic(entry.topic!!, message)) {
                 is SendOutcome.Success -> DeliveryResult.Sent()
                 is SendOutcome.Failure -> resolve(listOf("" to o), targetsToken = false)
             }
+
             NotificationTargetKind.USER -> sendToUser(entry, message)
-            NotificationTargetKind.TOKENS -> resolve(sender.sendToTokens(
-                entry.pendingTokens.orEmpty(), message
-            ).results)
+            NotificationTargetKind.TOKENS -> resolve(
+                sender.sendToTokens(
+                    entry.pendingTokens.orEmpty(), message
+                ).results
+            )
         }
     }
 
@@ -204,7 +211,7 @@ class NotificationDispatcher(
     private suspend fun settle(entry: OutboxEntry, result: DeliveryResult, stats: BatchStats) {
         stats.total.incrementAndGet()
         val applied = when (result) {
-            is DeliveryResult.Sent -> outbox.markSent(entry.id, instanceId)
+            is DeliveryResult.Sent -> outbox.markSent(entry.id, instanceId, result.note)
             DeliveryResult.Expired -> outbox.markExpired(entry.id, instanceId)
             is DeliveryResult.Dead -> {
                 log.error("outbox {} DEAD: {}", entry.id, result.error)
