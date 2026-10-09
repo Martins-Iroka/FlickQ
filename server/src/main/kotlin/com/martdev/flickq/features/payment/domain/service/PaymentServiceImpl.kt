@@ -6,6 +6,7 @@ import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
 import com.martdev.flickq.features.payment.infrastructure.paystack.PaystackClient
 import com.martdev.flickq.features.payment.infrastructure.paystack.PaystackSignatureVerifier
 import com.martdev.flickq.features.payment.infrastructure.paystack.dto.PaystackWebhookEvent
+import com.martdev.flickq.features.payment.observability.PaymentEvents
 import com.martdev.flickq.features.reservation.domain.service.ReservationService
 import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.payment.model.PaymentStatus
@@ -31,7 +32,8 @@ class PaymentServiceImpl(
     private val reservationService: ReservationService,
     private val paystackClient: PaystackClient,
     private val userRepository: UserRepository,
-    private val config: PaystackConfig
+    private val config: PaystackConfig,
+    private val paymentEvents: PaymentEvents
 ) : PaymentService {
 
     private val log = LoggerFactory.getLogger(PaymentServiceImpl::class.java)
@@ -307,17 +309,14 @@ class PaymentServiceImpl(
     ): Payment {
         val mappedStatus = when (paystackStatus.lowercase()) {
             "success" -> {
-//                paymentEvents.paymentSucceeded(reservationId, paystackAmount)
                 PaymentStatus.SUCCESS
             }
 
             "failed" -> {
-//                paymentEvents.paymentFailed(reservationId, paystackStatus, gatewayResponse)
                 PaymentStatus.FAILED
             }
 
             "reversed" -> {
-//                paymentEvents.refundProcessed(reservationId, paystackAmount)
                 PaymentStatus.REFUNDED
             }
 
@@ -325,7 +324,7 @@ class PaymentServiceImpl(
             else -> PaymentStatus.PENDING
         }
 
-        val updated = paymentRepository.applyChargeResult(
+        val outcome = paymentRepository.applyChargeResult(
             reference = reference,
             status = mappedStatus,
             gatewayResponse = gatewayResponse,
@@ -333,6 +332,9 @@ class PaymentServiceImpl(
             paidAt = paidAtRaw?.let { parseInstantOrNull(it) },
             amountFromGateway = paystackAmount,
         ).returnValue()
+        val updated = outcome.payment
+
+        if (outcome.transitioned) publishTransition(updated, mappedStatus)
 
         if (updated.status == PaymentStatus.SUCCESS) {
             runCatching { reservationService.confirmReservationFromPayment(updated.reservationId) }
@@ -346,6 +348,19 @@ class PaymentServiceImpl(
         }
 
         return updated
+    }
+
+    private fun  publishTransition(payment: Payment, requested: PaymentStatus) {
+        when(payment.status) {
+            PaymentStatus.SUCCESS -> paymentEvents.paymentSucceeded(payment.reservationId, payment.amount)
+            PaymentStatus.FAILED -> paymentEvents.paymentFailed(
+                reservationId = payment.reservationId,
+                reason = if (requested == PaymentStatus.SUCCESS) "amount_mismatch" else "failed",
+                gatewayErrorCode = payment.gatewayResponse
+            )
+            PaymentStatus.REFUNDED -> paymentEvents.refundProcessed(payment.id, payment.amount)
+            else -> Unit
+        }
     }
 
     private fun parseInstantOrNull(s: String): Instant? =

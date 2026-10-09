@@ -41,7 +41,7 @@ class NotificationComposer(private val config: FcmConfig) {
                 data = mapOf("type" to "movie_added", "movieId" to "${event.movieId}",
                     "deeplink" to "flickq://movie/${event.movieId}"),
                 collapseKey = "new-movies",
-                imageUrl = event.posterUrl,
+                imageUrl = event.posterUrl?.takeIf { it.startsWith("https://") },
                 androidChannelId = "new_releases"
             )
         )
@@ -53,7 +53,7 @@ class NotificationComposer(private val config: FcmConfig) {
             expiresAt = event.expiresAt,
             push = PushMessage(
                 title = "Seats held",
-                body = "${event.seats.joinToString(", ")} for ${event.movieTitle} are held. Pay with 15 minutes.",
+                body = "${event.seats.joinToString(", ")} for ${event.movieTitle} are held. Pay within 15 minutes.",
                 data = mapOf(
                     "type" to "reservation_held",
                     "reservationId" to "${event.reservationId}",

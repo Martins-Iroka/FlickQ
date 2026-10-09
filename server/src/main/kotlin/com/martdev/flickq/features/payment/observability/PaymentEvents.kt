@@ -1,4 +1,4 @@
-package com.martdev.features.payment.observability
+package com.martdev.flickq.features.payment.observability
 
 interface PaymentEvents {
     fun paymentSucceeded(reservationId: Long, amount: Long)

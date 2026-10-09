@@ -1,6 +1,7 @@
 package com.martdev.flickq.features.payment.infrastructure.db.repository
 
 import com.martdev.flickq.features.auth.infrastructure.db.table.UserTable
+import com.martdev.flickq.features.payment.domain.repository.ChargeOutcome
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentEntity
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentTable
@@ -90,7 +91,7 @@ class PaymentRepositoryImpl : PaymentRepository {
         paystackTransactionId: String?,
         paidAt: Instant?,
         amountFromGateway: Long,
-    ): DataResult<Payment> = withSuspendTransaction {
+    ): DataResult<ChargeOutcome> = withSuspendTransaction {
         // Lock the payment row to serialize concurrent verify + webhook
         val locked = PaymentTable.selectAll()
             .where { PaymentTable.reference eq reference }
@@ -103,7 +104,7 @@ class PaymentRepositoryImpl : PaymentRepository {
 
         // Idempotency: terminal states are never re-written
         if (entity.status == PaymentStatus.SUCCESS || entity.status == PaymentStatus.FAILED) {
-            return@withSuspendTransaction DataResult.Success(entity.toPayment())
+            return@withSuspendTransaction DataResult.Success(ChargeOutcome(entity.toPayment(), false))
         }
 
         // Fraud guard: amount returned by Paystack must equal what we stored at initialize-time
@@ -118,6 +119,7 @@ class PaymentRepositoryImpl : PaymentRepository {
             } else {
                 gatewayResponse
             }
+        val transitioned = entity.status != resolvedStatus
 
         entity.status = resolvedStatus
         entity.gatewayResponse = resolvedGatewayResponse
@@ -127,7 +129,7 @@ class PaymentRepositoryImpl : PaymentRepository {
         }
         entity.updatedAt = Clock.System.now()
 
-        DataResult.Success(entity.toPayment())
+        DataResult.Success(ChargeOutcome(entity.toPayment(), transitioned))
     }
 
     override suspend fun markRefundPending(reference: String): DataResult<Payment> = withSuspendTransaction {

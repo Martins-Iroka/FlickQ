@@ -2,6 +2,8 @@ package com.martdev.flickq.features.reservation.infrastructure.db.repository
 
 import com.martdev.flickq.features.auth.infrastructure.db.table.UserTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
+import com.martdev.flickq.features.notification.domain.model.NotificationEvent
+import com.martdev.flickq.features.notification.domain.repository.NotificationEnqueuer
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentTable
 import com.martdev.flickq.features.reservation.domain.repository.ReservationRepository
 import com.martdev.flickq.features.reservation.infrastructure.db.table.ReservationEntity
@@ -31,9 +33,12 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.koin.core.annotation.Single
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 @Single
-class ReservationRepositoryImpl : ReservationRepository {
+class ReservationRepositoryImpl(
+    private val enqueuer: NotificationEnqueuer
+) : ReservationRepository {
     override suspend fun createReservation(
         reservation: Reservation,
         seatIds: List<Long>
@@ -83,6 +88,16 @@ class ReservationRepositoryImpl : ReservationRepository {
             it[ShowtimeSeatTable.status] = SeatStatus.HELD
             it[ShowtimeSeatTable.reservationId] = entity.id
         }
+
+        enqueuer.enqueueInCurrentTx(
+            NotificationEvent.ReservationHeld(
+                reservationId = entity.id.value,
+                userId = reservation.userId,
+                movieTitle = reservation.movieTitle,
+                seats = seatLabels(seatIds),
+                expiresAt = entity.expiresAt
+            )
+        )
 
         DataResult.Success(entity.toReservation())
     }
@@ -219,9 +234,14 @@ class ReservationRepositoryImpl : ReservationRepository {
         id: Long,
         status: ReservationStatus
     ): DataResult<Reservation> = withSuspendTransaction {
-        val entity = ReservationEntity.findById(id)
-            ?: return@withSuspendTransaction DataResult.Failure.NotFound("Reservation not found.")
+        // Row lock: webhook + verify + reconciler can confirm concurrently; only the first sees PENDING.
+        val previous = ReservationTable
+            .select(ReservationTable.status)
+            .where { ReservationTable.id eq id }
+            .forUpdate()
+            .firstOrNull()?.get(ReservationTable.status) ?: return@withSuspendTransaction DataResult.Failure.NotFound("Reservation not found.")
 
+        val entity = ReservationEntity[id]
         entity.status = status
 
         when (status) {
@@ -239,6 +259,18 @@ class ReservationRepositoryImpl : ReservationRepository {
             }
 
             else -> {}
+        }
+
+        if (previous == ReservationStatus.PENDING && status == ReservationStatus.CONFIRMED) {
+            val (title, startAt) = showTimeMovie(entity.showtimeId.value)
+            enqueuer.enqueueInCurrentTx(
+                NotificationEvent.BookingConfirmed(
+                    reservationId = id,
+                    userId = entity.userId.value,
+                    movieTitle = title,
+                    startsAt = startAt
+                )
+            )
         }
 
         DataResult.Success(entity.toReservation())
@@ -287,4 +319,17 @@ class ReservationRepositoryImpl : ReservationRepository {
             paidAt = row[PaymentTable.paidAt]
         )
     }
+
+    private fun showTimeMovie(showtimeId: Long): Pair<String, Instant> = ShowtimeTable
+        .innerJoin(MoviesTable)
+        .select(MoviesTable.title, ShowtimeTable.startsAt)
+        .where { ShowtimeTable.id eq showtimeId }
+        .single()
+        .let { it[MoviesTable.title] to it[ShowtimeTable.startsAt] }
+
+    private fun seatLabels(seatIds: List<Long>): List<String> = SeatTable
+        .select(SeatTable.rowLabel, SeatTable.seatNumber)
+        .where { SeatTable.id inList seatIds }
+        .orderBy(SeatTable.rowLabel to SortOrder.ASC, SeatTable.seatNumber to SortOrder.ASC)
+        .map { "${it[SeatTable.rowLabel]}${it[SeatTable.seatNumber]}" }
 }

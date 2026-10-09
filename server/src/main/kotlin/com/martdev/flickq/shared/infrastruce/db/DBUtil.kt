@@ -14,8 +14,10 @@ suspend fun <T> withSuspendTransaction(block: suspend JdbcTransaction.() -> Data
                 try {
                     block()
                 } catch (e: ExposedSQLException) {
+                    rollback()
                     handleDbException(e)
                 } catch (e: Exception) {
+                    rollback()
                     DataResult.Failure.UnknownError(e.stackTraceToString())
                 }
             }

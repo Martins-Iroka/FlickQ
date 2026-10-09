@@ -21,7 +21,7 @@ interface PaymentRepository {
         paystackTransactionId: String?,
         paidAt: Instant?,
         amountFromGateway: Long,
-    ): DataResult<Payment>
+    ): DataResult<ChargeOutcome>
 
     suspend fun markRefundPending(reference: String): DataResult<Payment>
 

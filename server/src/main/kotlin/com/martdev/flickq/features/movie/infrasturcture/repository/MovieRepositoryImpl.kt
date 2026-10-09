@@ -6,6 +6,8 @@ import com.martdev.flickq.features.movie.infrasturcture.tables.MovieGenreTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesEntity
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.toMovie
+import com.martdev.flickq.features.notification.domain.model.NotificationEvent
+import com.martdev.flickq.features.notification.domain.repository.NotificationEnqueuer
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.domain.model.DataResult
@@ -18,7 +20,9 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.koin.core.annotation.Single
 
 @Single
-class MovieRepositoryImpl : MovieRepository {
+class MovieRepositoryImpl(
+    private val enqueuer: NotificationEnqueuer
+) : MovieRepository {
     override suspend fun createMovie(movie: Movie): DataResult<Long> {
         return withSuspendTransaction {
             val movieEntity = MoviesEntity.new {
@@ -33,6 +37,11 @@ class MovieRepositoryImpl : MovieRepository {
                 rollback()
                 return@withSuspendTransaction result
             }
+            enqueuer.enqueueInCurrentTx(
+                NotificationEvent.MovieAdded(
+                    movieEntity.id.value, movie.title, movie.posterUrl
+                )
+            )
             DataResult.Success(movieEntity.id.value)
         }
     }
