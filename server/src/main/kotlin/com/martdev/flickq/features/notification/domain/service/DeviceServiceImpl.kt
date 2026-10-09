@@ -48,6 +48,7 @@ class DeviceServiceImpl(
 
             is DataResult.Failure -> {
                 log.warn("The device with id {} failed to unregister", userId)
+                result.returnValue()
             }
         }
     }
