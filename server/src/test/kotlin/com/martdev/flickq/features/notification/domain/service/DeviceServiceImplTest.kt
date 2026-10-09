@@ -2,7 +2,6 @@ package com.martdev.flickq.features.notification.domain.service
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
-import assertk.assertions.isInstanceOf
 import com.martdev.flickq.config.FcmConfig
 import com.martdev.flickq.features.notification.domain.model.OutboxDraft
 import com.martdev.flickq.features.notification.domain.repository.DeviceTokenRepository
@@ -11,6 +10,7 @@ import com.martdev.flickq.notification.model.DevicePlatform
 import com.martdev.flickq.notification.model.DeviceToken
 import com.martdev.flickq.notification.model.NotificationType
 import com.martdev.flickq.notification.model.RegisterDeviceRequest
+import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.model.DataResult
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -20,6 +20,7 @@ import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrowsExactly
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.time.Clock
 
@@ -58,7 +59,7 @@ class DeviceServiceImplTest {
 
         val result = service.register(42, request)
 
-        assertThat(result).isEqualTo(DataResult.Success(saved))
+        assertThat(result).isEqualTo(saved)
 
         assertThat(draft.captured.type).isEqualTo(NotificationType.TOPIC_SUBSCRIBE)
         assertThat(draft.captured.pendingTokens).isEqualTo(listOf(request.token))
@@ -74,7 +75,7 @@ class DeviceServiceImplTest {
         } returns DataResult.Failure.UnknownError("db down")
 
         val result = service.register(42, request)
-        assertThat(result).isInstanceOf(DataResult.Success::class)
+        assertThat(result).isEqualTo(saved)
     }
 
     @Test
@@ -83,9 +84,10 @@ class DeviceServiceImplTest {
             devices.upsert(any(), any(), any(), any(), any())
         } returns DataResult.Failure.UniqueViolation
 
-        val result = service.register(42, request)
+        assertThrowsExactly<BadRequestException> {
+            service.register(42, request)
+        }
 
-        assertThat(result).isInstanceOf(DataResult.Failure::class)
         coVerify(exactly = 0) { outbox.enqueue(any()) }
     }
 
@@ -106,9 +108,8 @@ class DeviceServiceImplTest {
     fun `unregister of someone else's or an already dead token is a quiet success with no enqueue`() = runTest {
         coEvery { devices.invalidateForUser(42, request.token) } returns DataResult.Success(false)
 
-        val result = service.unregister(42, request.token)
+        service.unregister(42, request.token)
 
-        assertThat(result).isEqualTo(DataResult.Success(Unit))
         coVerify(exactly = 0) {
             outbox.enqueue(any())
         }

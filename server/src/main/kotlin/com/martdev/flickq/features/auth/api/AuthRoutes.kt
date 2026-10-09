@@ -1,12 +1,14 @@
 package com.martdev.flickq.features.auth.api
 
 import com.martdev.flickq.auth.request.CreateUserRequest
+import com.martdev.flickq.auth.request.LogoutRequest
 import com.martdev.flickq.auth.request.RefreshTokenRequest
 import com.martdev.flickq.auth.request.ResendOTPRequest
 import com.martdev.flickq.auth.request.UserLoginRequest
 import com.martdev.flickq.auth.request.UserVerificationRequest
 import com.martdev.flickq.config.CookieConfig
 import com.martdev.flickq.features.auth.domain.service.UserService
+import com.martdev.flickq.features.notification.domain.service.DeviceService
 import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import io.ktor.http.HttpStatusCode
@@ -23,6 +25,7 @@ import org.koin.ktor.ext.inject
 fun Route.authRoutes() {
     val service by inject<UserService>()
     val cookieConfig by inject<CookieConfig>()
+    val deviceService by inject<DeviceService>()
     route("/authentication") {
         /**
          * Tag: authentication
@@ -132,13 +135,21 @@ fun Route.authRoutes() {
         post("/logout") {
             // Web logout carries only the cookie; native sends the token in the body. Prefer the
             // cookie, tolerate a bad/absent body — logout must not fail.
+
+            val body = if ((call.request.contentLength() ?: 0L) > 0L) {
+                runCatching {
+                    call.receive<LogoutRequest>()
+                }.getOrNull()
+            } else null
+
             val token = call.readRefreshTokenCookie()
-                ?: if ((call.request.contentLength() ?: 0L) > 0L) {
-                    runCatching { call.receive<RefreshTokenRequest>().refreshToken }.getOrNull()
-                } else {
-                    null
-                }
-            if (!token.isNullOrBlank()) service.logout(token)
+                ?: body?.refreshToken
+
+            val userId = if (!token.isNullOrBlank()) service.logout(token) else null
+            val deviceToken = body?.deviceToken
+            if (userId != null && !deviceToken.isNullOrBlank()) {
+                deviceService.unregister(userId, deviceToken)
+            }
             call.clearRefreshTokenCookie(cookieConfig)
             call.respond(HttpStatusCode.OK)
         }

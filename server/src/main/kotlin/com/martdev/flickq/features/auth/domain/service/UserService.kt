@@ -12,7 +12,7 @@ interface UserService {
     suspend fun verifyUser(input: VerificationInput)
     suspend fun loginUser(credentials: Credentials, isAdmin: Boolean = false): LoginResult
     suspend fun refreshToken(refreshToken: String): RefreshResult
-    suspend fun logout(refreshToken: String)
+    suspend fun logout(refreshToken: String): Long?
     suspend fun deleteExpiredRefreshToken()
     suspend fun resendOTP(email: String): OtpResendResult
 }

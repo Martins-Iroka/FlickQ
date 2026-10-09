@@ -79,6 +79,7 @@ class UserServiceImpl(
                 events.verifyFailed("token_not_found")
                 throw NotFoundException("Invalid or expired verification token")
             }
+
             is DataResult.Failure.UniqueViolation,
             is DataResult.Failure.ForeignKeyViolation,
             is DataResult.Failure.Conflict,
@@ -95,6 +96,7 @@ class UserServiceImpl(
                 events.loginFailed("unknown_email")
                 throw BadRequestException(invalidCredentialsMessage)
             }
+
             is DataResult.Failure.UniqueViolation,
             is DataResult.Failure.ForeignKeyViolation,
             is DataResult.Failure.Conflict,
@@ -123,7 +125,8 @@ class UserServiceImpl(
                     }
                 }
 
-                val accessToken = auth.generateAccessToken(savedUser.id.toString(), savedUser.role.name)
+                val accessToken =
+                    auth.generateAccessToken(savedUser.id.toString(), savedUser.role.name)
                 val refreshToken = auth.generateRefreshToken()
                 val refreshTokenHash = sha256Hex(refreshToken)
                 val refreshExpiry = Clock.System.now().plus(24.hours).toLocalDateTime(TimeZone.UTC)
@@ -137,6 +140,7 @@ class UserServiceImpl(
                             refreshToken = refreshToken,
                         )
                     }
+
                     else -> {
                         events.loginFailed("internal_error")
                         throw InternalServerException()
@@ -157,6 +161,7 @@ class UserServiceImpl(
                 events.refreshFailed("unknown_or_revoked")
                 throw UnauthorizedException()
             }
+
             is DataResult.Failure.UniqueViolation,
             is DataResult.Failure.ForeignKeyViolation,
             is DataResult.Failure.Conflict,
@@ -174,10 +179,17 @@ class UserServiceImpl(
         }
     }
 
-    override suspend fun logout(refreshToken: String) {
+    override suspend fun logout(refreshToken: String): Long? {
         // Idempotent: revoking an unknown/already-revoked token is a successful no-op, so a
         // double logout or a stale cookie doesn't error. Revocation infra is shared with refresh.
-        repository.revokeRefreshToken(sha256Hex(refreshToken))
+        val tokenHash = sha256Hex(refreshToken)
+
+        val ownerId =
+            (repository.getUserIdAndRoleByRefreshToken(tokenHash) as? DataResult.Success)?.value?.id
+
+        repository.revokeRefreshToken(tokenHash)
+
+        return ownerId
     }
 
     override suspend fun deleteExpiredRefreshToken() {
@@ -190,7 +202,10 @@ class UserServiceImpl(
             is DataResult.Failure.UniqueViolation,
             is DataResult.Failure.ForeignKeyViolation,
             is DataResult.Failure.Conflict,
-            is DataResult.Failure.UnknownError -> OtpResendResult(emailId = "", verificationToken = "")
+            is DataResult.Failure.UnknownError -> OtpResendResult(
+                emailId = "",
+                verificationToken = ""
+            )
 
             is DataResult.Success -> {
                 val savedUser = result.value

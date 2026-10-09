@@ -7,6 +7,8 @@ import com.martdev.flickq.auth.request.UserLoginRequest
 import com.martdev.flickq.auth.request.UserVerificationRequest
 import com.martdev.flickq.movie.GenreDTO
 import com.martdev.flickq.movie.MovieDTO
+import com.martdev.flickq.notification.model.DevicePlatform
+import com.martdev.flickq.notification.request.RegisterDeviceRequestDTO
 import com.martdev.flickq.reservation.CreateReservationRequest
 import com.martdev.flickq.room.RoomDTO
 import com.martdev.flickq.room.SeatDTO
@@ -22,6 +24,10 @@ import kotlin.enums.enumEntries
 
 fun Application.configureRequestValidation() {
     val emailPattern = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+[a-zA-Z]{2,}$")
+    val localePattern = Regex("^[A-Za-z]{2,3}([-_][A-Za-z0-9]{1,8}){0,4}$")
+    val platformErrorMessage =
+        "Invalid platform. Must be one of: ${enumEntries<DevicePlatform>().joinToString { it.name }}"
+
     install(RequestValidation) {
         validate<CreateUserRequest> { request ->
             val emailValidation = Validator.validateEmail(request.email)
@@ -130,6 +136,19 @@ fun Application.configureRequestValidation() {
                 request.showtimeId <= 0 -> invalidResponseResult("Invalid showtime id")
                 request.seatIds.isEmpty() -> invalidResponseResult("Seat(s) is required")
                 request.seatIds.size != request.seatIds.distinct().size -> invalidResponseResult("Duplicate seats in request")
+                else -> ValidationResult.Valid
+            }
+        }
+
+        validate<RegisterDeviceRequestDTO> { request ->
+            val isPlatformValid = enumEntries<DevicePlatform>().any {
+                it.name == request.platform.uppercase()
+            }
+            when {
+                request.token.isBlank() || request.token.length !in 20..4096 -> invalidResponseResult("Invalid device token")
+                !isPlatformValid -> invalidResponseResult(platformErrorMessage)
+                request.appVersion.isBlank() || request.appVersion.length > 32 -> invalidResponseResult("Invalid app version")
+                request.locale.length > 35 || !localePattern.matches(request.locale) -> invalidResponseResult("Invalid locale")
                 else -> ValidationResult.Valid
             }
         }
