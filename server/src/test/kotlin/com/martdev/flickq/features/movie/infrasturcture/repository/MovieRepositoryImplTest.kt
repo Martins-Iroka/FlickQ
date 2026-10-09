@@ -15,6 +15,7 @@ import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.utils.PostgresContainer
+import com.martdev.flickq.utils.TestNotifications
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
@@ -45,7 +46,7 @@ class MovieRepositoryImplTest {
         fun connectToDBAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
             genreRepo = GenreRepositoryImpl()
-            movieRepo = MovieRepositoryImpl()
+            movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             showtimeRepo = ShowtimeRepositoryImpl()
             roomRepo = RoomRepositoryImpl()
         }

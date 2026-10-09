@@ -18,6 +18,7 @@ import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
 import com.martdev.flickq.utils.PostgresContainer
+import com.martdev.flickq.utils.TestNotifications
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -56,7 +57,7 @@ class ShowtimeRepositoryImplTest {
         fun connectDBAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
             repo = ShowtimeRepositoryImpl()
-            movieRepo = MovieRepositoryImpl()
+            movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             roomRepo = RoomRepositoryImpl()
             genreRepo = GenreRepositoryImpl()
         }

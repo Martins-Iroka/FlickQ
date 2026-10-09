@@ -38,6 +38,7 @@ import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
+import com.martdev.flickq.utils.TestNotifications
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteAll
@@ -80,12 +81,12 @@ class PaymentRepositoryImplTest {
         fun connectToDBAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
             repo = PaymentRepositoryImpl()
-            reservationRepo = ReservationRepositoryImpl()
+            reservationRepo = ReservationRepositoryImpl(TestNotifications.enqueuer())
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
             showtimeRepo = ShowtimeRepositoryImpl()
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
-            movieRepo = MovieRepositoryImpl()
+            movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             genreRepo = GenreRepositoryImpl()
             userRepo = UserRepositoryImpl()
         }
@@ -218,11 +219,11 @@ class PaymentRepositoryImplTest {
         )
 
         assertTrue(result is DataResult.Success, result.toString())
-        assertEquals(created.id, result.value.id)
-        assertEquals(PaymentStatus.SUCCESS, result.value.status)
-        assertEquals("Approved", result.value.gatewayResponse)
-        assertEquals("tx_123", result.value.paystackTransactionId)
-        assertEquals(paidAt, result.value.paidAt)
+        assertEquals(created.id, result.value.payment.id)
+        assertEquals(PaymentStatus.SUCCESS, result.value.payment.status)
+        assertEquals("Approved", result.value.payment.gatewayResponse)
+        assertEquals("tx_123", result.value.payment.paystackTransactionId)
+        assertEquals(paidAt, result.value.payment.paidAt)
     }
 
     @Test
@@ -240,12 +241,12 @@ class PaymentRepositoryImplTest {
         )
 
         assertTrue(result is DataResult.Success, result.toString())
-        assertEquals(PaymentStatus.FAILED, result.value.status)
-        val msg = assertNotNull(result.value.gatewayResponse)
+        assertEquals(PaymentStatus.FAILED, result.value.payment.status)
+        val msg = assertNotNull(result.value.payment.gatewayResponse)
         assertTrue(msg.contains("Amount mismatch"))
         assertTrue(msg.contains("gateway=100000"))
         assertTrue(msg.contains("expected=500000"))
-        assertNull(result.value.paidAt, "paidAt must not be set when fraud guard flips to FAILED")
+        assertNull(result.value.payment.paidAt, "paidAt must not be set when fraud guard flips to FAILED")
     }
 
     @Test
@@ -271,9 +272,9 @@ class PaymentRepositoryImplTest {
         )
 
         assertTrue(second is DataResult.Success, second.toString())
-        assertEquals(PaymentStatus.SUCCESS, second.value.status)
-        assertEquals("First", second.value.gatewayResponse)
-        assertEquals("tx_first", second.value.paystackTransactionId)
+        assertEquals(PaymentStatus.SUCCESS, second.value.payment.status)
+        assertEquals("First", second.value.payment.gatewayResponse)
+        assertEquals("tx_first", second.value.payment.paystackTransactionId)
     }
 
     @Test
@@ -299,8 +300,8 @@ class PaymentRepositoryImplTest {
         )
 
         assertTrue(second is DataResult.Success, second.toString())
-        assertEquals(PaymentStatus.FAILED, second.value.status)
-        assertEquals("Declined", second.value.gatewayResponse)
+        assertEquals(PaymentStatus.FAILED, second.value.payment.status)
+        assertEquals("Declined", second.value.payment.gatewayResponse)
     }
 
     @Test
@@ -340,7 +341,7 @@ class PaymentRepositoryImplTest {
         )
 
         assertTrue(result is DataResult.Success, result.toString())
-        assertEquals("tx_initial", result.value.paystackTransactionId)
+        assertEquals("tx_initial", result.value.payment.paystackTransactionId)
     }
 
     @Test

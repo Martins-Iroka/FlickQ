@@ -24,6 +24,7 @@ import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
+import com.martdev.flickq.utils.TestNotifications
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -64,7 +65,7 @@ class ShowtimeSeatRepositoryImplTest {
             showtimeRepo = ShowtimeRepositoryImpl()
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
-            movieRepo = MovieRepositoryImpl()
+            movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             genreRepo = GenreRepositoryImpl()
         }
     }

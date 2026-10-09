@@ -43,6 +43,7 @@ import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
+import com.martdev.flickq.utils.TestNotifications
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteAll
@@ -85,12 +86,12 @@ class ReportRepositoryImplIntegrationTest {
             PostgresContainer.connectToDBAndMigrate(postgres)
             reportRepo = ReportRepositoryImpl()
             paymentRepo = PaymentRepositoryImpl()
-            reservationRepo = ReservationRepositoryImpl()
+            reservationRepo = ReservationRepositoryImpl(TestNotifications.enqueuer())
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
             showtimeRepo = ShowtimeRepositoryImpl()
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
-            movieRepo = MovieRepositoryImpl()
+            movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             genreRepo = GenreRepositoryImpl()
             userRepo = UserRepositoryImpl()
         }

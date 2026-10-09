@@ -39,6 +39,7 @@ import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
+import com.martdev.flickq.utils.TestNotifications
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -70,7 +71,6 @@ class ReservationRepositoryImplTest {
         private lateinit var genreRepo: GenreRepository
         private lateinit var userRepo: UserRepository
         private lateinit var paymentRepo: PaymentRepository
-        private lateinit var reservationRepo: ReservationRepository
         private val clock = Clock.System.now()
 
         @Container
@@ -80,16 +80,15 @@ class ReservationRepositoryImplTest {
         @JvmStatic
         fun connectToDBAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
-            repo = ReservationRepositoryImpl()
+            repo = ReservationRepositoryImpl(TestNotifications.enqueuer())
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
             showtimeRepo = ShowtimeRepositoryImpl()
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
-            movieRepo = MovieRepositoryImpl()
+            movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             genreRepo = GenreRepositoryImpl()
             userRepo = UserRepositoryImpl()
             paymentRepo = PaymentRepositoryImpl()
-            reservationRepo = ReservationRepositoryImpl()
         }
     }
 
@@ -403,7 +402,7 @@ class ReservationRepositoryImplTest {
     @Test
     fun `get user reservation ticket returns list of confirmed tickets`() = runTest {
         val ctx = setupContext(3)
-        val reservation = (reservationRepo.createReservation(
+        val reservation = (repo.createReservation(
             Reservation(
                 userId = ctx.userId,
                 showtimeId = ctx.showtimeId,
@@ -424,9 +423,9 @@ class ReservationRepositoryImplTest {
             amountFromGateway = 500_000L
         ) as DataResult.Success).value
 
-        reservationRepo.updateReservationStatus(payment.reservationId, ReservationStatus.CONFIRMED)
+        repo.updateReservationStatus(payment.payment.reservationId, ReservationStatus.CONFIRMED)
 
-        val ticketResult = reservationRepo.getUserReservationTicket(
+        val ticketResult = repo.getUserReservationTicket(
             ctx.userId,
             ReservationStatus.CONFIRMED,
             1, 0
@@ -439,7 +438,7 @@ class ReservationRepositoryImplTest {
     @Test
     fun `get user reservation ticket returns empty list of pending tickets`() = runTest {
         val ctx = setupContext(3)
-        val reservation = (reservationRepo.createReservation(
+        val reservation = (repo.createReservation(
             Reservation(
                 userId = ctx.userId,
                 showtimeId = ctx.showtimeId,
@@ -460,9 +459,9 @@ class ReservationRepositoryImplTest {
             amountFromGateway = 300_000L
         ) as DataResult.Success).value
 
-        reservationRepo.updateReservationStatus(payment.reservationId, ReservationStatus.PENDING)
+        repo.updateReservationStatus(payment.payment.reservationId, ReservationStatus.PENDING)
 
-        val ticketResult = reservationRepo.getUserReservationTicket(
+        val ticketResult = repo.getUserReservationTicket(
             ctx.userId,
             ReservationStatus.CONFIRMED,
             1, 0
