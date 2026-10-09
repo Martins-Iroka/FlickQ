@@ -7,7 +7,6 @@ import io.ktor.server.auth.principal
 import io.ktor.server.plugins.origin
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
-import io.ktor.server.request.host
 import kotlin.time.Duration.Companion.minutes
 
 fun Application.configureRateLimiter() {
@@ -17,7 +16,7 @@ fun Application.configureRateLimiter() {
         }
         register(name = RateLimitName("login")) {
             rateLimiter(limit = 5, refillPeriod = 15.minutes)
-            requestKey { call -> call.request.host() }
+            requestKey { call -> call.request.origin.remoteHost }
         }
         register(RateLimitName("devices")) {
             rateLimiter(10, 1.minutes)
