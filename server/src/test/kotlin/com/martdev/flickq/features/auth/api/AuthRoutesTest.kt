@@ -1,10 +1,13 @@
 package com.martdev.flickq.features.auth.api
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.martdev.flickq.auth.model.LoginResult
 import com.martdev.flickq.auth.model.OtpResendResult
 import com.martdev.flickq.auth.model.RefreshResult
 import com.martdev.flickq.auth.model.RegistrationResult
 import com.martdev.flickq.auth.request.CreateUserRequest
+import com.martdev.flickq.auth.request.LogoutRequest
 import com.martdev.flickq.auth.request.RefreshTokenRequest
 import com.martdev.flickq.auth.request.ResendOTPRequest
 import com.martdev.flickq.auth.request.UserLoginRequest
@@ -12,6 +15,7 @@ import com.martdev.flickq.auth.request.UserVerificationRequest
 import com.martdev.flickq.config.CookieConfig
 import com.martdev.flickq.config.JWTConfig
 import com.martdev.flickq.features.auth.domain.service.UserService
+import com.martdev.flickq.features.notification.domain.service.DeviceService
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.exception.InternalServerException
 import com.martdev.flickq.shared.domain.exception.NotFoundException
@@ -43,12 +47,17 @@ class AuthRoutesTest {
     @MockK
     private lateinit var service: UserService
 
+    @MockK
+    private lateinit var deviceService: DeviceService
+
     private val jwtConfig = JWTConfig("test", 15, "iss", "aud")
     private val cookieConfig = CookieConfig(secure = true, sameSite = "Strict")
+    private val deviceToken = "cXk1dEv:APA91b" + "x".repeat(140)
 
     private val testModule by lazy {
         module {
             single<UserService> { service }
+            single<DeviceService> { deviceService }
             single { jwtConfig }
             single { cookieConfig }
         }
@@ -283,7 +292,10 @@ class AuthRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { service.refreshToken("cookie-refresh") }
         // The rotated token is written back to the cookie.
-        assertTrue(response.headers[HttpHeaders.SetCookie]?.contains("refresh_token=rotated-refresh") == true)
+        assertEquals(
+            response.headers[HttpHeaders.SetCookie]?.contains("refresh_token=rotated-refresh"),
+            true
+        )
     }
 
     @Test
@@ -298,7 +310,7 @@ class AuthRoutesTest {
 
     @Test
     fun `POST logout revokes the cookie token and expires the cookie`() = testApplication {
-        coJustRun { service.logout(any()) }
+        coEvery { service.logout(any()) } returns null
         application { configure() }
         val client = clientConfiguration()
 
@@ -308,7 +320,7 @@ class AuthRoutesTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { service.logout("cookie-refresh") }
-        assertTrue(response.headers[HttpHeaders.SetCookie]?.contains("Max-Age=0") == true)
+        assertEquals(response.headers[HttpHeaders.SetCookie]?.contains("Max-Age=0"), true)
     }
 
     @Test
@@ -407,5 +419,64 @@ class AuthRoutesTest {
 
         assertEquals(HttpStatusCode.OK, first.status)
         assertEquals(HttpStatusCode.TooManyRequests, second.status)
+    }
+
+    @Test
+    fun `POST logout with a device token unregisters it for the refresh token's owner`() = testApplication {
+        coEvery { service.logout("native-refresh") } returns 2L
+        coJustRun { deviceService.unregister(2, deviceToken) }
+        application { configure() }
+
+        val response = clientConfiguration().post("/authentication/logout") {
+            setBody(LogoutRequest("native-refresh", deviceToken))
+        }
+
+        assertThat(response.status).isEqualTo(HttpStatusCode.OK)
+        coVerify(exactly = 1) {
+            deviceService.unregister(2, deviceToken)
+        }
+    }
+
+    @Test
+    fun `POST logout on web takes the refresh token from the cookie and the device token from the body`() = testApplication {
+        coEvery { service.logout("cookie-refresh") } returns 2L
+        coJustRun { deviceService.unregister(2, deviceToken) }
+        application { configure() }
+
+        val response = clientConfiguration().post("/authentication/logout") {
+            header(HttpHeaders.Cookie, "refresh_token=cookie-refresh")
+            setBody(LogoutRequest(deviceToken = deviceToken))
+        }
+
+        assertThat(response.status).isEqualTo(HttpStatusCode.OK)
+        coVerify { service.logout("cookie-refresh") }
+        coVerify(exactly = 1) { deviceService.unregister(2, deviceToken) }
+    }
+
+    @Test
+    fun `POST logout leaves devices alone when the refresh token is unknown`() = testApplication {
+        coEvery { service.logout(any()) } returns null
+        application { configure() }
+
+        val response = clientConfiguration().post("/authentication/logout") {
+            setBody(LogoutRequest(refreshToken = "revoked", deviceToken))
+        }
+
+        assertThat(response.status).isEqualTo(HttpStatusCode.OK)
+        coVerify(exactly = 0) { deviceService.unregister(any(), any()) }
+    }
+
+    @Test
+    fun `POST logout still accepts the legacy refresh-token-only body`() = testApplication {
+        coEvery { service.logout("legacy") } returns 2L
+        application { configure() }
+
+        val response = clientConfiguration().post("/authentication/logout") {
+            setBody(RefreshTokenRequest(refreshToken = "legacy"))
+        }
+
+        assertThat(response.status).isEqualTo(HttpStatusCode.OK)
+        coVerify { service.logout("legacy") }
+        coVerify(exactly = 0) { deviceService.unregister(any(), any()) }
     }
 }
