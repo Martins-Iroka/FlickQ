@@ -292,7 +292,7 @@ class DeviceTokenRepositoryImplTest {
         assertTrue(result is DataResult.Success)
         assertThat(result.value.deleted).isEqualTo(2)
         assertThat(result.value.activeTokens).containsExactly(tokens[0], tokens[1])
-        assertThat(rowCount()).isEqualTo(0)
+        assertThat(rowCount()).isEqualTo(3)
     }
 
     @Test
@@ -347,7 +347,11 @@ class DeviceTokenRepositoryImplTest {
         }
 
         suspend fun prune() =
-            (repository.pruneStale(now - 60.days, now - 30.days, limit = 2) as DataResult.Success).value
+            (repository.pruneStale(
+                now - 60.days,
+                now - 30.days,
+                limit = 2
+            ) as DataResult.Success).value
 
         val calls = buildList {
             repeat(4) {

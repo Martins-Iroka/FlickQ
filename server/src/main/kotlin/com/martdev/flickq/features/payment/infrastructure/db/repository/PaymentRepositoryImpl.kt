@@ -26,30 +26,32 @@ import kotlin.time.Instant
 @Single
 class PaymentRepositoryImpl : PaymentRepository {
 
-    override suspend fun createPayment(payment: Payment): DataResult<Payment> = withSuspendTransaction {
-        val entity = PaymentEntity.new {
-            reservationId = EntityID(payment.reservationId, ReservationTable)
-            userId = EntityID(payment.userId, UserTable)
-            reference = payment.reference
-            amount = payment.amount
-            currency = payment.currency
-            status = payment.status
-            authorizationUrl = payment.authorizationUrl
-            accessCode = payment.accessCode
-            paystackTransactionId = payment.paystackTransactionId
-            gatewayResponse = payment.gatewayResponse
-            paidAt = payment.paidAt
-            refundedAt = payment.refundedAt
+    override suspend fun createPayment(payment: Payment): DataResult<Payment> =
+        withSuspendTransaction {
+            val entity = PaymentEntity.new {
+                reservationId = EntityID(payment.reservationId, ReservationTable)
+                userId = EntityID(payment.userId, UserTable)
+                reference = payment.reference
+                amount = payment.amount
+                currency = payment.currency
+                status = payment.status
+                authorizationUrl = payment.authorizationUrl
+                accessCode = payment.accessCode
+                paystackTransactionId = payment.paystackTransactionId
+                gatewayResponse = payment.gatewayResponse
+                paidAt = payment.paidAt
+                refundedAt = payment.refundedAt
+            }
+            DataResult.Success(entity.toPayment())
         }
-        DataResult.Success(entity.toPayment())
-    }
 
-    override suspend fun getPaymentByReference(reference: String): DataResult<Payment> = withSuspendTransaction {
-        val entity = PaymentEntity.find { PaymentTable.reference eq reference }
-            .firstOrNull()
-            ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
-        DataResult.Success(entity.toPayment())
-    }
+    override suspend fun getPaymentByReference(reference: String): DataResult<Payment> =
+        withSuspendTransaction {
+            val entity = PaymentEntity.find { PaymentTable.reference eq reference }
+                .firstOrNull()
+                ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
+            DataResult.Success(entity.toPayment())
+        }
 
     override suspend fun getPaymentsByReservationId(reservationId: Long): DataResult<List<Payment>> =
         withSuspendTransaction {
@@ -104,15 +106,21 @@ class PaymentRepositoryImpl : PaymentRepository {
 
         // Idempotency: terminal states are never re-written
         if (entity.status == PaymentStatus.SUCCESS || entity.status == PaymentStatus.FAILED) {
-            return@withSuspendTransaction DataResult.Success(ChargeOutcome(entity.toPayment(), false))
+            return@withSuspendTransaction DataResult.Success(
+                ChargeOutcome(
+                    entity.toPayment(),
+                    false
+                )
+            )
         }
 
         // Fraud guard: amount returned by Paystack must equal what we stored at initialize-time
-        val resolvedStatus = if (status == PaymentStatus.SUCCESS && amountFromGateway != entity.amount) {
-            PaymentStatus.FAILED
-        } else {
-            status
-        }
+        val resolvedStatus =
+            if (status == PaymentStatus.SUCCESS && amountFromGateway != entity.amount) {
+                PaymentStatus.FAILED
+            } else {
+                status
+            }
         val resolvedGatewayResponse =
             if (resolvedStatus == PaymentStatus.FAILED && amountFromGateway != entity.amount) {
                 "Amount mismatch: gateway=$amountFromGateway, expected=${entity.amount}"
@@ -132,14 +140,15 @@ class PaymentRepositoryImpl : PaymentRepository {
         DataResult.Success(ChargeOutcome(entity.toPayment(), transitioned))
     }
 
-    override suspend fun markRefundPending(reference: String): DataResult<Payment> = withSuspendTransaction {
-        val entity = PaymentEntity.find { PaymentTable.reference eq reference }
-            .firstOrNull()
-            ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
-        entity.status = PaymentStatus.REFUND_PENDING
-        entity.updatedAt = Clock.System.now()
-        DataResult.Success(entity.toPayment())
-    }
+    override suspend fun markRefundPending(reference: String): DataResult<Payment> =
+        withSuspendTransaction {
+            val entity = PaymentEntity.find { PaymentTable.reference eq reference }
+                .firstOrNull()
+                ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
+            entity.status = PaymentStatus.REFUND_PENDING
+            entity.updatedAt = Clock.System.now()
+            DataResult.Success(entity.toPayment())
+        }
 
     override suspend fun markRefunded(reference: String, refundedAt: Instant): DataResult<Payment> =
         withSuspendTransaction {
@@ -152,7 +161,10 @@ class PaymentRepositoryImpl : PaymentRepository {
             DataResult.Success(entity.toPayment())
         }
 
-    override suspend fun markRefundFailed(reference: String, gatewayResponse: String?): DataResult<Payment> =
+    override suspend fun markRefundFailed(
+        reference: String,
+        gatewayResponse: String?
+    ): DataResult<Payment> =
         withSuspendTransaction {
             val entity = PaymentEntity.find { PaymentTable.reference eq reference }
                 .firstOrNull()

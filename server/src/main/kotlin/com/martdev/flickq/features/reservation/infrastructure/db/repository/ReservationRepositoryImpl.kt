@@ -23,6 +23,7 @@ import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.StdOutSqlLogger
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
@@ -234,6 +235,7 @@ class ReservationRepositoryImpl(
         id: Long,
         status: ReservationStatus
     ): DataResult<Reservation> = withSuspendTransaction {
+        addLogger(StdOutSqlLogger)
         // Row lock: webhook + verify + reconciler can confirm concurrently; only the first sees PENDING.
         val previous = ReservationTable
             .select(ReservationTable.status)

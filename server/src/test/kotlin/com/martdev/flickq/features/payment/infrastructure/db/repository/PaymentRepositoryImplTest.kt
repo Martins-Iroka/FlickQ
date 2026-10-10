@@ -1,5 +1,8 @@
 package com.martdev.flickq.features.payment.infrastructure.db.repository
 
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEqualTo
 import com.martdev.flickq.auth.model.UserData
 import com.martdev.flickq.features.auth.domain.repository.UserRepository
 import com.martdev.flickq.features.auth.infrastructure.db.repository.UserRepositoryImpl
@@ -44,6 +47,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -160,8 +164,10 @@ class PaymentRepositoryImplTest {
     @Test
     fun `getPaymentsByReservationId returns payments ordered by createdAt DESC`() = runTest {
         val ctx = setupPaymentContext()
-        val older = (repo.createPayment(payment(ctx, reference = "ref_older")) as DataResult.Success).value
-        val newer = (repo.createPayment(payment(ctx, reference = "ref_newer")) as DataResult.Success).value
+        val older =
+            (repo.createPayment(payment(ctx, reference = "ref_older")) as DataResult.Success).value
+        val newer =
+            (repo.createPayment(payment(ctx, reference = "ref_newer")) as DataResult.Success).value
         // Force a deterministic createdAt gap (TIMESTAMP(0) precision could otherwise tie).
         transaction {
             PaymentTable.update({ PaymentTable.id eq older.id }) {
@@ -181,50 +187,65 @@ class PaymentRepositoryImplTest {
     }
 
     @Test
-    fun `getPaymentByReservationId returns payment with valid authorization url and status`() = runTest {
-        val ctx = setupPaymentContext()
-        (repo.createPayment(payment(ctx, reference = "ref_12345", authorizationUrl = "auth_url_1")))
+    fun `getPaymentByReservationId returns payment with valid authorization url and status`() =
+        runTest {
+            val ctx = setupPaymentContext()
+            (repo.createPayment(
+                payment(
+                    ctx,
+                    reference = "ref_12345",
+                    authorizationUrl = "auth_url_1"
+                )
+            ))
 
-        val result = repo.getPaymentByReservationId(ctx.reservationId)
+            val result = repo.getPaymentByReservationId(ctx.reservationId)
 
-        assertTrue(result is DataResult.Success, result.toString())
-        assertEquals("auth_url_1", result.value.authorizationUrl)
-        assertEquals(PaymentStatus.PENDING, result.value.status)
-    }
-
-    @Test
-    fun `getPaymentsByReservationId returns empty list when reservation has no payments`() = runTest {
-        val ctx = setupPaymentContext()
-
-        val result = repo.getPaymentsByReservationId(ctx.reservationId)
-
-        assertTrue(result is DataResult.Success, result.toString())
-        assertTrue(result.value.isEmpty())
-    }
+            assertTrue(result is DataResult.Success, result.toString())
+            assertEquals("auth_url_1", result.value.authorizationUrl)
+            assertEquals(PaymentStatus.PENDING, result.value.status)
+        }
 
     @Test
-    fun `applyChargeResult transitions PENDING to SUCCESS and writes paidAt + gatewayResponse`() = runTest {
-        val ctx = setupPaymentContext()
-        val created =
-            (repo.createPayment(payment(ctx, reference = "ref_charge", amount = 500_000L)) as DataResult.Success).value
-        val paidAt = clock.minus(5.minutes)
+    fun `getPaymentsByReservationId returns empty list when reservation has no payments`() =
+        runTest {
+            val ctx = setupPaymentContext()
 
-        val result = repo.applyChargeResult(
-            reference = "ref_charge",
-            status = PaymentStatus.SUCCESS,
-            gatewayResponse = "Approved",
-            paystackTransactionId = "tx_123",
-            paidAt = paidAt,
-            amountFromGateway = 500_000L,
-        )
+            val result = repo.getPaymentsByReservationId(ctx.reservationId)
 
-        assertTrue(result is DataResult.Success, result.toString())
-        assertEquals(created.id, result.value.payment.id)
-        assertEquals(PaymentStatus.SUCCESS, result.value.payment.status)
-        assertEquals("Approved", result.value.payment.gatewayResponse)
-        assertEquals("tx_123", result.value.payment.paystackTransactionId)
-        assertEquals(paidAt, result.value.payment.paidAt)
-    }
+            assertTrue(result is DataResult.Success, result.toString())
+            assertTrue(result.value.isEmpty())
+        }
+
+    @Test
+    fun `applyChargeResult transitions PENDING to SUCCESS and writes paidAt + gatewayResponse`() =
+        runTest {
+            val ctx = setupPaymentContext()
+            val created =
+                (repo.createPayment(
+                    payment(
+                        ctx,
+                        reference = "ref_charge",
+                        amount = 500_000L
+                    )
+                ) as DataResult.Success).value
+            val paidAt = clock.minus(5.minutes)
+
+            val result = repo.applyChargeResult(
+                reference = "ref_charge",
+                status = PaymentStatus.SUCCESS,
+                gatewayResponse = "Approved",
+                paystackTransactionId = "tx_123",
+                paidAt = paidAt,
+                amountFromGateway = 500_000L,
+            )
+
+            assertTrue(result is DataResult.Success, result.toString())
+            assertEquals(created.id, result.value.payment.id)
+            assertEquals(PaymentStatus.SUCCESS, result.value.payment.status)
+            assertEquals("Approved", result.value.payment.gatewayResponse)
+            assertEquals("tx_123", result.value.payment.paystackTransactionId)
+            assertEquals(paidAt, result.value.payment.paidAt)
+        }
 
     @Test
     fun `applyChargeResult flags amount mismatch as FAILED with explanation`() = runTest {
@@ -246,7 +267,10 @@ class PaymentRepositoryImplTest {
         assertTrue(msg.contains("Amount mismatch"))
         assertTrue(msg.contains("gateway=100000"))
         assertTrue(msg.contains("expected=500000"))
-        assertNull(result.value.payment.paidAt, "paidAt must not be set when fraud guard flips to FAILED")
+        assertNull(
+            result.value.payment.paidAt,
+            "paidAt must not be set when fraud guard flips to FAILED"
+        )
     }
 
     @Test
@@ -319,35 +343,41 @@ class PaymentRepositoryImplTest {
     }
 
     @Test
-    fun `applyChargeResult preserves existing paystackTransactionId when null is passed`() = runTest {
-        val ctx = setupPaymentContext()
-        repo.createPayment(payment(ctx, reference = "ref_preserve_tx", amount = 1000L))
-        repo.applyChargeResult(
-            reference = "ref_preserve_tx",
-            status = PaymentStatus.PENDING,
-            gatewayResponse = null,
-            paystackTransactionId = "tx_initial",
-            paidAt = null,
-            amountFromGateway = 1000L,
-        )
+    fun `applyChargeResult preserves existing paystackTransactionId when null is passed`() =
+        runTest {
+            val ctx = setupPaymentContext()
+            repo.createPayment(payment(ctx, reference = "ref_preserve_tx", amount = 1000L))
+            repo.applyChargeResult(
+                reference = "ref_preserve_tx",
+                status = PaymentStatus.PENDING,
+                gatewayResponse = null,
+                paystackTransactionId = "tx_initial",
+                paidAt = null,
+                amountFromGateway = 1000L,
+            )
 
-        val result = repo.applyChargeResult(
-            reference = "ref_preserve_tx",
-            status = PaymentStatus.SUCCESS,
-            gatewayResponse = "Approved",
-            paystackTransactionId = null,
-            paidAt = clock,
-            amountFromGateway = 1000L,
-        )
+            val result = repo.applyChargeResult(
+                reference = "ref_preserve_tx",
+                status = PaymentStatus.SUCCESS,
+                gatewayResponse = "Approved",
+                paystackTransactionId = null,
+                paidAt = clock,
+                amountFromGateway = 1000L,
+            )
 
-        assertTrue(result is DataResult.Success, result.toString())
-        assertEquals("tx_initial", result.value.payment.paystackTransactionId)
-    }
+            assertTrue(result is DataResult.Success, result.toString())
+            assertEquals("tx_initial", result.value.payment.paystackTransactionId)
+        }
 
     @Test
     fun `markRefundPending sets status to REFUND_PENDING`() = runTest {
         val ctx = setupPaymentContext()
-        repo.createPayment(payment(ctx, reference = "ref_refund_pending").copy(status = PaymentStatus.SUCCESS))
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_refund_pending"
+            ).copy(status = PaymentStatus.SUCCESS)
+        )
 
         val result = repo.markRefundPending("ref_refund_pending")
 
@@ -365,7 +395,12 @@ class PaymentRepositoryImplTest {
     @Test
     fun `markRefunded sets status to REFUNDED and writes refundedAt`() = runTest {
         val ctx = setupPaymentContext()
-        repo.createPayment(payment(ctx, reference = "ref_refunded").copy(status = PaymentStatus.REFUND_PENDING))
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_refunded"
+            ).copy(status = PaymentStatus.REFUND_PENDING)
+        )
         val refundedAt = clock.minus(1.minutes)
 
         val result = repo.markRefunded("ref_refunded", refundedAt)
@@ -385,7 +420,12 @@ class PaymentRepositoryImplTest {
     @Test
     fun `markRefundFailed sets status to REFUND_FAILED and stores gatewayResponse`() = runTest {
         val ctx = setupPaymentContext()
-        repo.createPayment(payment(ctx, reference = "ref_refund_failed").copy(status = PaymentStatus.REFUND_PENDING))
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_refund_failed"
+            ).copy(status = PaymentStatus.REFUND_PENDING)
+        )
 
         val result = repo.markRefundFailed("ref_refund_failed", "Refund declined by issuer")
 
@@ -402,36 +442,111 @@ class PaymentRepositoryImplTest {
     }
 
     @Test
-    fun `findPendingPaymentsOlderThan returns only PENDING payments within the time window`() = runTest {
-        val ctx = setupPaymentContext()
-        val inWindow = (repo.createPayment(payment(ctx, reference = "ref_in_window")) as DataResult.Success).value
-        val tooNew = (repo.createPayment(payment(ctx, reference = "ref_too_new")) as DataResult.Success).value
-        val tooOld = (repo.createPayment(payment(ctx, reference = "ref_too_old")) as DataResult.Success).value
-        val nonPending = (repo.createPayment(
-            payment(ctx, reference = "ref_non_pending").copy(status = PaymentStatus.SUCCESS)
-        ) as DataResult.Success).value
+    fun `findPendingPaymentsOlderThan returns only PENDING payments within the time window`() =
+        runTest {
+            val ctx = setupPaymentContext()
+            val inWindow = (repo.createPayment(
+                payment(
+                    ctx,
+                    reference = "ref_in_window"
+                )
+            ) as DataResult.Success).value
+            val tooNew = (repo.createPayment(
+                payment(
+                    ctx,
+                    reference = "ref_too_new"
+                )
+            ) as DataResult.Success).value
+            val tooOld = (repo.createPayment(
+                payment(
+                    ctx,
+                    reference = "ref_too_old"
+                )
+            ) as DataResult.Success).value
+            val nonPending = (repo.createPayment(
+                payment(ctx, reference = "ref_non_pending").copy(status = PaymentStatus.SUCCESS)
+            ) as DataResult.Success).value
 
-        val now = clock
-        transaction {
-            PaymentTable.update({ PaymentTable.id eq inWindow.id }) { it[createdAt] = now.minus(1.hours) }
-            PaymentTable.update({ PaymentTable.id eq tooNew.id }) { it[createdAt] = now.minus(1.minutes) }
-            PaymentTable.update({ PaymentTable.id eq tooOld.id }) { it[createdAt] = now.minus(48.hours) }
-            PaymentTable.update({ PaymentTable.id eq nonPending.id }) { it[createdAt] = now.minus(1.hours) }
+            val now = clock
+            transaction {
+                PaymentTable.update({ PaymentTable.id eq inWindow.id }) {
+                    it[createdAt] = now.minus(1.hours)
+                }
+                PaymentTable.update({ PaymentTable.id eq tooNew.id }) {
+                    it[createdAt] = now.minus(1.minutes)
+                }
+                PaymentTable.update({ PaymentTable.id eq tooOld.id }) {
+                    it[createdAt] = now.minus(48.hours)
+                }
+                PaymentTable.update({ PaymentTable.id eq nonPending.id }) {
+                    it[createdAt] = now.minus(1.hours)
+                }
+            }
+
+            val result = repo.findPendingPaymentsOlderThan(
+                threshold = now.minus(15.minutes),
+                giveUpBefore = now.minus(24.hours),
+            )
+
+            assertTrue(result is DataResult.Success, result.toString())
+            val refs = result.value.map { it.reference }
+            assertEquals(listOf("ref_in_window"), refs)
         }
 
-        val result = repo.findPendingPaymentsOlderThan(
-            threshold = now.minus(15.minutes),
-            giveUpBefore = now.minus(24.hours),
-        )
+    @Test
+    fun `applyChargeResult reports a transition only the first time`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(payment(ctx, reference = "ref_t", amount = 500_000L))
+        suspend fun apply() =
+            (repo.applyChargeResult("ref_t", PaymentStatus.SUCCESS, "ok", "tx", clock, 500_000L)
+                    as DataResult.Success).value
 
-        assertTrue(result is DataResult.Success, result.toString())
-        val refs = result.value.map { it.reference }
-        assertEquals(listOf("ref_in_window"), refs)
+        assertThat(listOf(apply().transitioned, apply().transitioned)).containsExactly(true, false)
+    }
+
+    @Test
+    fun `amount mismatch is a transition into FAILED`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(payment(ctx, reference = "ref_mm", amount = 500_000L))
+
+        val outcome = (repo.applyChargeResult(
+            "ref_mm",
+            PaymentStatus.SUCCESS,
+            "ok",
+            "tx",
+            clock,
+            1L
+        ) as DataResult.Success).value
+
+        assertTrue(outcome.transitioned)
+        assertThat(outcome.payment.status).isEqualTo(PaymentStatus.FAILED)
+    }
+
+    @Test
+    fun `a still-pending gateway answer is not a transition`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(payment(ctx, reference = "ref_p", amount = 500_000L))
+
+        val outcome = (repo.applyChargeResult(
+            "ref_p",
+            PaymentStatus.PENDING,
+            null,
+            null,
+            null,
+            500_000L
+        ) as DataResult.Success).value
+
+        assertFalse(outcome.transitioned)
     }
 
     private data class PaymentContext(val userId: Long, val reservationId: Long)
 
-    private fun payment(ctx: PaymentContext, reference: String, amount: Long = 500_000L, authorizationUrl: String = "") = Payment(
+    private fun payment(
+        ctx: PaymentContext,
+        reference: String,
+        amount: Long = 500_000L,
+        authorizationUrl: String = ""
+    ) = Payment(
         reservationId = ctx.reservationId,
         userId = ctx.userId,
         reference = reference,
@@ -458,7 +573,13 @@ class PaymentRepositoryImplTest {
             )
         ) as DataResult.Success).value
         val savedRoom =
-            (roomRepo.createRoom(Room(name = "Room $n", rows = 5, columns = 10)) as DataResult.Success).value
+            (roomRepo.createRoom(
+                Room(
+                    name = "Room $n",
+                    rows = 5,
+                    columns = 10
+                )
+            ) as DataResult.Success).value
         val showtimeId = (showtimeRepo.createShowtime(
             Showtime(
                 movieId = movieId,

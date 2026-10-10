@@ -6,6 +6,7 @@ import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isNotEqualTo
+import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.martdev.flickq.config.FcmConfig
 import com.martdev.flickq.features.notification.domain.model.NotificationEvent
@@ -106,5 +107,13 @@ class NotificationComposerTest {
         val unsubIdempotencyKey = composer.unsubscribeFromNewMovies(token, now).idempotencyKey
 
         assertThat(subIdempotencyKey).isNotEqualTo(unsubIdempotencyKey)
+    }
+
+    @Test fun `only https posters become the push image`() {
+        fun image(url: String?) = composer.compose(NotificationEvent.MovieAdded(1, "Dune", url)).push.imageUrl
+        assertThat(image("https://cdn.example.test/p.jpg")).isEqualTo("https://cdn.example.test/p.jpg")
+        assertThat(image("poster_url")).isNull()
+        assertThat(image("http://cdn.example.test/p.jpg")).isNull()
+        assertThat(image(null)).isNull()
     }
 }

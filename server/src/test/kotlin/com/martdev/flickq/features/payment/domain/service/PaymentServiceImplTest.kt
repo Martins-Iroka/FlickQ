@@ -3,11 +3,13 @@ package com.martdev.flickq.features.payment.domain.service
 import com.martdev.flickq.auth.model.UserData
 import com.martdev.flickq.config.PaystackConfig
 import com.martdev.flickq.features.auth.domain.repository.UserRepository
+import com.martdev.flickq.features.payment.domain.repository.ChargeOutcome
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
 import com.martdev.flickq.features.payment.infrastructure.paystack.PaystackClient
 import com.martdev.flickq.features.payment.infrastructure.paystack.dto.InitializeResponse
 import com.martdev.flickq.features.payment.infrastructure.paystack.dto.RefundResponse
 import com.martdev.flickq.features.payment.infrastructure.paystack.dto.VerifyResponse
+import com.martdev.flickq.features.payment.observability.PaymentEvents
 import com.martdev.flickq.features.reservation.domain.service.ReservationService
 import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.payment.model.PaymentStatus
@@ -23,6 +25,7 @@ import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -49,6 +52,9 @@ class PaymentServiceImplTest {
 
     @MockK
     private lateinit var userRepository: UserRepository
+
+    @MockK(relaxUnitFun = true)
+    private lateinit var paymentEvents: PaymentEvents
 
     private val webhookSecret = "sk_test_secret"
     private val config = PaystackConfig(
@@ -90,14 +96,21 @@ class PaymentServiceImplTest {
             reservationService,
             paystackClient,
             userRepository,
-            config
+            config, paymentEvents
         )
     }
 
     @Test
     fun `initializePayment converts amount to kobo and persists a PENDING payment`() = runTest {
-        coEvery { reservationService.getMyReservationById(reservationId, userId) } returns pendingReservation
-        coEvery { paymentRepository.getPaymentsByReservationId(reservationId) } returns DataResult.Success(emptyList())
+        coEvery {
+            reservationService.getMyReservationById(
+                reservationId,
+                userId
+            )
+        } returns pendingReservation
+        coEvery { paymentRepository.getPaymentsByReservationId(reservationId) } returns DataResult.Success(
+            emptyList()
+        )
         coEvery { userRepository.getUserById(userId) } returns DataResult.Success(
             UserData(
                 id = userId,
@@ -135,7 +148,12 @@ class PaymentServiceImplTest {
 
     @Test
     fun `initializePayment rejects already-paid reservation with Conflict`() = runTest {
-        coEvery { reservationService.getMyReservationById(reservationId, userId) } returns pendingReservation
+        coEvery {
+            reservationService.getMyReservationById(
+                reservationId,
+                userId
+            )
+        } returns pendingReservation
         coEvery { paymentRepository.getPaymentsByReservationId(reservationId) } returns DataResult.Success(
             listOf(pendingPayment.copy(status = PaymentStatus.SUCCESS))
         )
@@ -159,7 +177,12 @@ class PaymentServiceImplTest {
     fun `retrieve initialized payment returns result`() {
         val authorizationUrl = "authorization_url"
         runTest {
-            coEvery { reservationService.getMyReservationById(any(), any()) } returns pendingReservation
+            coEvery {
+                reservationService.getMyReservationById(
+                    any(),
+                    any()
+                )
+            } returns pendingReservation
             coEvery { userRepository.getUserById(any()) } returns DataResult.Success(UserData())
             coEvery { paymentRepository.getPaymentByReservationId(any()) } returns DataResult.Success(
                 Payment(
@@ -177,7 +200,9 @@ class PaymentServiceImplTest {
     @Test
     fun `verifyPayment is a no-op when payment is already SUCCESS`() = runTest {
         val confirmed = pendingPayment.copy(status = PaymentStatus.SUCCESS)
-        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(confirmed)
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(
+            confirmed
+        )
 
         val result = service.verifyPayment(storedReference, requestingUserId = userId)
 
@@ -187,7 +212,9 @@ class PaymentServiceImplTest {
 
     @Test
     fun `verifyPayment throws Forbidden when requesting user does not own payment`() = runTest {
-        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(pendingPayment)
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(
+            pendingPayment
+        )
 
         assertThrows<ForbiddenException> {
             service.verifyPayment(storedReference, requestingUserId = 999L)
@@ -196,7 +223,9 @@ class PaymentServiceImplTest {
 
     @Test
     fun `verifyPayment promotes payment to SUCCESS and confirms reservation`() = runTest {
-        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(pendingPayment)
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(
+            pendingPayment
+        )
         coEvery { paystackClient.verifyTransaction(storedReference) } returns VerifyResponse(
             status = true,
             message = "Verification successful",
@@ -219,7 +248,12 @@ class PaymentServiceImplTest {
                 paidAt = any(),
                 amountFromGateway = pendingPayment.amount,
             )
-        } returns DataResult.Success(pendingPayment.copy(status = PaymentStatus.SUCCESS))
+        } returns DataResult.Success(
+            ChargeOutcome(
+                pendingPayment.copy(status = PaymentStatus.SUCCESS),
+                true
+            )
+        )
         coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns
                 pendingReservation.copy(status = ReservationStatus.CONFIRMED)
 
@@ -231,7 +265,9 @@ class PaymentServiceImplTest {
 
     @Test
     fun `verifyPayment maps non-success Paystack status to FAILED`() = runTest {
-        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(pendingPayment)
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(
+            pendingPayment
+        )
         coEvery { paystackClient.verifyTransaction(storedReference) } returns VerifyResponse(
             status = true,
             message = "Verification successful",
@@ -251,7 +287,12 @@ class PaymentServiceImplTest {
                 paidAt = null,
                 amountFromGateway = pendingPayment.amount,
             )
-        } returns DataResult.Success(pendingPayment.copy(status = PaymentStatus.FAILED))
+        } returns DataResult.Success(
+            ChargeOutcome(
+                pendingPayment.copy(status = PaymentStatus.FAILED),
+                true
+            )
+        )
 
         val result = service.verifyPayment(storedReference, requestingUserId = userId)
 
@@ -283,7 +324,12 @@ class PaymentServiceImplTest {
                 paidAt = any(),
                 amountFromGateway = pendingPayment.amount,
             )
-        } returns DataResult.Success(pendingPayment.copy(status = PaymentStatus.SUCCESS))
+        } returns DataResult.Success(
+            ChargeOutcome(
+                pendingPayment.copy(status = PaymentStatus.SUCCESS),
+                true
+            )
+        )
         coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns
                 pendingReservation.copy(status = ReservationStatus.CONFIRMED)
 
@@ -333,6 +379,110 @@ class PaymentServiceImplTest {
         assertEquals(result?.status, PaymentStatus.REFUND_PENDING)
         coVerify { paymentRepository.markRefundPending(storedReference) }
         coVerify { paystackClient.refundTransaction(storedReference, null) }
+    }
+
+    @Test
+    fun `a real SUCCESS transition emits paymentSucceeded with the payment's reservation, not the webhook's 0`() =
+        runTest {
+//            val rid = slot<Long>()
+            val body =
+                """{"event":"charge.success","data":{"id":99,"reference":"$storedReference","status":"success","amount":${pendingPayment.amount}}}"""
+            coEvery {
+                paymentRepository.applyChargeResult(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any()
+                )
+            } returns
+                    DataResult.Success(
+                        ChargeOutcome(
+                            pendingPayment.copy(status = PaymentStatus.SUCCESS),
+                            transitioned = true
+                        )
+                    )
+            coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns pendingReservation
+
+            service.handleWebhook(body, hmacSha512(body, webhookSecret))
+
+            verify(exactly = 1) {
+                paymentEvents.paymentSucceeded(
+                    reservationId,
+                    pendingPayment.amount
+                )
+            }
+        }
+
+    @Test
+    fun `a replayed SUCCESS emits nothing but still re-attempts confirmation`() = runTest {
+        val body =
+            """{"event":"charge.success","data":{"id":99,"reference":"$storedReference","status":"success","amount":${pendingPayment.amount}}}"""
+        coEvery {
+            paymentRepository.applyChargeResult(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns
+                DataResult.Success(
+                    ChargeOutcome(
+                        pendingPayment.copy(status = PaymentStatus.SUCCESS),
+                        transitioned = false
+                    )
+                )
+        coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns pendingReservation
+
+        service.handleWebhook(body, hmacSha512(body, webhookSecret))
+
+        verify(exactly = 0) { paymentEvents.paymentSucceeded(any(), any()) }
+        coVerify(exactly = 1) { reservationService.confirmReservationFromPayment(reservationId) }
+    }
+
+    @Test
+    fun `an amount mismatch emits paymentFailed(amount_mismatch) and never confirms`() = runTest {
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(
+            pendingPayment
+        )
+        coEvery { paystackClient.verifyTransaction(storedReference) } returns VerifyResponse(
+            status = true, message = "ok",
+            data = VerifyResponse.VerifyData(
+                status = "success",
+                reference = storedReference,
+                amount = 1L
+            ),
+        )
+        val failed = pendingPayment.copy(
+            status = PaymentStatus.FAILED,
+            gatewayResponse = "Amount mismatch: gateway=1, expected=500000"
+        )
+        coEvery {
+            paymentRepository.applyChargeResult(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns
+                DataResult.Success(ChargeOutcome(failed, transitioned = true))
+
+        service.verifyPayment(storedReference, requestingUserId = userId)
+
+        verify {
+            paymentEvents.paymentFailed(
+                reservationId,
+                "amount_mismatch",
+                failed.gatewayResponse
+            )
+        }
+        verify(exactly = 0) { paymentEvents.paymentSucceeded(any(), any()) }
+        coVerify(exactly = 0) { reservationService.confirmReservationFromPayment(any()) }
     }
 
     private fun hmacSha512(payload: String, secret: String): String {

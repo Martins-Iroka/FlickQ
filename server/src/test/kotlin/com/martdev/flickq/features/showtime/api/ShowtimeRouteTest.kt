@@ -96,7 +96,7 @@ class ShowtimeRouteTest {
             appConfig()
         }
         val client = clientConfiguration(adminToken)
-        client.get("/admin/showtime/get-showtimes").apply {
+        client.get("/admin/showtime/get-showtimes?limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.OK, status)
         }
     }

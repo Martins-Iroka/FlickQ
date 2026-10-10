@@ -79,7 +79,7 @@ class ReservationRouteTest {
             appConfig()
         }
         val client = clientConfiguration(adminToken)
-        client.get("/admin/reservation/get-all").apply {
+        client.get("/admin/reservation/get-all?limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.OK, status, bodyAsText())
         }
     }
@@ -152,7 +152,7 @@ class ReservationRouteTest {
             appConfig()
         }
         val client = clientConfiguration(userToken)
-        client.get("/reservation/my-reservations?status=CONFIRMED").apply {
+        client.get("/reservation/my-reservations?status=CONFIRMED&limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.OK, status, bodyAsText())
         }
     }
@@ -174,7 +174,7 @@ class ReservationRouteTest {
             appConfig()
         }
         val client = clientConfiguration(userToken)
-        client.get("/reservation/my-reservations?status=CONFIRME").apply {
+        client.get("/reservation/my-reservations?status=CONFIRME&limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.BadRequest, status)
             val body = bodyAsText()
             assertContains(body, "Invalid filtered status. Status must be 'PENDING', 'CONFIRMED', 'CANCELLED'")

@@ -138,7 +138,7 @@ class ReportRouterTest {
 
         application { appConfig() }
         val client = clientConfiguration(adminToken)
-        client.get("/admin/reports/capacity?from=$from&to=$to&movieId=7&roomId=3").apply {
+        client.get("/admin/reports/capacity?from=$from&to=$to&movieId=7&roomId=3&limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.OK, status, bodyAsText())
         }
         coVerify { reportService.getCapacityReport(from, to, 10, 0L, 7L, 3L) }

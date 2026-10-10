@@ -192,7 +192,7 @@ class MovieRouteTest {
             configure()
         }
         val client = clientConfiguration(adminToken)
-        client.get("/admin/movie/get-movies").apply {
+        client.get("/admin/movie/get-movies?limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.OK, status)
         }
     }
@@ -219,7 +219,7 @@ class MovieRouteTest {
             configure()
         }
         val client = clientConfiguration(userToken)
-        client.get("movie/get-movies-by-genre/15").apply {
+        client.get("movie/get-movies-by-genre/15?limit=10&offset=0").apply {
             assertEquals(HttpStatusCode.OK, status)
         }
     }
