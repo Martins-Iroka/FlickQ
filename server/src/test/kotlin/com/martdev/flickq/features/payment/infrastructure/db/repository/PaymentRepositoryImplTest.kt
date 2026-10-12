@@ -16,6 +16,7 @@ import com.martdev.flickq.features.movie.infrasturcture.repository.MovieReposito
 import com.martdev.flickq.features.movie.infrasturcture.tables.GenresTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
+import com.martdev.flickq.features.payment.domain.repository.PaymentUpdate
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentTable
 import com.martdev.flickq.features.reservation.domain.repository.ReservationRepository
 import com.martdev.flickq.features.reservation.domain.repository.ShowtimeSeatRepository
@@ -42,6 +43,8 @@ import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
 import com.martdev.flickq.utils.TestNotifications
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteAll
@@ -61,6 +64,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 @Testcontainers
 class PaymentRepositoryImplTest {
@@ -382,7 +386,7 @@ class PaymentRepositoryImplTest {
         val result = repo.markRefundPending("ref_refund_pending")
 
         assertTrue(result is DataResult.Success, result.toString())
-        assertEquals(PaymentStatus.REFUND_PENDING, result.value.status)
+        assertEquals(PaymentStatus.REFUND_PENDING, result.value.payment.status)
     }
 
     @Test
@@ -406,8 +410,8 @@ class PaymentRepositoryImplTest {
         val result = repo.markRefunded("ref_refunded", refundedAt)
 
         assertTrue(result is DataResult.Success, result.toString())
-        assertEquals(PaymentStatus.REFUNDED, result.value.status)
-        assertEquals(refundedAt, result.value.refundedAt)
+        assertEquals(PaymentStatus.REFUNDED, result.value.payment.status)
+        assertEquals(refundedAt, result.value.payment.refundedAt)
     }
 
     @Test
@@ -430,8 +434,8 @@ class PaymentRepositoryImplTest {
         val result = repo.markRefundFailed("ref_refund_failed", "Refund declined by issuer")
 
         assertTrue(result is DataResult.Success, result.toString())
-        assertEquals(PaymentStatus.REFUND_FAILED, result.value.status)
-        assertEquals("Refund declined by issuer", result.value.gatewayResponse)
+        assertEquals(PaymentStatus.REFUND_FAILED, result.value.payment.status)
+        assertEquals("Refund declined by issuer", result.value.payment.gatewayResponse)
     }
 
     @Test
@@ -498,10 +502,16 @@ class PaymentRepositoryImplTest {
         val ctx = setupPaymentContext()
         repo.createPayment(payment(ctx, reference = "ref_t", amount = 500_000L))
         suspend fun apply() =
-            (repo.applyChargeResult("ref_t", PaymentStatus.SUCCESS, "ok", "tx", clock, 500_000L)
+            (repo.applyChargeResult("ref_t", PaymentStatus.SUCCESS,
+                "ok",
+                "tx",
+                clock, 500_000L)
                     as DataResult.Success).value
 
-        assertThat(listOf(apply().transitioned, apply().transitioned)).containsExactly(true, false)
+        assertThat(listOf(apply().transitioned, apply().transitioned)).containsExactly(
+            true,
+            false
+        )
     }
 
     @Test
@@ -537,6 +547,237 @@ class PaymentRepositoryImplTest {
         ) as DataResult.Success).value
 
         assertFalse(outcome.transitioned)
+    }
+
+    @Test
+    fun `a replayed charge success on a REFUND_PENDING payment is rejected and changes nothing`() =
+        runTest {
+            val ctx = setupPaymentContext()
+            repo.createPayment(
+                payment(
+                    ctx,
+                    reference = "ref_replay"
+                ).copy(status = PaymentStatus.REFUND_PENDING, gatewayResponse = "refund queued")
+            )
+
+            val result = repo.applyChargeResult(
+                "ref_replay",
+                PaymentStatus.SUCCESS,
+                "Approved",
+                "tx_new",
+                clock,
+                500_000L
+            )
+
+            assertTrue(result is DataResult.Success, result.toString())
+            assertEquals(PaymentUpdate.Result.REJECTED, result.value.result)
+            assertEquals(PaymentStatus.REFUND_PENDING, result.value.previousStatus)
+            val stored = (repo.getPaymentByReference("ref_replay") as DataResult.Success).value
+            assertEquals(PaymentStatus.REFUND_PENDING, stored.status)
+            assertEquals(
+                "refund queued",
+                stored.gatewayResponse
+            )            // metadata untouched too
+            assertNull(stored.paystackTransactionId)
+        }
+
+    @Test
+    fun `a charge result can never move a pending payment straight into a refund state`() =
+        runTest {
+            val ctx = setupPaymentContext()
+            repo.createPayment(payment(ctx, reference = "ref_pending_refunded"))
+
+            val result = repo.applyChargeResult(
+                "ref_pending_refunded",
+                PaymentStatus.REFUNDED,
+                null,
+                null,
+                null,
+                500_000L
+            )
+
+            assertTrue(result is DataResult.Success, result.toString())
+            assertEquals(PaymentUpdate.Result.REJECTED, result.value.result)
+            assertEquals(
+                PaymentStatus.PENDING,
+                (repo.getPaymentByReference("ref_pending_refunded") as DataResult.Success).value.status
+            )
+        }
+
+    @Test
+    fun `an abandoned checkout can still succeed`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_abandoned"
+            ).copy(status = PaymentStatus.ABANDONED)
+        )
+
+        val result = repo.applyChargeResult(
+            "ref_abandoned",
+            PaymentStatus.SUCCESS,
+            "Approved",
+            "tx",
+            clock,
+            500_000L
+        )
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals(PaymentUpdate.Result.APPLIED, result.value.result)
+        assertEquals(PaymentStatus.SUCCESS, result.value.payment.status)
+    }
+
+    @Test
+    fun `markRefundPending on a payment that never succeeded is rejected`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(payment(ctx, reference = "ref_not_paid"))
+
+        val result = repo.markRefundPending("ref_not_paid")
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals(PaymentUpdate.Result.REJECTED, result.value.result)
+        assertEquals(PaymentStatus.PENDING, result.value.payment.status)
+    }
+
+    @Test
+    fun `markRefundPending twice is applied then a no-op`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_claim"
+            ).copy(status = PaymentStatus.SUCCESS)
+        )
+
+        val first = (repo.markRefundPending("ref_claim") as DataResult.Success).value
+        val second = (repo.markRefundPending("ref_claim") as DataResult.Success).value
+
+        assertThat(listOf(first.result, second.result))
+            .containsExactly(PaymentUpdate.Result.APPLIED, PaymentUpdate.Result.NO_OP)
+    }
+
+    @Test
+    fun `ten concurrent refund claims produce exactly one APPLIED`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_race"
+            ).copy(status = PaymentStatus.SUCCESS)
+        )
+
+        // withSuspendTransaction hops to Dispatchers.IO, so these transactions really overlap.
+        val results = (1..10).map { async { repo.markRefundPending("ref_race") } }.awaitAll()
+
+        val outcomes = results.map { (it as DataResult.Success).value.result }
+        assertEquals(1, outcomes.count { it == PaymentUpdate.Result.APPLIED })
+        assertEquals(9, outcomes.count { it == PaymentUpdate.Result.NO_OP })
+    }
+
+    @Test
+    fun `a refund can be retried after it failed`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_retry"
+            ).copy(status = PaymentStatus.REFUND_FAILED)
+        )
+
+        val result = repo.markRefundPending("ref_retry")
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals(PaymentUpdate.Result.APPLIED, result.value.result)
+        assertEquals(PaymentStatus.REFUND_PENDING, result.value.payment.status)
+    }
+
+    @Test
+    fun `a late refund failed after refund processed is rejected and REFUNDED stays`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_order"
+            ).copy(status = PaymentStatus.REFUND_PENDING)
+        )
+        repo.markRefunded("ref_order", clock)
+
+        val late = repo.markRefundFailed("ref_order", "stale failure")
+
+        assertTrue(late is DataResult.Success, late.toString())
+        assertEquals(PaymentUpdate.Result.REJECTED, late.value.result)
+        val stored = (repo.getPaymentByReference("ref_order") as DataResult.Success).value
+        assertEquals(PaymentStatus.REFUNDED, stored.status)
+        assertTrue(stored.gatewayResponse != "stale failure")
+    }
+
+    @Test
+    fun `a late refund processed after refund failed wins`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_late_ok"
+            ).copy(status = PaymentStatus.REFUND_FAILED)
+        )
+
+        val result = repo.markRefunded("ref_late_ok", clock)
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals(PaymentUpdate.Result.APPLIED, result.value.result)
+        assertEquals(PaymentStatus.REFUNDED, result.value.payment.status)
+    }
+
+    @Test
+    fun `a replayed refund processed keeps the first refundedAt`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_twice"
+            ).copy(status = PaymentStatus.REFUND_PENDING)
+        )
+        val firstAt =
+            Instant.fromEpochSeconds(clock.epochSeconds - 60)          // whole seconds: survives TIMESTAMP(0)
+        val secondAt = Instant.fromEpochSeconds(clock.epochSeconds)
+
+        repo.markRefunded("ref_twice", firstAt)
+        val replay = (repo.markRefunded("ref_twice", secondAt) as DataResult.Success).value
+
+        assertEquals(PaymentUpdate.Result.NO_OP, replay.result)
+        assertEquals(
+            firstAt,
+            (repo.getPaymentByReference("ref_twice") as DataResult.Success).value.refundedAt
+        )
+    }
+
+    @Test
+    fun `refund processed for a pending payment is rejected`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(payment(ctx, reference = "ref_pending_refund"))
+
+        val result = repo.markRefunded("ref_pending_refund", clock)
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals(PaymentUpdate.Result.REJECTED, result.value.result)
+        assertEquals(PaymentStatus.PENDING, result.value.payment.status)
+    }
+
+    @Test
+    fun `a dashboard refund moves SUCCESS straight to REFUNDED`() = runTest {
+        val ctx = setupPaymentContext()
+        repo.createPayment(
+            payment(
+                ctx,
+                reference = "ref_dashboard"
+            ).copy(status = PaymentStatus.SUCCESS)
+        )
+
+        val result = repo.markRefunded("ref_dashboard", clock)
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals(PaymentUpdate.Result.APPLIED, result.value.result)
     }
 
     private data class PaymentContext(val userId: Long, val reservationId: Long)

@@ -2,7 +2,9 @@ package com.martdev.flickq.features.payment.domain.service
 
 import com.martdev.flickq.config.PaystackConfig
 import com.martdev.flickq.features.auth.domain.repository.UserRepository
+import com.martdev.flickq.features.payment.domain.model.PaymentTransitions
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
+import com.martdev.flickq.features.payment.domain.repository.PaymentUpdate
 import com.martdev.flickq.features.payment.infrastructure.paystack.PaystackClient
 import com.martdev.flickq.features.payment.infrastructure.paystack.PaystackSignatureVerifier
 import com.martdev.flickq.features.payment.infrastructure.paystack.dto.PaystackWebhookEvent
@@ -160,16 +162,6 @@ class PaymentServiceImpl(
                 reservationId = reservationId,
             )
         }
-        /*val existing = paymentRepository.getPaymentByReservationId(reservationId).returnValue()
-        if (existing.status != PaymentStatus.PENDING) {
-            throw ConflictException("Payment status is ${existing.status}")
-        }
-
-        return InitializePaymentResult(
-            authorizationUrl = existing.authorizationUrl.orEmpty().ifEmpty { "NA" },
-            reservationId = reservationId,
-            reference = existing.reference
-        )*/
     }
 
     override suspend fun verifyPayment(reference: String, requestingUserId: Long?): Payment {
@@ -177,6 +169,10 @@ class PaymentServiceImpl(
 
         if (requestingUserId != null && payment.userId != requestingUserId) {
             throw ForbiddenException()
+        }
+
+        if (payment.status !in PaymentTransitions.CHARGEABLE) {
+            return payment
         }
 
         if (payment.status == PaymentStatus.SUCCESS || payment.status == PaymentStatus.FAILED) {
@@ -228,12 +224,30 @@ class PaymentServiceImpl(
 
             "refund.processed" -> {
                 val refundedAt = parseInstantOrNow(data.paidAt)
-                paymentRepository.markRefunded(data.reference, refundedAt).returnValue()
+                val update =
+                    paymentRepository.markRefunded(data.reference, refundedAt).returnValue()
+                when (update.result) {
+                    PaymentUpdate.Result.APPLIED ->
+                        paymentEvents.refundProcessed(update.payment.id, update.payment.amount)
+                    PaymentUpdate.Result.REJECTED ->
+                        logRejected("refund.processed", data.reference, update.previousStatus, PaymentStatus.REFUNDED)
+                    PaymentUpdate.Result.NO_OP -> Unit
+                }
             }
 
             "refund.failed" -> {
-                paymentRepository.markRefundFailed(data.reference, data.gatewayResponse)
+                val update = paymentRepository
+                    .markRefundFailed(data.reference, data.gatewayResponse)
                     .returnValue()
+                if (update.result == PaymentUpdate.Result.REJECTED) {
+                    // e.g. a late refund.failed after refund.processed: REFUNDED is final.
+                    logRejected(
+                        "refund.failed",
+                        data.reference,
+                        update.previousStatus,
+                        PaymentStatus.REFUND_FAILED
+                    )
+                }
             }
 
             else -> {
@@ -248,23 +262,25 @@ class PaymentServiceImpl(
 
     override suspend fun refundPaymentForReservation(reservationId: Long): Payment? {
         val payments = paymentRepository.getPaymentsByReservationId(reservationId).returnValue()
-        val successful = payments.firstOrNull { it.status == PaymentStatus.SUCCESS } ?: return null
+        val refundable = payments.firstOrNull { it.status in PaymentTransitions.REFUNDABLE } ?: return null
 
-        paymentRepository.markRefundPending(successful.reference).returnValue()
-
+        val claim = paymentRepository.markRefundPending(refundable.reference).returnValue()
+        if (!claim.transitioned) {
+            throw ConflictException("A refund for this reservation is already in progress")
+        }
         val response = try {
-            paystackClient.refundTransaction(successful.reference, amount = null)
+            paystackClient.refundTransaction(refundable.reference, amount = null)
         } catch (e: Exception) {
-            paymentRepository.markRefundFailed(successful.reference, e.message).returnValue()
+            paymentRepository.markRefundFailed(refundable.reference, e.message).returnValue()
             throw e
         }
 
         if (!response.status) {
-            paymentRepository.markRefundFailed(successful.reference, response.message).returnValue()
+            paymentRepository.markRefundFailed(refundable.reference, response.message).returnValue()
             throw BadRequestException(response.message.ifBlank { "Paystack rejected the refund" })
         }
         // Final REFUNDED state is confirmed by webhook (refund.processed).
-        return paymentRepository.getPaymentByReference(successful.reference).returnValue()
+        return paymentRepository.getPaymentByReference(refundable.reference).returnValue()
     }
 
     override suspend fun getPaymentsByReservationId(reservationId: Long): List<Payment> {
@@ -308,23 +324,18 @@ class PaymentServiceImpl(
         reservationId: Long,
     ): Payment {
         val mappedStatus = when (paystackStatus.lowercase()) {
-            "success" -> {
-                PaymentStatus.SUCCESS
-            }
-
-            "failed" -> {
-                PaymentStatus.FAILED
-            }
-
+            "success" -> PaymentStatus.SUCCESS
+            "failed" -> PaymentStatus.FAILED
             "reversed" -> {
-                PaymentStatus.REFUNDED
+                // A reversal is a refund; refunds settle only via refund.processed so their lifecycle lives in one place.
+                log.warn("event=payment.charge.reversed_ignored ref={}", reference)
+                return paymentRepository.getPaymentByReference(reference).returnValue()
             }
-
             "abandoned" -> PaymentStatus.ABANDONED
             else -> PaymentStatus.PENDING
         }
 
-        val outcome = paymentRepository.applyChargeResult(
+        val update = paymentRepository.applyChargeResult(
             reference = reference,
             status = mappedStatus,
             gatewayResponse = gatewayResponse,
@@ -332,9 +343,13 @@ class PaymentServiceImpl(
             paidAt = paidAtRaw?.let { parseInstantOrNull(it) },
             amountFromGateway = paystackAmount,
         ).returnValue()
-        val updated = outcome.payment
+        val updated = update.payment
 
-        if (outcome.transitioned) publishTransition(updated, mappedStatus)
+        when (update.result) {
+            PaymentUpdate.Result.APPLIED -> publishTransition(updated, mappedStatus)
+            PaymentUpdate.Result.REJECTED -> logRejected("charge", reference, update.previousStatus, mappedStatus)
+            PaymentUpdate.Result.NO_OP -> Unit
+        }
 
         if (updated.status == PaymentStatus.SUCCESS) {
             runCatching { reservationService.confirmReservationFromPayment(updated.reservationId) }
@@ -350,17 +365,26 @@ class PaymentServiceImpl(
         return updated
     }
 
-    private fun  publishTransition(payment: Payment, requested: PaymentStatus) {
-        when(payment.status) {
-            PaymentStatus.SUCCESS -> paymentEvents.paymentSucceeded(payment.reservationId, payment.amount)
+    private fun publishTransition(payment: Payment, requested: PaymentStatus) {
+        when (payment.status) {
+            PaymentStatus.SUCCESS -> paymentEvents.paymentSucceeded(
+                payment.reservationId,
+                payment.amount
+            )
+
             PaymentStatus.FAILED -> paymentEvents.paymentFailed(
                 reservationId = payment.reservationId,
                 reason = if (requested == PaymentStatus.SUCCESS) "amount_mismatch" else "failed",
                 gatewayErrorCode = payment.gatewayResponse
             )
+
             PaymentStatus.REFUNDED -> paymentEvents.refundProcessed(payment.id, payment.amount)
             else -> Unit
         }
+    }
+
+    private fun logRejected(source: String, reference: String, from: PaymentStatus, to: PaymentStatus) {
+        log.warn("event=payment.transition.rejected source={} ref={} from={} to={}", source, reference, from, to)
     }
 
     private fun parseInstantOrNull(s: String): Instant? =

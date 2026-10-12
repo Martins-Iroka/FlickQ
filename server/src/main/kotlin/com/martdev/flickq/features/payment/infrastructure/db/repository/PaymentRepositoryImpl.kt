@@ -1,8 +1,9 @@
 package com.martdev.flickq.features.payment.infrastructure.db.repository
 
 import com.martdev.flickq.features.auth.infrastructure.db.table.UserTable
-import com.martdev.flickq.features.payment.domain.repository.ChargeOutcome
+import com.martdev.flickq.features.payment.domain.model.PaymentTransitions
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
+import com.martdev.flickq.features.payment.domain.repository.PaymentUpdate
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentEntity
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentTable
 import com.martdev.flickq.features.payment.infrastructure.db.table.toPayment
@@ -18,7 +19,6 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.koin.core.annotation.Single
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -93,86 +93,69 @@ class PaymentRepositoryImpl : PaymentRepository {
         paystackTransactionId: String?,
         paidAt: Instant?,
         amountFromGateway: Long,
-    ): DataResult<ChargeOutcome> = withSuspendTransaction {
-        // Lock the payment row to serialize concurrent verify + webhook
-        val locked = PaymentTable.selectAll()
-            .where { PaymentTable.reference eq reference }
-            .forUpdate()
-            .firstOrNull()
+    ): DataResult<PaymentUpdate> = withSuspendTransaction {
+        // Row lock serializes webhook + verify + reconciler for the same reference.
+        val entity = lockByReference(reference)
             ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
+        val from = entity.status
 
-        val id = locked[PaymentTable.id].value
-        val entity = PaymentEntity[id]
+        // Fraud guard: amount returned by Paystack must equal what we stored at initialize-time.
+        val to =
+            if (status == PaymentStatus.SUCCESS && amountFromGateway != entity.amount) PaymentStatus.FAILED else status
 
-        // Idempotency: terminal states are never re-written
-        if (entity.status == PaymentStatus.SUCCESS || entity.status == PaymentStatus.FAILED) {
-            return@withSuspendTransaction DataResult.Success(
-                ChargeOutcome(
-                    entity.toPayment(),
-                    false
-                )
+        val result = when {
+            // Settled (SUCCESS, FAILED, any refund state): a charge result is history and never rewrites it.
+            from !in PaymentTransitions.CHARGEABLE ->
+                if (from == to) PaymentUpdate.Result.NO_OP else PaymentUpdate.Result.REJECTED
+
+            from == to -> PaymentUpdate.Result.NO_OP
+            !PaymentTransitions.canTransition(from, to) -> PaymentUpdate.Result.REJECTED
+            else -> PaymentUpdate.Result.APPLIED
+        }
+
+        // Still unsettled: keep the latest gateway metadata even when the status itself didn't move
+        // (preserves the existing PENDING → PENDING behaviour of recording the transaction id).
+        if (from in PaymentTransitions.CHARGEABLE && result != PaymentUpdate.Result.REJECTED) {
+            entity.status = to
+            entity.gatewayResponse =
+                if (to == PaymentStatus.FAILED && amountFromGateway != entity.amount) {
+                    "Amount mismatch: gateway=$amountFromGateway, expected=${entity.amount}"
+                } else {
+                    gatewayResponse
+                }
+            entity.paystackTransactionId = paystackTransactionId ?: entity.paystackTransactionId
+            if (to == PaymentStatus.SUCCESS) {
+                entity.paidAt = paidAt ?: Clock.System.now()
+            }
+            entity.updatedAt = Clock.System.now()
+        }
+
+        DataResult.Success(
+            PaymentUpdate(
+                entity.toPayment(),
+                result = result,
+                previousStatus = from
             )
-        }
-
-        // Fraud guard: amount returned by Paystack must equal what we stored at initialize-time
-        val resolvedStatus =
-            if (status == PaymentStatus.SUCCESS && amountFromGateway != entity.amount) {
-                PaymentStatus.FAILED
-            } else {
-                status
-            }
-        val resolvedGatewayResponse =
-            if (resolvedStatus == PaymentStatus.FAILED && amountFromGateway != entity.amount) {
-                "Amount mismatch: gateway=$amountFromGateway, expected=${entity.amount}"
-            } else {
-                gatewayResponse
-            }
-        val transitioned = entity.status != resolvedStatus
-
-        entity.status = resolvedStatus
-        entity.gatewayResponse = resolvedGatewayResponse
-        entity.paystackTransactionId = paystackTransactionId ?: entity.paystackTransactionId
-        if (resolvedStatus == PaymentStatus.SUCCESS) {
-            entity.paidAt = paidAt ?: Clock.System.now()
-        }
-        entity.updatedAt = Clock.System.now()
-
-        DataResult.Success(ChargeOutcome(entity.toPayment(), transitioned))
+        )
     }
 
-    override suspend fun markRefundPending(reference: String): DataResult<Payment> =
-        withSuspendTransaction {
-            val entity = PaymentEntity.find { PaymentTable.reference eq reference }
-                .firstOrNull()
-                ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
-            entity.status = PaymentStatus.REFUND_PENDING
-            entity.updatedAt = Clock.System.now()
-            DataResult.Success(entity.toPayment())
-        }
+    override suspend fun markRefundPending(reference: String): DataResult<PaymentUpdate> =
+        transition(reference, PaymentStatus.REFUND_PENDING)
 
-    override suspend fun markRefunded(reference: String, refundedAt: Instant): DataResult<Payment> =
-        withSuspendTransaction {
-            val entity = PaymentEntity.find { PaymentTable.reference eq reference }
-                .firstOrNull()
-                ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
-            entity.status = PaymentStatus.REFUNDED
-            entity.refundedAt = refundedAt
-            entity.updatedAt = Clock.System.now()
-            DataResult.Success(entity.toPayment())
+    override suspend fun markRefunded(
+        reference: String,
+        refundedAt: Instant
+    ): DataResult<PaymentUpdate> =
+        transition(reference, PaymentStatus.REFUNDED) {
+            this.refundedAt = refundedAt
         }
 
     override suspend fun markRefundFailed(
         reference: String,
         gatewayResponse: String?
-    ): DataResult<Payment> =
-        withSuspendTransaction {
-            val entity = PaymentEntity.find { PaymentTable.reference eq reference }
-                .firstOrNull()
-                ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
-            entity.status = PaymentStatus.REFUND_FAILED
-            entity.gatewayResponse = gatewayResponse ?: entity.gatewayResponse
-            entity.updatedAt = Clock.System.now()
-            DataResult.Success(entity.toPayment())
+    ): DataResult<PaymentUpdate> =
+        transition(reference, PaymentStatus.REFUND_FAILED) {
+            this.gatewayResponse = gatewayResponse ?: this.gatewayResponse
         }
 
     override suspend fun findPendingPaymentsOlderThan(
@@ -186,4 +169,43 @@ class PaymentRepositoryImpl : PaymentRepository {
         }.map { it.toPayment() }
         DataResult.Success(payments)
     }
+
+    /**
+     * Locks the row, then applies [to] only if the table allows it. A replay (already in [to]) and an
+     * illegal move both write nothing, so a late or duplicated webhook can't overwrite a newer state.
+     */
+    private suspend fun transition(
+        reference: String,
+        to: PaymentStatus,
+        write: PaymentEntity.() -> Unit = {},
+    ): DataResult<PaymentUpdate> = withSuspendTransaction {
+        val entity = lockByReference(reference)
+            ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
+        val from = entity.status
+
+        val result = when {
+            from == to -> PaymentUpdate.Result.NO_OP
+            !PaymentTransitions.canTransition(from, to) -> PaymentUpdate.Result.REJECTED
+            else -> {
+                entity.status = to
+                entity.write()
+                entity.updatedAt = Clock.System.now()
+                PaymentUpdate.Result.APPLIED
+            }
+        }
+        DataResult.Success(
+            PaymentUpdate(
+                entity.toPayment(),
+                result = result,
+                previousStatus = from
+            )
+        )
+    }
+
+    private fun lockByReference(reference: String): PaymentEntity? =
+        PaymentTable.select(PaymentTable.id)
+            .where { PaymentTable.reference eq reference }
+            .forUpdate()
+            .firstOrNull()
+            ?.let { PaymentEntity[it[PaymentTable.id].value] }
 }

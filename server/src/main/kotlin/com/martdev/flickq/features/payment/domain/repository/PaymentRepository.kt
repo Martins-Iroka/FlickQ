@@ -21,13 +21,13 @@ interface PaymentRepository {
         paystackTransactionId: String?,
         paidAt: Instant?,
         amountFromGateway: Long,
-    ): DataResult<ChargeOutcome>
+    ): DataResult<PaymentUpdate>
 
-    suspend fun markRefundPending(reference: String): DataResult<Payment>
+    suspend fun markRefundPending(reference: String): DataResult<PaymentUpdate>
 
-    suspend fun markRefunded(reference: String, refundedAt: Instant): DataResult<Payment>
+    suspend fun markRefunded(reference: String, refundedAt: Instant): DataResult<PaymentUpdate>
 
-    suspend fun markRefundFailed(reference: String, gatewayResponse: String?): DataResult<Payment>
+    suspend fun markRefundFailed(reference: String, gatewayResponse: String?): DataResult<PaymentUpdate>
 
     suspend fun findPendingPaymentsOlderThan(threshold: Instant, giveUpBefore: Instant): DataResult<List<Payment>>
 }

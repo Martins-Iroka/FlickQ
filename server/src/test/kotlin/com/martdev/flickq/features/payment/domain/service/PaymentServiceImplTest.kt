@@ -3,8 +3,8 @@ package com.martdev.flickq.features.payment.domain.service
 import com.martdev.flickq.auth.model.UserData
 import com.martdev.flickq.config.PaystackConfig
 import com.martdev.flickq.features.auth.domain.repository.UserRepository
-import com.martdev.flickq.features.payment.domain.repository.ChargeOutcome
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
+import com.martdev.flickq.features.payment.domain.repository.PaymentUpdate
 import com.martdev.flickq.features.payment.infrastructure.paystack.PaystackClient
 import com.martdev.flickq.features.payment.infrastructure.paystack.dto.InitializeResponse
 import com.martdev.flickq.features.payment.infrastructure.paystack.dto.RefundResponse
@@ -248,12 +248,8 @@ class PaymentServiceImplTest {
                 paidAt = any(),
                 amountFromGateway = pendingPayment.amount,
             )
-        } returns DataResult.Success(
-            ChargeOutcome(
-                pendingPayment.copy(status = PaymentStatus.SUCCESS),
-                true
-            )
-        )
+        } returns applied(pendingPayment.copy(status = PaymentStatus.SUCCESS))
+
         coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns
                 pendingReservation.copy(status = ReservationStatus.CONFIRMED)
 
@@ -287,11 +283,8 @@ class PaymentServiceImplTest {
                 paidAt = null,
                 amountFromGateway = pendingPayment.amount,
             )
-        } returns DataResult.Success(
-            ChargeOutcome(
-                pendingPayment.copy(status = PaymentStatus.FAILED),
-                true
-            )
+        } returns rejected(
+            pendingPayment.copy(status = PaymentStatus.FAILED)
         )
 
         val result = service.verifyPayment(storedReference, requestingUserId = userId)
@@ -324,12 +317,8 @@ class PaymentServiceImplTest {
                 paidAt = any(),
                 amountFromGateway = pendingPayment.amount,
             )
-        } returns DataResult.Success(
-            ChargeOutcome(
-                pendingPayment.copy(status = PaymentStatus.SUCCESS),
-                true
-            )
-        )
+        } returns applied(pendingPayment.copy(status = PaymentStatus.SUCCESS))
+
         coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns
                 pendingReservation.copy(status = ReservationStatus.CONFIRMED)
 
@@ -368,7 +357,10 @@ class PaymentServiceImplTest {
             )
         )
         coEvery { paymentRepository.markRefundPending(storedReference) } returns
-                DataResult.Success(succeeded.copy(status = PaymentStatus.REFUND_PENDING))
+                applied(
+                    succeeded.copy(status = PaymentStatus.REFUND_PENDING),
+                    from = PaymentStatus.SUCCESS
+                )
         coEvery { paystackClient.refundTransaction(storedReference, amount = null) } returns
                 RefundResponse(status = true, message = "Refund queued")
         coEvery { paymentRepository.getPaymentByReference(storedReference) } returns
@@ -396,13 +388,8 @@ class PaymentServiceImplTest {
                     any(),
                     any()
                 )
-            } returns
-                    DataResult.Success(
-                        ChargeOutcome(
-                            pendingPayment.copy(status = PaymentStatus.SUCCESS),
-                            transitioned = true
-                        )
-                    )
+            } returns applied(pendingPayment.copy(status = PaymentStatus.SUCCESS))
+
             coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns pendingReservation
 
             service.handleWebhook(body, hmacSha512(body, webhookSecret))
@@ -428,13 +415,8 @@ class PaymentServiceImplTest {
                 any(),
                 any()
             )
-        } returns
-                DataResult.Success(
-                    ChargeOutcome(
-                        pendingPayment.copy(status = PaymentStatus.SUCCESS),
-                        transitioned = false
-                    )
-                )
+        } returns noOp(pendingPayment.copy(status = PaymentStatus.SUCCESS))
+
         coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns pendingReservation
 
         service.handleWebhook(body, hmacSha512(body, webhookSecret))
@@ -469,8 +451,7 @@ class PaymentServiceImplTest {
                 any(),
                 any()
             )
-        } returns
-                DataResult.Success(ChargeOutcome(failed, transitioned = true))
+        } returns applied(failed)
 
         service.verifyPayment(storedReference, requestingUserId = userId)
 
@@ -485,10 +466,193 @@ class PaymentServiceImplTest {
         coVerify(exactly = 0) { reservationService.confirmReservationFromPayment(any()) }
     }
 
+    @Test
+    fun `verifyPayment on a payment in the refund lifecycle never calls Paystack`() = runTest {
+        listOf(
+            PaymentStatus.REFUND_PENDING,
+            PaymentStatus.REFUND_FAILED,
+            PaymentStatus.REFUNDED
+        ).forEach { status ->
+            val inRefund = pendingPayment.copy(status = status)
+            coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(
+                inRefund
+            )
+
+            assertEquals(
+                inRefund,
+                service.verifyPayment(storedReference, requestingUserId = userId)
+            )
+        }
+        coVerify(exactly = 0) { paystackClient.verifyTransaction(any()) }
+        coVerify(exactly = 0) {
+            paymentRepository.applyChargeResult(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        }
+    }
+
+    @Test
+    fun `a reversed charge status is ignored, not written as REFUNDED`() = runTest {
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(
+            pendingPayment
+        )
+        coEvery { paystackClient.verifyTransaction(storedReference) } returns VerifyResponse(
+            status = true, message = "ok",
+            data = VerifyResponse.VerifyData(
+                status = "reversed",
+                reference = storedReference,
+                amount = pendingPayment.amount
+            ),
+        )
+
+        val result = service.verifyPayment(storedReference, requestingUserId = userId)
+
+        assertEquals(PaymentStatus.PENDING, result.status)
+        coVerify(exactly = 0) {
+            paymentRepository.applyChargeResult(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        }
+        verify(exactly = 0) { paymentEvents.refundProcessed(any(), any()) }
+    }
+
+    @Test
+    fun `a replayed charge success on a refunding payment neither confirms nor emits`() = runTest {
+        val body =
+            """{"event":"charge.success","data":{"id":99,"reference":"$storedReference","status":"success","amount":${pendingPayment.amount}}}"""
+        coEvery {
+            paymentRepository.applyChargeResult(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns
+                rejected(pendingPayment.copy(status = PaymentStatus.REFUND_PENDING))
+
+        service.handleWebhook(
+            body,
+            hmacSha512(body, webhookSecret)
+        )          // must not throw → 200
+
+        coVerify(exactly = 0) { reservationService.confirmReservationFromPayment(any()) }
+        verify(exactly = 0) { paymentEvents.paymentSucceeded(any(), any()) }
+    }
+
+    @Test
+    fun `refund processed emits refundProcessed only when it applied`() = runTest {
+        val body =
+            """{"event":"refund.processed","data":{"reference":"$storedReference","status":"processed"}}"""
+        val refunded = pendingPayment.copy(status = PaymentStatus.REFUNDED)
+        coEvery { paymentRepository.markRefunded(storedReference, any()) } returnsMany listOf(
+            applied(refunded, from = PaymentStatus.REFUND_PENDING),
+            noOp(refunded),
+        )
+
+        service.handleWebhook(body, hmacSha512(body, webhookSecret))
+        service.handleWebhook(body, hmacSha512(body, webhookSecret))          // replay
+
+        verify(exactly = 1) { paymentEvents.refundProcessed(refunded.id, refunded.amount) }
+    }
+
+    @Test
+    fun `rejected refund webhooks are acknowledged without throwing or emitting`() = runTest {
+        val processed =
+            """{"event":"refund.processed","data":{"reference":"$storedReference","status":"processed"}}"""
+        val failed =
+            """{"event":"refund.failed","data":{"reference":"$storedReference","status":"failed","gateway_response":"x"}}"""
+        coEvery { paymentRepository.markRefunded(storedReference, any()) } returns rejected(
+            pendingPayment
+        )
+        coEvery { paymentRepository.markRefundFailed(storedReference, any()) } returns
+                rejected(pendingPayment.copy(status = PaymentStatus.REFUNDED))
+
+        service.handleWebhook(processed, hmacSha512(processed, webhookSecret))
+        service.handleWebhook(failed, hmacSha512(failed, webhookSecret))
+
+        verify(exactly = 0) { paymentEvents.refundProcessed(any(), any()) }
+    }
+
+    @Test
+    fun `a refund someone else already claimed is a 409 and Paystack is not called again`() =
+        runTest {
+            val succeeded = pendingPayment.copy(status = PaymentStatus.SUCCESS)
+            coEvery { paymentRepository.getPaymentsByReservationId(reservationId) } returns DataResult.Success(
+                listOf(succeeded)
+            )
+            coEvery { paymentRepository.markRefundPending(storedReference) } returns
+                    noOp(succeeded.copy(status = PaymentStatus.REFUND_PENDING))
+
+            assertThrows<ConflictException> { service.refundPaymentForReservation(reservationId) }
+
+            coVerify(exactly = 0) { paystackClient.refundTransaction(any(), any()) }
+        }
+
+    @Test
+    fun `a failed refund can be retried and calls Paystack`() = runTest {
+        val failedRefund = pendingPayment.copy(status = PaymentStatus.REFUND_FAILED)
+        coEvery { paymentRepository.getPaymentsByReservationId(reservationId) } returns DataResult.Success(
+            listOf(failedRefund)
+        )
+        coEvery { paymentRepository.markRefundPending(storedReference) } returns
+                applied(
+                    failedRefund.copy(status = PaymentStatus.REFUND_PENDING),
+                    from = PaymentStatus.REFUND_FAILED
+                )
+        coEvery { paystackClient.refundTransaction(storedReference, amount = null) } returns
+                RefundResponse(status = true, message = "Refund queued")
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns
+                DataResult.Success(failedRefund.copy(status = PaymentStatus.REFUND_PENDING))
+
+        val result = service.refundPaymentForReservation(reservationId)
+
+        assertEquals(PaymentStatus.REFUND_PENDING, result?.status)
+        coVerify(exactly = 1) { paystackClient.refundTransaction(storedReference, null) }
+    }
+
     private fun hmacSha512(payload: String, secret: String): String {
         val mac = Mac.getInstance("HmacSHA512")
         mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA512"))
         val digest = mac.doFinal(payload.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
+
+    private fun applied(p: Payment, from: PaymentStatus = PaymentStatus.PENDING) =
+        DataResult.Success(
+            PaymentUpdate(
+                p,
+                result = PaymentUpdate.Result.APPLIED,
+                previousStatus = from
+            )
+        )
+
+    private fun noOp(p: Payment) =
+        DataResult.Success(
+            PaymentUpdate(
+                p,
+                result = PaymentUpdate.Result.NO_OP,
+                previousStatus = p.status
+            )
+        )
+
+    private fun rejected(p: Payment, from: PaymentStatus = p.status) =
+        DataResult.Success(
+            PaymentUpdate(
+                p,
+                result = PaymentUpdate.Result.REJECTED,
+                previousStatus = from
+            )
+        )
 }
