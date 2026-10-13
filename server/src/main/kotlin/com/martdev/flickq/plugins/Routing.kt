@@ -4,6 +4,7 @@ import com.martdev.flickq.features.auth.api.authRoutes
 import com.martdev.flickq.features.movie.api.genre.genreRoute
 import com.martdev.flickq.features.movie.api.movie.movieRoute
 import com.martdev.flickq.features.notification.api.deviceRoute
+import com.martdev.flickq.features.notification.api.outboxAdminRoute
 import com.martdev.flickq.features.payment.domain.api.paymentRoute
 import com.martdev.flickq.features.report.api.reportRoute
 import com.martdev.flickq.features.reservation.api.reservationRoute
@@ -37,6 +38,7 @@ fun Application.configureRouting() {
             paymentRoute()
             reportRoute()
             deviceRoute()
+            outboxAdminRoute()
         }
     }
 }

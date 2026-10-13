@@ -2,10 +2,16 @@ package com.martdev.flickq.features.notification.infrastructure.fcm
 
 import com.martdev.flickq.config.DatabaseConfig
 import com.martdev.flickq.config.FcmConfig
+import com.martdev.flickq.features.notification.domain.observability.DispatchTracer
+import com.martdev.flickq.features.notification.domain.observability.NotificationMetrics
 import com.martdev.flickq.features.notification.domain.service.BackoffPolicy
 import com.martdev.flickq.features.notification.domain.service.FcmSender
 import com.martdev.flickq.features.notification.domain.service.NotificationDispatcher
+import com.martdev.flickq.features.notification.domain.service.NotificationHousekeeping
+import com.martdev.flickq.features.notification.domain.service.OutboxStatsSampler
 import com.martdev.flickq.features.notification.domain.service.TokenBucket
+import com.martdev.flickq.features.notification.infrastructure.observability.OtelDispatchTracer
+import com.martdev.flickq.features.notification.infrastructure.observability.OtelNotificationMetrics
 import com.martdev.flickq.shared.util.getLoggerFactory
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -15,6 +21,8 @@ import kotlin.uuid.Uuid
 
 val fcmModule = module {
     single { FirebaseProvider(get()) } onClose { it?.close() }
+    single<NotificationMetrics> { OtelNotificationMetrics(get()) }
+    single<DispatchTracer> { OtelDispatchTracer(get()) }
     single(createdAtStart = true) {
         val config = get<FcmConfig>()
         val log = getLoggerFactory("FcmSender")
@@ -43,14 +51,18 @@ val fcmModule = module {
     single {
         NotificationDispatcher(
             outbox = get(), get(), get(),
-            clampToPool(get(),
-                getOrNull<DatabaseConfig>()?.maxOpenCon),
+            clampToPool(
+                get(),
+                getOrNull<DatabaseConfig>()?.maxOpenCon
+            ),
             get(),
             instanceId = System.getenv("FLY_MACHINE_ID") ?: "local-${
                 Uuid.random().toString().take(8)
             }"
         )
     }
+    single { NotificationHousekeeping(get(), get(), get(), get()) }
+    single { OutboxStatsSampler(get(), get()) }
 }
 
 /** Each in-flight row holds a DB connection while it settles; leave headroom so API requests are never starved. */
