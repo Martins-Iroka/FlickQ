@@ -13,6 +13,7 @@ import com.martdev.flickq.features.auth.infrastructure.db.repository.UserReposit
 import com.martdev.flickq.features.auth.infrastructure.db.table.UserTable
 import com.martdev.flickq.features.auth.infrastructure.db.table.UserVerificationTable
 import com.martdev.flickq.features.notification.domain.model.NotificationEvent
+import com.martdev.flickq.features.notification.domain.observability.NoopNotificationMetrics
 import com.martdev.flickq.features.notification.domain.service.NotificationComposer
 import com.martdev.flickq.features.notification.infrastructure.db.repository.NotificationOutboxWriter
 import com.martdev.flickq.notification.model.NotificationStatus
@@ -57,7 +58,7 @@ class NotificationOutboxTableTest {
             userRepo = UserRepositoryImpl()
             val config = FcmConfig(false, "p", "", false, "dev-")
             val composer = NotificationComposer(config)
-            writer = NotificationOutboxWriter(composer)
+            writer = NotificationOutboxWriter(composer, NoopNotificationMetrics)
         }
     }
 

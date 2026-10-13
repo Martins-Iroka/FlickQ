@@ -1,6 +1,7 @@
 package com.martdev.flickq.utils
 
 import com.martdev.flickq.config.FcmConfig
+import com.martdev.flickq.features.notification.domain.observability.NoopNotificationMetrics
 import com.martdev.flickq.features.notification.domain.repository.NotificationEnqueuer
 import com.martdev.flickq.features.notification.domain.service.NotificationComposer
 import com.martdev.flickq.features.notification.infrastructure.db.repository.NotificationOutboxWriter
@@ -8,5 +9,8 @@ import com.martdev.flickq.features.notification.infrastructure.db.repository.Not
 object TestNotifications {
     val config = FcmConfig(false, "test", "", false, "test-")
 
-    fun enqueuer(): NotificationEnqueuer = NotificationOutboxWriter(NotificationComposer(config))
+    fun enqueuer(): NotificationEnqueuer = NotificationOutboxWriter(
+        NotificationComposer(config),
+        NoopNotificationMetrics
+    )
 }

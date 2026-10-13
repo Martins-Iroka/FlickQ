@@ -10,6 +10,7 @@ import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.martdev.flickq.config.FcmConfig
+import com.martdev.flickq.features.notification.domain.observability.NoopNotificationMetrics
 import com.martdev.flickq.features.notification.domain.repository.NotificationOutboxRepository
 import com.martdev.flickq.features.notification.domain.service.NotificationComposer
 import com.martdev.flickq.features.notification.infrastructure.db.table.NotificationOutboxTable
@@ -58,7 +59,7 @@ class NotificationOutboxRepositoryImplTest {
             PostgresContainer.connectToDBAndMigrate(postgres)
             val config = FcmConfig(false, "p", "", false, "dev-")
             val composer = NotificationComposer(config)
-            val outboxWriter = NotificationOutboxWriter(composer)
+            val outboxWriter = NotificationOutboxWriter(composer, NoopNotificationMetrics)
             repository = NotificationOutboxRepositoryImpl(
                 outboxWriter
             )
