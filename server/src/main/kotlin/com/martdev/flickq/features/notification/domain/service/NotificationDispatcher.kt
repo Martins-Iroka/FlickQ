@@ -34,7 +34,9 @@ class NotificationDispatcher(
     private val clock: Clock = Clock.System
 ) {
     private val log = getLoggerFactory("NotificationDispatcher")
+    private val lease = config.leaseSeconds.seconds
 
+    /** Runs until canceled. Every iteration is guarded: unlike the older background jobs, one exception must not end it. */
     suspend fun run() {
         while (currentCoroutineContext().isActive) {
             val pause = remainingPause()
@@ -55,8 +57,11 @@ class NotificationDispatcher(
         }
     }
 
+    /** Claims and settles one batch. Returns the number of rows claimed. */
     suspend fun runOnce(): Int {
-        val claimed = when (val r = outbox.claimBatch(instanceId, config.batchSize, LEASE)) {
+        // Taken BEFORE the claim, so it's never later than the lease the DB actually granted.
+        val startBy = clock.now() + lease - lease / LEASE_SAFETY_DIVISOR
+        val claimed = when (val r = outbox.claimBatch(instanceId, config.batchSize, lease)) {
             is DataResult.Success -> r.value
             is DataResult.Failure -> {
                 log.error("outbox claim failed: {}", r::class.simpleName)
@@ -64,41 +69,46 @@ class NotificationDispatcher(
             }
         }
         if (claimed.isEmpty()) return 0
-        record(process(claimed))
+        record(process(claimed, startBy))
         return claimed.size
     }
 
-    private suspend fun process(entries: List<OutboxEntry>): BatchStats = supervisorScope {
-        val stats = BatchStats()
-        val gate =
-            Semaphore(config.concurrency) // keep below the Hikari pool size so the API isn't starved
-        val (topicOps, sends) = entries.partition {
-            it.type == NotificationType.TOPIC_SUBSCRIBE || it.type == NotificationType.TOPIC_UNSUBSCRIBE
-        }
-        sends.forEach { entry ->
-            launch {
-                gate.withPermit {
-                    settle(entry, guarded {
-                        deliver(entry)
-                    }, stats)
+    private suspend fun process(entries: List<OutboxEntry>, startBy: Instant): BatchStats =
+        supervisorScope {
+            val stats = BatchStats()
+            val gate =
+                Semaphore(config.concurrency) // keep below the Hikari pool size so the API isn't starved
+            val (topicOps, sends) = entries.partition {
+                it.type == NotificationType.TOPIC_SUBSCRIBE || it.type == NotificationType.TOPIC_UNSUBSCRIBE
+            }
+            sends.forEach { entry ->
+                launch {
+                    gate.withPermit {
+                        if (leaseBudgetSpent(startBy)) release(listOf(entry))
+                        else settle(entry, guarded {
+                            deliver(entry)
+                        }, stats)
+                    }
                 }
             }
-        }
 
-        topicOps.groupBy { it.type to it.topic!! }.forEach { (key, rows) ->
-            launch {
-                gate.withPermit {
-                    topicGroup(key.first, key.second, rows, stats)
+            // Coalesce: every due (un)subscribe row for one topic becomes ONE call of up to 1000 tokens.
+            topicOps.groupBy { it.type to it.topic!! }.forEach { (key, rows) ->
+                launch {
+                    gate.withPermit {
+                        if (leaseBudgetSpent(startBy)) release(rows)
+                        else topicGroup(key.first, key.second, rows, stats)
+                    }
                 }
             }
+            stats
         }
-        stats
-    }
 
     private suspend fun deliver(entry: OutboxEntry): DeliveryResult {
         val now = clock.now()
         if (entry.expiresAt != null && entry.expiresAt <= now) return DeliveryResult.Expired
 
+        // FCM TTL = time left until the event is pointless; Android treats TTL 0 as "deliver now or drop".
         val message = entry.expiresAt?.let {
             entry.push.copy(ttl = it - now)
         } ?: entry.push
@@ -149,9 +159,8 @@ class NotificationDispatcher(
         }
         val byToken = outcome.results.toMap()
         rows.forEach { row ->
-            val mine = row.pendingTokens.orEmpty().mapNotNull { t ->
-                byToken[t]?.let { t to it }
-            }
+            // A token FCM didn't answer for is retried, never silently counted as delivered.
+            val mine = row.pendingTokens.orEmpty().map { t -> t to (byToken[t] ?: NO_RESULT) }
             settle(row, resolve(mine), stats)
         }
     }
@@ -179,7 +188,10 @@ class NotificationDispatcher(
 
                     FcmErrorClass.INVALID_TOKEN -> invalid += token
                     FcmErrorClass.CONFIG -> {
+                        // Ops must fix the APNs key/cert; until then keep the row alive on backoff.
                         log.error("FCM config error (check the APNS key/cert): {}", error.message)
+                        retry += token
+                        firstTransient = firstTransient ?: error
                     }
 
                     FcmErrorClass.FATAL -> fatal = fatal ?: error
@@ -192,7 +204,16 @@ class NotificationDispatcher(
 
             is SendOutcome.Success -> ok++
         }
-        if (invalid.isNotEmpty()) devices.invalidate(invalid)
+        if (invalid.isNotEmpty()) {
+            // Not fatal for the row: the next send to a dead token gets UNREGISTERED again and retries this.
+            (devices.invalidate(invalid) as? DataResult.Failure)?.let {
+                log.warn(
+                    "could not invalidate {} dead token(s): {}",
+                    invalid.size,
+                    it::class.simpleName
+                )
+            }
+        }
 
         return when {
             retry.isNotEmpty() -> {
@@ -254,6 +275,28 @@ class NotificationDispatcher(
         }
     }
 
+    // ---- lease budget ----------------------------------------------------------------------------
+    // A row started too close to lease expiry could be reclaimed mid-send by another machine (duplicate push).
+    // Rows not started by `startBy` are handed back untouched and don't count toward the circuit breaker.
+
+    private fun leaseBudgetSpent(startBy: Instant) = clock.now() >= startBy
+
+    private suspend fun release(rows: List<OutboxEntry>) = rows.forEach { row ->
+        when (val r = outbox.release(row.id, instanceId)) {
+            is DataResult.Success -> if (!r.value) log.warn(
+                "outbox {} lease lost before release",
+                row.id
+            )
+
+            is DataResult.Failure ->
+                log.warn(
+                    "outbox {} release failed ({}); it is reclaimed when the lease expires",
+                    row.id,
+                    r::class.simpleName
+                )
+        }
+    }
+
     /** One row's unexpected failure must not touch its siblings or kill the loop. */
     private suspend fun guarded(block: suspend () -> DeliveryResult): DeliveryResult = try {
         block()
@@ -298,7 +341,16 @@ class NotificationDispatcher(
     }
 
     private companion object {
-        val LEASE = 60.seconds
         const val MIN_SAMPLE = 5
+        const val LEASE_SAFETY_DIVISOR =
+            3   // last third of the lease is reserved for in-flight sends to finish
+        val NO_RESULT = SendOutcome.Failure(
+            FcmError(
+                "NO_RESULT",
+                null,
+                null,
+                "FCM returned no result for this token"
+            )
+        )
     }
 }

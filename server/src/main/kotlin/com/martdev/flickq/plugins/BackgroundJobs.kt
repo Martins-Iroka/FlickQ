@@ -6,7 +6,12 @@ import com.martdev.flickq.features.payment.domain.service.PaymentService
 import com.martdev.flickq.features.reservation.domain.service.ReservationService
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopping
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -18,6 +23,10 @@ fun Application.configureBackgroundJobs() {
     val reservationService by inject<ReservationService>()
     val paymentService by inject<PaymentService>()
     val dispatcher by inject<NotificationDispatcher>()
+
+    // Own scope: a dispatcher failure can't cancel the app's other jobs, and DB/FCM blocking stays on IO.
+    val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("fcm-dispatcher"))
+
     launch {
         while (isActive) {
             delay(15.minutes)
@@ -36,10 +45,11 @@ fun Application.configureBackgroundJobs() {
             paymentService.reconcilePendingPayments()
         }
     }
-    launch {
-        dispatcher.run()
-    }
+    notificationScope.launch { dispatcher.run() }
+
     monitor.subscribe(ApplicationStopping) {
+        // Rows mid-send stay IN_FLIGHT and are reclaimed after the lease (at-least-once; collapse keys dedupe on device).
+        notificationScope.cancel()
         coroutineContext[Job]?.cancel()
     }
 }

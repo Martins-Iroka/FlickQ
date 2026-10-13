@@ -58,6 +58,8 @@ fcm:
     batchSize: 100
     concurrency: 16
     pollMs: 1000
+    ratePerSecond: ${FCM_RATE_PER_SECOND:-500}
+    leaseSeconds: 60
   retry:
     baseMs: 5000
     capMs: 3600000

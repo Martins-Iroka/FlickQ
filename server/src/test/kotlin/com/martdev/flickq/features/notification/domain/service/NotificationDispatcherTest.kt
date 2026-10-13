@@ -92,6 +92,8 @@ class NotificationDispatcherTest {
         coEvery {
             devices.invalidate(any())
         } returns DataResult.Success(0)
+
+        coEvery { outbox.release(any(), any()) } returns DataResult.Success(true)
     }
 
     @Test
@@ -221,31 +223,32 @@ class NotificationDispatcherTest {
     }
 
     @Test
-    fun `partial multicast failure invalidates bad tokens and retries only the transient ones`() = runTest {
-        claim(entry())
+    fun `partial multicast failure invalidates bad tokens and retries only the transient ones`() =
+        runTest {
+            claim(entry())
 
-        coEvery {
-            devices.activeTokensFor(5)
-        } returns DataResult.Success(listOf("a", "b", "c"))
+            coEvery {
+                devices.activeTokensFor(5)
+            } returns DataResult.Success(listOf("a", "b", "c"))
 
-        coEvery {
-            sender.sendToTokens(listOf("a", "b", "c"), any())
-        } returns MulticastOutcome(
-            listOf(
-                "a" to SendOutcome.Success("m"),
-                "b" to fail("UNREGISTERED", 404),
-                "c" to fail("UNAVAILABLE", 503)
+            coEvery {
+                sender.sendToTokens(listOf("a", "b", "c"), any())
+            } returns MulticastOutcome(
+                listOf(
+                    "a" to SendOutcome.Success("m"),
+                    "b" to fail("UNREGISTERED", 404),
+                    "c" to fail("UNAVAILABLE", 503)
+                )
             )
-        )
 
-        dispatcher.runOnce()
+            dispatcher.runOnce()
 
-        coVerify { devices.invalidate(listOf("b")) }
-        coVerify { outbox.markRetry(1, me, any(), any(), listOf("c")) }
-        coVerify(exactly = 0) {
-            outbox.markSent(any(), any(), any())
+            coVerify { devices.invalidate(listOf("b")) }
+            coVerify { outbox.markRetry(1, me, any(), any(), listOf("c")) }
+            coVerify(exactly = 0) {
+                outbox.markSent(any(), any(), any())
+            }
         }
-    }
 
     @Test
     fun `when every token is permanently bad the row is sent with a note`() = runTest {
@@ -283,19 +286,23 @@ class NotificationDispatcherTest {
 
     @Test
     fun `due subscribe rows for one topic are coalesced into a single FCM call`() = runTest {
-        fun sub(id: Long, token: String) = entry(id, NotificationType.TOPIC_SUBSCRIBE,
+        fun sub(id: Long, token: String) = entry(
+            id, NotificationType.TOPIC_SUBSCRIBE,
             NotificationTargetKind.TOKENS,
-            userId = null, topic = "dev-new-movies", listOf(token))
+            userId = null, topic = "dev-new-movies", listOf(token)
+        )
 
         claim(sub(1, "t1"), sub(2, "t2"), sub(3, "t3"))
 
         coEvery {
             sender.subscribeToTopic(any(), "dev-new-movies")
-        } returns MulticastOutcome(listOf(
-            "t1" to SendOutcome.Success("ok"),
-            "t2" to fail("INTERNAL"),
-            "t3" to SendOutcome.Success("ok")
-        ))
+        } returns MulticastOutcome(
+            listOf(
+                "t1" to SendOutcome.Success("ok"),
+                "t2" to fail("INTERNAL"),
+                "t3" to SendOutcome.Success("ok")
+            )
+        )
 
         dispatcher.runOnce()
 
@@ -441,6 +448,125 @@ class NotificationDispatcherTest {
         val p = dispatcher.remainingPause()
 
         assertThat(p).isEqualTo(Duration.ZERO)
+    }
+
+    @Test
+    fun `an APNs auth error is retried with backoff, never marked sent`() = runTest {
+        claim(entry())
+        coEvery { devices.activeTokensFor(5) } returns DataResult.Success(listOf("ios-tok"))
+        coEvery { sender.sendToTokens(listOf("ios-tok"), any()) } returns
+                MulticastOutcome(listOf("ios-tok" to fail("THIRD_PARTY_AUTH_ERROR", 401)))
+
+        dispatcher.runOnce()
+
+        coVerify { outbox.markRetry(1, me, now + 2500.milliseconds, any(), listOf("ios-tok")) }
+        coVerify(exactly = 0) { outbox.markSent(any(), any(), any()) }
+    }
+
+    @Test
+    fun `a coalesced token FCM did not answer for is retried, not dropped`() = runTest {
+        claim(
+            entry(
+                1,
+                NotificationType.TOPIC_SUBSCRIBE,
+                NotificationTargetKind.TOKENS,
+                null,
+                "dev-new-movies",
+                listOf("a")
+            ),
+            entry(
+                2,
+                NotificationType.TOPIC_SUBSCRIBE,
+                NotificationTargetKind.TOKENS,
+                null,
+                "dev-new-movies",
+                listOf("b")
+            )
+        )
+        coEvery { sender.subscribeToTopic(listOf("a", "b"), "dev-new-movies") } returns
+                MulticastOutcome(listOf("a" to SendOutcome.Success("ok")))           // "b" missing
+
+        dispatcher.runOnce()
+
+        coVerify { outbox.markSent(1, me, null) }
+        coVerify {
+            outbox.markRetry(
+                2,
+                me,
+                any(),
+                match { it.startsWith("NO_RESULT") },
+                listOf("b")
+            )
+        }
+    }
+
+    @Test
+    fun `a failed token invalidation is logged and the row still settles`() = runTest {
+        claim(entry())
+        coEvery { devices.activeTokensFor(5) } returns DataResult.Success(listOf("dead"))
+        coEvery {
+            sender.sendToTokens(
+                any(),
+                any()
+            )
+        } returns MulticastOutcome(listOf("dead" to fail("UNREGISTERED", 404)))
+        coEvery { devices.invalidate(any()) } returns DataResult.Failure.UnknownError("db down")
+
+        dispatcher.runOnce()
+
+        coVerify { outbox.markSent(1, me, "all_tokens_invalid") }
+    }
+
+    @Test
+    fun `rows not started within the lease budget are released, not sent`() = runTest {
+        var t = now
+        val moving = object : Clock {
+            override fun now() = t
+        }
+        val serial = config.copy(concurrency = 1)                    // deterministic order
+        val d = NotificationDispatcher(outbox, devices, sender, serial, backOff, me, moving)
+        claim(topicEntry(1), topicEntry(2))
+        coEvery { sender.sendToTopic(any(), any()) } answers {
+            t += 45.seconds                                          // lease 60 s, budget = 40 s
+            SendOutcome.Success("m")
+        }
+
+        assertThat(d.runOnce()).isEqualTo(2)
+
+        coVerify { outbox.markSent(1, me, null) }
+        coVerify { outbox.release(2, me) }
+        coVerify(exactly = 1) { sender.sendToTopic(any(), any()) }
+        coVerify(exactly = 0) { outbox.markRetry(2, any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `released rows do not count toward the circuit breaker`() = runTest {
+        var t = now
+        val moving = object : Clock {
+            override fun now() = t
+        }
+        val d = NotificationDispatcher(
+            outbox,
+            devices,
+            sender,
+            config.copy(concurrency = 1),
+            backOff,
+            me,
+            moving
+        )
+        claim(*Array(6) { topicEntry(id = it + 1L) })
+        coEvery { sender.sendToTopic(any(), any()) } answers {
+            t += 45.seconds
+            fail(
+                "UNAVAILABLE",
+                503
+            )                                 // 1 transient of 1 attempted; 5 released
+        }
+
+        d.runOnce()
+
+        assertThat(d.remainingPause()).isEqualTo(Duration.ZERO)      // below MIN_SAMPLE, so no trip
+        coVerify(exactly = 5) { outbox.release(any(), me) }
     }
 
     private fun entry(

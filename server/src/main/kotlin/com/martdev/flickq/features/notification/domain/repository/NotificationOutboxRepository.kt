@@ -24,4 +24,6 @@ interface NotificationOutboxRepository {
     suspend fun markDead(id: Long, instanceId: String, error: String): DataResult<Boolean>
     suspend fun markExpired(id: Long, instanceId: String): DataResult<Boolean>
     suspend fun enqueue(draft: OutboxDraft): DataResult<Boolean>
+    /** Lease-holder gives an unstarted row back: PENDING again, and the claim's attempt is refunded. */
+    suspend fun release(id: Long, instanceId: String): DataResult<Boolean>
 }

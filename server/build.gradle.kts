@@ -36,7 +36,7 @@ dependencies {
     implementation(libs.postgresql)
     implementation(libs.bundles.openTele.libs)
     implementation(libs.stytch)
-    implementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.bundles.server.test.libs)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.core.TextColumnType
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
@@ -119,6 +120,13 @@ class NotificationOutboxRepositoryImpl(
             DataResult.Success(writer.enqueueInCurrentTx(draft))
         }
     }
+
+    override suspend fun release(id: Long, instanceId: String) =
+        settle(id, instanceId) {
+            it[status] = NotificationStatus.PENDING
+            it[attempts] = attempts - 1     // claim already counted it; nothing was sent
+            // next_attempt_at is untouched (already <= now), so any worker can claim it right away
+        }
 
     /**
      * Fenced update: only applies while THIS instance still holds the lease. If our lease expired and another

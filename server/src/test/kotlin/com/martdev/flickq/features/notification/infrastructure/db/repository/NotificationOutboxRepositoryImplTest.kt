@@ -246,6 +246,38 @@ class NotificationOutboxRepositoryImplTest {
         assertThat(expiredRow[NotificationOutboxTable.lockedUntil]).isNull()
     }
 
+    @Test
+    fun `release by the lease holder returns the row to pending and refunds the attempt`() = runTest {
+        val id = insertRow()
+        claim("w1")
+
+        val applied = repository.release(id, "w1")
+
+        assertTrue(applied is DataResult.Success)
+        assertThat(applied.value).isTrue()
+        val r = row(id)
+        assertThat(r[NotificationOutboxTable.status]).isEqualTo(NotificationStatus.PENDING)
+        assertThat(r[NotificationOutboxTable.attempts]).isEqualTo(0)
+        assertThat(r[NotificationOutboxTable.lockedBy]).isNull()
+        assertThat(r[NotificationOutboxTable.lockedUntil]).isNull()
+
+        assertThat(claim("w2").map { it.id }).containsExactly(id)   // immediately claimable elsewhere
+    }
+
+    @Test
+    fun `release from a worker that lost the lease changes nothing`() = runTest {
+        val id = insertRow()
+        claim("w1")
+
+        val applied = repository.release(id, "w2")
+
+        assertTrue(applied is DataResult.Success)
+        assertThat(applied.value).isFalse()
+        val r = row(id)
+        assertThat(r[NotificationOutboxTable.status]).isEqualTo(NotificationStatus.IN_FLIGHT)
+        assertThat(r[NotificationOutboxTable.attempts]).isEqualTo(1)
+    }
+
     private fun insertRow(
         key: String = Uuid.random().toString(),
         status: NotificationStatus = NotificationStatus.PENDING,
