@@ -64,4 +64,9 @@ fcm:
     baseMs: 5000
     capMs: 3600000
     maxAttempts: ${FCM_RETRY_MAX_ATTEMPTS:-8}
+  retention:
+    sentDays: 7
+    deadDays: 30
+    tokenStaleDays: 60
+    tokenInvalidatedDays: 30
 

@@ -15,14 +15,20 @@ data class FcmConfig(
     val capMs: Long = 3_600_000,
     val maxAttempts: Int = 8,
     val ratePerSecond: Int = 500,
-    val leaseSeconds: Long = 60
+    val leaseSeconds: Long = 60,
+    val retentionSentDays: Int = 7,          // SENT + EXPIRED
+    val retentionDeadDays: Int = 30,
+    val tokenStaleDays: Int = 60,            // active tokens not seen for this long (Firebase staleness guidance)
+    val tokenInvalidatedDays: Int = 30,      // already-invalidated tokens kept this long for debugging
 ) {
 
     override fun toString() =
         "FcmConfig(enabled=$enabled, projectId=$projectId, dryRun=$dryRun, topicPrefix=$topicPrefix, " +
                 "batchSize=$batchSize, concurrency=$concurrency, pollMs=$pollMs, baseMs=$baseMs, capMs=$capMs, " +
                 "maxAttempts=$maxAttempts, ratePerSecond=$ratePerSecond, leaseSeconds=$leaseSeconds, " +
-                "credentials=${if (credentials.isBlank()) "<unset>" else "<redacted>"})"
+                "credentials=${if (credentials.isBlank()) "<unset>" else "<redacted>"}), " +
+                "retentionSentDays=$retentionSentDays, retentionDeadDays=$retentionDeadDays, " +
+                "tokenStaleDays=$tokenStaleDays, tokenInvalidatedDays=$tokenInvalidatedDays"
 
     companion object {
         fun fromEnvironment(environment: ApplicationEnvironment): FcmConfig {
@@ -47,8 +53,31 @@ data class FcmConfig(
                 ratePerSecond = environment.getEnvValue("fcm.worker.ratePerSecond").toIntOrNull()
                     ?: defaults.ratePerSecond,
                 leaseSeconds = environment.getEnvValue("fcm.worker.leaseSeconds").toLongOrNull()
-                    ?: defaults.leaseSeconds
+                    ?: defaults.leaseSeconds,
+                retentionSentDays = days(
+                    environment,
+                    "fcm.retention.sentDays",
+                    defaults.retentionSentDays
+                ),
+                retentionDeadDays = days(
+                    environment,
+                    "fcm.retention.deadDays",
+                    defaults.retentionDeadDays
+                ),
+                tokenStaleDays = days(
+                    environment,
+                    "fcm.retention.tokenStaleDays",
+                    defaults.tokenStaleDays
+                ),
+                tokenInvalidatedDays = days(
+                    environment,
+                    "fcm.retention.tokenInvalidatedDays",
+                    defaults.tokenInvalidatedDays
+                ),
             )
         }
     }
 }
+
+private fun days(environment: ApplicationEnvironment, key: String, default: Int) =
+    (environment.getEnvValue(key).toIntOrNull() ?: default).coerceAtLeast(1)
