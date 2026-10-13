@@ -35,7 +35,7 @@ val fcmModule = module {
                 config.projectId, config.dryRun, config.ratePerSecond
             )
             RateLimitedFcmSender(
-                FirebaseFcmSender(firebaseProvider, config),
+                InstrumentedFcmSender(FirebaseFcmSender(firebaseProvider, config), get()),
                 TokenBucket(config.ratePerSecond.toDouble())
 
             )
