@@ -3,6 +3,9 @@ package com.martdev.flickq.features.notification.domain.service
 import com.martdev.flickq.config.FcmConfig
 import com.martdev.flickq.features.notification.domain.model.DeliveryResult
 import com.martdev.flickq.features.notification.domain.model.OutboxEntry
+import com.martdev.flickq.features.notification.domain.observability.DispatchTracer
+import com.martdev.flickq.features.notification.domain.observability.NoopNotificationMetrics
+import com.martdev.flickq.features.notification.domain.observability.NotificationMetrics
 import com.martdev.flickq.features.notification.domain.repository.DeviceTokenRepository
 import com.martdev.flickq.features.notification.domain.repository.NotificationOutboxRepository
 import com.martdev.flickq.notification.model.NotificationTargetKind
@@ -31,7 +34,9 @@ class NotificationDispatcher(
     private val config: FcmConfig,
     private val backoff: BackoffPolicy,
     private val instanceId: String,
-    private val clock: Clock = Clock.System
+    private val clock: Clock = Clock.System,
+    private val metrics: NotificationMetrics = NoopNotificationMetrics,
+    private val tracer: DispatchTracer = DispatchTracer.Noop
 ) {
     private val log = getLoggerFactory("NotificationDispatcher")
     private val lease = config.leaseSeconds.seconds
@@ -85,8 +90,10 @@ class NotificationDispatcher(
                 launch {
                     gate.withPermit {
                         if (leaseBudgetSpent(startBy)) release(listOf(entry))
-                        else settle(entry, guarded {
-                            deliver(entry)
+                        else settle(entry, tracer.span("fcm.send", listOf(entry)) {
+                            guarded {
+                                deliver(entry)
+                            }
                         }, stats)
                     }
                 }
@@ -97,7 +104,9 @@ class NotificationDispatcher(
                 launch {
                     gate.withPermit {
                         if (leaseBudgetSpent(startBy)) release(rows)
-                        else topicGroup(key.first, key.second, rows, stats)
+                        else tracer.span("fcm.${key.first.name.lowercase()}", rows) {
+                            topicGroup(key.first, key.second, rows, stats)
+                        }
                     }
                 }
             }
@@ -132,7 +141,10 @@ class NotificationDispatcher(
     private suspend fun sendToUser(entry: OutboxEntry, message: PushMessage): DeliveryResult {
         val tokens = entry.pendingTokens ?: when (val r = devices.activeTokensFor(entry.userId!!)) {
             is DataResult.Success -> r.value
-            is DataResult.Failure -> return DeliveryResult.Retry("device lookup failed: ${r::class.simpleName}")
+            is DataResult.Failure -> return DeliveryResult.Retry(
+                "device lookup failed: ${r::class.simpleName}",
+                reason = "DEVICE_LOOKUP"
+            )
         }
         if (tokens.isEmpty()) return DeliveryResult.Sent("no_devices")
 
@@ -153,7 +165,14 @@ class NotificationDispatcher(
             throw e
         } catch (e: Exception) {
             rows.forEach {
-                settle(it, DeliveryResult.Retry("topic call failed: ${e::class.simpleName}"), stats)
+                settle(
+                    it,
+                    DeliveryResult.Retry(
+                        "topic call failed: ${e::class.simpleName}",
+                        reason = "TOPIC_CALL"
+                    ),
+                    stats
+                )
             }
             return
         }
@@ -205,13 +224,11 @@ class NotificationDispatcher(
             is SendOutcome.Success -> ok++
         }
         if (invalid.isNotEmpty()) {
-            // Not fatal for the row: the next send to a dead token gets UNREGISTERED again and retries this.
-            (devices.invalidate(invalid) as? DataResult.Failure)?.let {
-                log.warn(
-                    "could not invalidate {} dead token(s): {}",
-                    invalid.size,
-                    it::class.simpleName
-                )
+            when (val r = devices.invalidate(invalid)) {
+                is DataResult.Success -> metrics.tokensInvalidated(r.value)
+                // Not fatal for the row: the next send to a dead token gets UNREGISTERED again and retries this.
+                is DataResult.Failure ->
+                    log.warn("could not invalidate {} dead token(s): {}", invalid.size, r::class.simpleName)
             }
         }
 
@@ -219,7 +236,10 @@ class NotificationDispatcher(
             retry.isNotEmpty() -> {
                 DeliveryResult.Retry(
                     firstTransient.describe(),
-                    retryAfter, retry.takeIf { targetsToken }, rateLimited
+                    retryAfter,
+                    retry.takeIf { targetsToken },
+                    rateLimited,
+                    reason = firstTransient?.code ?: "UNKNOWN"
                 )
             }
 
@@ -231,12 +251,12 @@ class NotificationDispatcher(
 
     private suspend fun settle(entry: OutboxEntry, result: DeliveryResult, stats: BatchStats) {
         stats.total.incrementAndGet()
-        val applied = when (result) {
-            is DeliveryResult.Sent -> outbox.markSent(entry.id, instanceId, result.note)
-            DeliveryResult.Expired -> outbox.markExpired(entry.id, instanceId)
+        val (applied: DataResult<Boolean>, count: () -> Unit) = when (result) {
+            is DeliveryResult.Sent -> outbox.markSent(entry.id, instanceId, result.note) to { metrics.sent(entry.type) }
+            DeliveryResult.Expired -> outbox.markExpired(entry.id, instanceId) to { metrics.expired(entry.type) }
             is DeliveryResult.Dead -> {
                 log.error("outbox {} DEAD: {}", entry.id, result.error)
-                outbox.markDead(entry.id, instanceId, result.error)
+                outbox.markDead(entry.id, instanceId, result.error) to { metrics.dead(entry.type) }
             }
 
             is DeliveryResult.Retry -> {
@@ -254,7 +274,9 @@ class NotificationDispatcher(
                         entry.id,
                         instanceId,
                         "gave up after ${entry.attempts} attempts: ${result.error}"
-                    )
+                    ) to {
+                        metrics.dead(entry.type)
+                    }
                 } else {
                     val next = clock.now() + backoff.delayFor(entry.attempts, result.retryAfter)
                     outbox.markRetry(
@@ -263,15 +285,18 @@ class NotificationDispatcher(
                         next,
                         result.error,
                         result.remainingTokens
-                    )
+                    ) to { metrics.failed(entry.type, result.reason) }
                 }
             }
         }
-        if ((applied as? DataResult.Success)?.value == false) {
-            log.warn(
-                "outbox {} lease lost before it could be settled; another worker owns it now",
-                entry.id
-            )
+        when (applied) {
+            is DataResult.Success ->
+                if (applied.value) count()
+                else log.warn("outbox {} lease lost before it could be settled; another worker owns it now", entry.id)
+
+            // The row stays IN_FLIGHT and is reclaimed after the lease: at-least-once, collapse keys dedupe on device.
+            is DataResult.Failure ->
+                log.error("outbox {} could not be settled ({}); it is reclaimed after the lease", entry.id, applied::class.simpleName)
         }
     }
 
@@ -305,7 +330,7 @@ class NotificationDispatcher(
     } catch (e: IllegalArgumentException) {
         DeliveryResult.Dead("invalid message: ${e.message}".take(500))
     } catch (e: Exception) {
-        DeliveryResult.Retry("unexpected ${e::class.simpleName}: ${e.message}".take(500))
+        DeliveryResult.Retry("unexpected ${e::class.simpleName}: ${e.message}".take(500), reason = "UNEXPECTED")
     }
 
     private fun FcmError?.describe() = this?.let {

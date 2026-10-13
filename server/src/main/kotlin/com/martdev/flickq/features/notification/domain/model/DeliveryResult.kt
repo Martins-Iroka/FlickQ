@@ -8,7 +8,8 @@ sealed interface DeliveryResult {
         val error: String,
         val retryAfter: Duration? = null,
         val remainingTokens: List<String>? = null,
-        val rateLimited: Boolean = false
+        val rateLimited: Boolean = false,
+        val reason: String = "UNKNOWN" // metric attribute: FCM error code or a fixed label, never free text
     ) : DeliveryResult
     data class Dead(val error: String) : DeliveryResult
     data object Expired : DeliveryResult

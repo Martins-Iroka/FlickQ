@@ -14,5 +14,6 @@ data class OutboxEntry(
     val push: PushMessage,
     val pendingTokens: List<String>?,
     val attempts: Int,
-    val expiresAt: Instant?
+    val expiresAt: Instant?,
+    val traceParent: String? = null
 )
