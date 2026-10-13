@@ -11,6 +11,7 @@ import com.martdev.flickq.config.SeedConfig
 import com.martdev.flickq.config.StytchConfig
 import com.martdev.flickq.features.notification.infrastructure.fcm.fcmModule
 import com.martdev.flickq.shared.api.httpClientModule
+import com.martdev.flickq.shared.infrastruce.telemetry.telemetryModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import org.koin.dsl.module
@@ -33,6 +34,6 @@ fun Application.configureKoin() {
 
     install(Koin) {
         slf4jLogger()
-        modules(com_martdev_flickq_AppModule, configModule, httpClientModule, fcmModule)
+        modules(com_martdev_flickq_AppModule, configModule, httpClientModule, fcmModule, telemetryModule)
     }
 }

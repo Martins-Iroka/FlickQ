@@ -38,6 +38,7 @@ dependencies {
     implementation(libs.stytch)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.bundles.server.test.libs)
+    testImplementation(libs.openTele.sdk.testing)   // InMemoryMetricReader, InMemorySpanExporter
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
