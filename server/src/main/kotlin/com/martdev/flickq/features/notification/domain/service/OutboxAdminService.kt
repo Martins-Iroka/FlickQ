@@ -6,13 +6,14 @@ import com.martdev.flickq.notification.model.NotificationStatus
 import com.martdev.flickq.shared.util.getLoggerFactory
 import com.martdev.flickq.shared.util.returnValue
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
 interface OutboxAdminService {
     suspend fun list(status: NotificationStatus?, limit: Int, offset: Long): List<OutboxRecord>
     suspend fun retry(id: Long, adminId: Long)
 }
 
-@Single
+@Singleton
 class OutboxAdminServiceImpl(
     private val outbox: NotificationOutboxRepository,
 ) : OutboxAdminService {

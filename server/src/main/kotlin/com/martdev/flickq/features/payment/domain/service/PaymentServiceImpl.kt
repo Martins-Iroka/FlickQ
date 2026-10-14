@@ -20,6 +20,7 @@ import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import com.martdev.flickq.shared.util.returnValue
 import kotlinx.serialization.json.Json
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import kotlin.time.Clock
@@ -28,7 +29,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 //Implement payment events and check unit test is fine
-@Single
+@Singleton
 class PaymentServiceImpl(
     private val paymentRepository: PaymentRepository,
     private val reservationService: ReservationService,

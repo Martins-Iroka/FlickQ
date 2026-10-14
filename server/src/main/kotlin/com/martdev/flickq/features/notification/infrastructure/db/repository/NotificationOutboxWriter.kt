@@ -14,9 +14,10 @@ import org.jetbrains.exposed.v1.core.statements.StatementInterceptor
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import java.util.concurrent.atomic.AtomicBoolean
 
-@Single
+@Singleton
 class NotificationOutboxWriter(
     private val composer: NotificationComposer,
     private val metrics: NotificationMetrics

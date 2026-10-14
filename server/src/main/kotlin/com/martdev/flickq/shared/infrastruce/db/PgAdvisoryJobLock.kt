@@ -8,9 +8,10 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import java.sql.Connection
 
-@Single
+@Singleton
 class PgAdvisoryJobLock : JobLock {
     override suspend fun <T> runExclusive(key: Long, block: suspend () -> T): T? =
         runExclusive(checkNotNull(TransactionManager.defaultDatabase) { "database is not connected" }, key, block)

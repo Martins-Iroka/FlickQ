@@ -4,8 +4,9 @@ import com.martdev.flickq.features.movie.domain.repository.GenreRepository
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.shared.util.returnValue
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class GenreServiceImpl(
     private val repository: GenreRepository
 ) : GenreService {

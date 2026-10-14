@@ -12,8 +12,9 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class SeatRepositoryImpl : SeatRepository {
     override suspend fun createSeats(seat: List<Seat>): DataResult<List<Seat>> {
         return withSuspendTransaction {

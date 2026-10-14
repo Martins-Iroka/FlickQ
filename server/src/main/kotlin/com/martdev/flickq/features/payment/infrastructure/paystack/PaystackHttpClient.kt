@@ -18,8 +18,9 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class PaystackHttpClient(
     private val config: PaystackConfig,
     httpClientFactory: KtorHttpClientFactory,

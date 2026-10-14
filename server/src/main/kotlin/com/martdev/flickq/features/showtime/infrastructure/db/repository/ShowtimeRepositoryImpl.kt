@@ -24,8 +24,9 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class ShowtimeRepositoryImpl : ShowtimeRepository {
     private val notFoundMessage = "Showtime not found"
     override suspend fun createShowtime(showtime: Showtime): DataResult<Showtime> {

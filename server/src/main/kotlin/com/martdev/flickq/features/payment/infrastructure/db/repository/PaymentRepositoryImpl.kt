@@ -20,10 +20,11 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-@Single
+@Singleton
 class PaymentRepositoryImpl : PaymentRepository {
 
     override suspend fun createPayment(payment: Payment): DataResult<Payment> =

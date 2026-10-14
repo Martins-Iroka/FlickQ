@@ -7,10 +7,10 @@ import com.martdev.flickq.report.model.ReportBucketGranularity
 import com.martdev.flickq.report.model.RevenueReport
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.util.returnValue
-import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Instant
 
-@Single
+@Singleton
 class ReportServiceImpl(
     private val reportRepository: ReportRepository,
     private val paystackConfig: PaystackConfig,

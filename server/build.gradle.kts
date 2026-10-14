@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.koin.compiler)
 }
 
 group = "com.martdev.flickq"
@@ -20,7 +21,6 @@ kotlin {
 }
 
 dependencies {
-    ksp(libs.koin.annotation.compiler)
     implementation(platform(libs.openTele.bom))
     implementation(projects.core.api)
     implementation(projects.core.domain)

@@ -12,8 +12,9 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class ShowtimeSeatRepositoryImpl : ShowtimeSeatRepository {
     override suspend fun populateShowtimeSeats(
         showtimeId: Long,

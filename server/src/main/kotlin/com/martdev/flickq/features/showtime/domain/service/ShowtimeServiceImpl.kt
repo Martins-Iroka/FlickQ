@@ -10,8 +10,9 @@ import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
 import kotlinx.datetime.LocalDate
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class ShowtimeServiceImpl(
     private val repo: ShowtimeRepository
 ) : ShowtimeService {

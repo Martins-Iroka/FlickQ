@@ -8,8 +8,9 @@ import com.stytch.java.consumer.models.otp.AuthenticateRequest
 import com.stytch.java.consumer.models.otpemail.LoginOrCreateRequest
 import io.ktor.http.HttpStatusCode
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class StytchOTPProvider(
     stytchConfig: StytchConfig
 ) : OTPProvider {

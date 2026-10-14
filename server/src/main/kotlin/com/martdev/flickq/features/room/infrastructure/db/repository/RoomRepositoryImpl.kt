@@ -10,8 +10,9 @@ import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class RoomRepositoryImpl : RoomRepository {
     override suspend fun createRoom(room: Room): DataResult<Room> {
         return withSuspendTransaction {

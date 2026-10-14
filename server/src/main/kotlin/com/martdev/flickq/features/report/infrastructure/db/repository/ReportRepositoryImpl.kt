@@ -36,9 +36,10 @@ import org.jetbrains.exposed.v1.core.sum
 import org.jetbrains.exposed.v1.datetime.KotlinInstantColumnType
 import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Instant
 
-@Single
+@Singleton
 class ReportRepositoryImpl : ReportRepository {
 
     // 3-arg date_trunc anchors bucket boundaries in UTC so results don't depend on the session TZ.

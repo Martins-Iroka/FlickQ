@@ -4,8 +4,9 @@ import com.martdev.flickq.features.room.domain.repository.RoomRepository
 import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.shared.util.returnValue
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class RoomServiceImpl(
     private val repository: RoomRepository
 ) : RoomService {

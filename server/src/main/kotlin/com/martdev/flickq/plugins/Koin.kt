@@ -14,10 +14,14 @@ import com.martdev.flickq.shared.api.httpClientModule
 import com.martdev.flickq.shared.infrastruce.telemetry.telemetryModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import org.koin.core.annotation.KoinApplication
 import org.koin.dsl.module
-import org.koin.ksp.generated.com_martdev_flickq_AppModule
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
+import org.koin.plugin.module.dsl.withConfiguration
+
+@KoinApplication
+object KoinFlickQApplication
 
 fun Application.configureKoin() {
     val configModule = module {
@@ -34,6 +38,7 @@ fun Application.configureKoin() {
 
     install(Koin) {
         slf4jLogger()
-        modules(com_martdev_flickq_AppModule, configModule, httpClientModule, fcmModule, telemetryModule)
+        withConfiguration<KoinFlickQApplication>()
+        modules(configModule, httpClientModule, fcmModule, telemetryModule)
     }
 }

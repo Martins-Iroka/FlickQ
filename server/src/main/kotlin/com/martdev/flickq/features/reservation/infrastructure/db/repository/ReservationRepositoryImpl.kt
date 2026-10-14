@@ -32,10 +32,11 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-@Single
+@Singleton
 class ReservationRepositoryImpl(
     private val enqueuer: NotificationEnqueuer
 ) : ReservationRepository {

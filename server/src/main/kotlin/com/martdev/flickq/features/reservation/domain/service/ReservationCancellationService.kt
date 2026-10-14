@@ -4,6 +4,7 @@ import com.martdev.flickq.features.payment.domain.service.PaymentService
 import com.martdev.flickq.reservation.model.Reservation
 import com.martdev.flickq.reservation.model.ReservationStatus
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
 interface ReservationCancellationService {
     /**
@@ -14,7 +15,7 @@ interface ReservationCancellationService {
     suspend fun cancelByAdmin(id: Long): Reservation
 }
 
-@Single
+@Singleton
 class ReservationCancellationServiceImpl(
     private val reservationService: ReservationService,
     private val paymentService: PaymentService,

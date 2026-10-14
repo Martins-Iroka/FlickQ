@@ -4,8 +4,9 @@ import com.martdev.flickq.features.room.domain.repository.SeatRepository
 import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.shared.util.returnValue
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class SeatServiceImpl(
     private val repository: SeatRepository
 ) : SeatService {

@@ -6,8 +6,9 @@ import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.util.returnValue
 import kotlinx.datetime.LocalDate
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class MovieServiceImpl(
     private val movieRepository: MovieRepository,
     private val showtimeService: ShowtimeService

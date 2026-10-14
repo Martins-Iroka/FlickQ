@@ -2,8 +2,9 @@ package com.martdev.flickq.features.payment.observability
 
 import com.martdev.flickq.shared.util.getLoggerFactory
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class LoggingPaymentEvents : PaymentEvents {
     private val logger = getLoggerFactory(LoggingPaymentEvents::class.java.simpleName)
 

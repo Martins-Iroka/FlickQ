@@ -5,6 +5,6 @@ import org.koin.core.annotation.Configuration
 import org.koin.core.annotation.Module
 
 @Module
-@ComponentScan("com.martdev.flickq.**")
+@ComponentScan("com.martdev.flickq")
 @Configuration
 class AppModule

@@ -6,8 +6,9 @@ import com.martdev.flickq.features.showtime.domain.service.ShowtimeService
 import com.martdev.flickq.reservation.model.ShowtimeSeat
 import com.martdev.flickq.shared.util.returnValue
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class ShowtimeSeatServiceImpl(
     private val repo: ShowtimeSeatRepository,
     private val showtimeService: ShowtimeService,

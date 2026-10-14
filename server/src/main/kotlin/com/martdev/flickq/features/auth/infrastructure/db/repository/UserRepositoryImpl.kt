@@ -26,10 +26,11 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.update
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 
-@Single
+@Singleton
 class UserRepositoryImpl : UserRepository {
     override suspend fun activateUser(token: String): DataResult<Unit> {
         return withSuspendTransaction {

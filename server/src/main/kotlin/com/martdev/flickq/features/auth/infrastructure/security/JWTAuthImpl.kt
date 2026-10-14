@@ -5,12 +5,13 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.martdev.flickq.config.JWTConfig
 import com.martdev.flickq.features.auth.domain.security.Auth
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import java.util.Date
 import kotlin.io.encoding.Base64
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.minutes
 
-@Single
+@Singleton
 class JWTAuthImpl(
     private val config: JWTConfig
 ) : Auth {

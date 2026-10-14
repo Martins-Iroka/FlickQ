@@ -4,8 +4,9 @@ import com.martdev.flickq.features.auth.domain.observability.AuthEvents
 import com.martdev.flickq.features.auth.domain.observability.AuthMetrics
 import com.martdev.flickq.shared.util.getLoggerFactory
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class LoggingAuthEvents(
     private val metrics: AuthMetrics
 ) : AuthEvents {

@@ -23,9 +23,10 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsertReturning
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Instant
 
-@Single
+@Singleton
 class DeviceTokenRepositoryImpl : DeviceTokenRepository {
     override suspend fun upsert(
         userId: Long,

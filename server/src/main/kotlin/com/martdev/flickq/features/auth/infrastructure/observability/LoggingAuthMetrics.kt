@@ -3,8 +3,9 @@ package com.martdev.flickq.features.auth.infrastructure.observability
 import com.martdev.flickq.features.auth.domain.observability.AuthMetrics
 import com.martdev.flickq.shared.util.getLoggerFactory
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class LoggingAuthMetrics : AuthMetrics {
     private val logger = getLoggerFactory("auth.metrics")
 

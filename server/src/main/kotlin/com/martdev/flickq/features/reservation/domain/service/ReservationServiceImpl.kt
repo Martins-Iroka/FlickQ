@@ -11,11 +11,12 @@ import com.martdev.flickq.shared.domain.exception.ForbiddenException
 import com.martdev.flickq.shared.util.returnValue
 import com.martdev.flickq.showtime.model.ShowtimeStatus
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 
 // implement reservation events and check unit test is fine
-@Single
+@Singleton
 class ReservationServiceImpl(
     private val repo: ReservationRepository,
     private val showtimeService: ShowtimeService

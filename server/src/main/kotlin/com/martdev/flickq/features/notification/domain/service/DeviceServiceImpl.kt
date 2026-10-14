@@ -7,10 +7,10 @@ import com.martdev.flickq.notification.model.RegisterDeviceRequest
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.util.getLoggerFactory
 import com.martdev.flickq.shared.util.returnValue
-import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import kotlin.time.Clock
 
-@Single
+@Singleton
 class DeviceServiceImpl(
     private val devices: DeviceTokenRepository,
     private val outbox: NotificationOutboxRepository,

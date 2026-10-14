@@ -18,8 +18,9 @@ import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 
-@Single
+@Singleton
 class KtorHttpClientFactory {
 
     private val log = getLoggerFactory(KtorHttpClientFactory::class.java.simpleName)

@@ -6,10 +6,11 @@ import com.martdev.flickq.features.notification.domain.model.OutboxDraft
 import com.martdev.flickq.notification.model.NotificationTargetKind
 import com.martdev.flickq.notification.model.NotificationType
 import org.koin.core.annotation.Single
+import org.koin.core.annotation.Singleton
 import java.security.MessageDigest
 import kotlin.time.Instant
 
-@Single
+@Singleton
 class NotificationComposer(private val config: FcmConfig) {
 
     fun compose(event: NotificationEvent): OutboxDraft = when(event) {
