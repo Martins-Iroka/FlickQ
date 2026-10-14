@@ -5,7 +5,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.martdev.flickq.feature.payment.data"
-        compileSdk { version = release(36) }
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
     }
 
     sourceSets {

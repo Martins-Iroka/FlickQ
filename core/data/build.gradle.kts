@@ -21,7 +21,7 @@ kotlin {
 
     android {
         namespace = "com.martdev.flickq.core.data"
-        compileSdk { version = release(36) }
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk { version = release(24) }
     }
 

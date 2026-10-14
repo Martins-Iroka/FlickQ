@@ -28,7 +28,7 @@ kotlin {
 
     android {
         namespace = "com.martdev.flickq.core.domain"
-        compileSdk { version = release(36) }
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
     }
 
     sourceSets {

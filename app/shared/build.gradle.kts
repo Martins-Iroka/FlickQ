@@ -31,7 +31,7 @@ kotlin {
         browser()
     }
 
-    androidLibrary {
+    android {
        namespace = "com.martdev.flickq.app.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
