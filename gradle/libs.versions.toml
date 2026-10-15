@@ -15,6 +15,7 @@ buildkonfig = "0.23.0"
 composeMultiplatform = "1.12.1"
 collections-immutable = "0.5.2"
 paging = "3.5.3"
+datastore = "1.2.1"
 datetime = "0.8.0"
 dotenv = "6.5.1"
 exposed = "1.5.1"
@@ -73,6 +74,8 @@ compose-paging = { group = "androidx.paging", name = "paging-compose", version.r
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
+datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "datastore"}
+datastore-core-pref = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastore"}
 dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
@@ -170,6 +173,7 @@ client-ktor-libs = ["ktor-client-core", "ktor-client-contentNegotiation", "ktor-
 client-koin-compose = ["koin-core", "koin-compose", "koin-compose-viewmodel"]
 coil-libs = ["coil-compose", "coil-network-ktor3"]
 client-test = ["kotlin-test", "turbine", "assertk", "kotlinx-coroutines-test"]
+datastore = ["datastore-core", "datastore-core-pref"]
 exposed-libs = ["exposed-core", "exposed-dao", "exposed-datetime", "exposed-jdbc", "exposed-json"]
 firebase-libs = ["firebase-analytics", "firebase-appdistribution", "firebase-crashlytics"]
 koin-libs = ["koin-annotation", "koin-ktor", "koin-logger"]

@@ -2,6 +2,8 @@ package com.martdev.flickq.core.data
 
 import com.martdev.flickq.auth.request.RefreshTokenRequest
 import com.martdev.flickq.auth.response.RefreshTokenResponse
+import com.martdev.flickq.core.data.push.DeviceRegistrationStore
+import com.martdev.flickq.core.data.push.PushRoutes
 import com.martdev.flickq.shared.DataResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -32,16 +34,23 @@ import kotlinx.serialization.json.Json
  */
 object HttpClientFactory {
 
+    /**
+     * The push installation id rides in the /devices PUT body and DELETE path and in the logout
+     * body (`device_token`), so those requests and their responses are never logged.
+     */
+    internal fun isLoggable(encodedPath: String): Boolean =
+        !PushRoutes.isDeviceRoute(encodedPath) && !encodedPath.endsWith("/authentication/logout")
+
     val json: Json = Json {
         ignoreUnknownKeys = true
         isLenient = true
-        // DTOs use kotlin.time.Instant, which carries its own serializer — no module needed.
     }
 
     fun create(
         engine: HttpClientEngine,
         tokenStorage: TokenStorage,
         sessionManager: SessionManager,
+        deviceRegistrationStore: DeviceRegistrationStore,
     ): HttpClient {
         return HttpClient(engine) {
             install(ContentNegotiation) {
@@ -61,6 +70,7 @@ object HttpClientFactory {
                         println(message)
                     }
                 }
+                filter { request -> isLoggable(request.url.encodedPath) }
             }
             install(Auth) {
                 bearer {
@@ -88,6 +98,7 @@ object HttpClientFactory {
                             // Refresh failed (expired/revoked) — drop tokens and signal the app to
                             // route back to login (SessionManager is observed by the root nav).
                             tokenStorage.clear()
+                            deviceRegistrationStore.clear()
                             sessionManager.notifyExpired()
                             null
                         }

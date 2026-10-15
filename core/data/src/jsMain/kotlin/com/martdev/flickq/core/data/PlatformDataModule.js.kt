@@ -1,5 +1,7 @@
 package com.martdev.flickq.core.data
 
+import com.martdev.flickq.core.data.push.InMemorySecurePreferences
+import com.martdev.flickq.core.data.push.SecurePreferences
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.js.Js
 import org.koin.core.module.Module
@@ -12,6 +14,7 @@ actual fun httpClientEngine(): HttpClientEngine {
 
 actual fun platformDataModule(): Module = module {
     single<TokenStorage> { KobwebTokenStorage() }
+    single<SecurePreferences> { InMemorySecurePreferences() }
 }
 
 /**

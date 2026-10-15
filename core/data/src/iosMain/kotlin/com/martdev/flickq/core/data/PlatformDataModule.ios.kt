@@ -1,5 +1,6 @@
 package com.martdev.flickq.core.data
 
+import com.martdev.flickq.core.data.push.SecurePreferences
 import com.russhwolf.settings.ExperimentalSettingsImplementation
 import com.russhwolf.settings.KeychainSettings
 import com.russhwolf.settings.Settings
@@ -15,5 +16,8 @@ actual fun platformDataModule(): Module = module {
     single<TokenStorage> {
         val settings: Settings = KeychainSettings(service = "com.martdev.flickq.tokens")
         SettingsTokenStorage(settings)
+    }
+    single<SecurePreferences> {
+        SettingsSecurePreferences(KeychainSettings(service = "com.martdev.flickq.push"))
     }
 }

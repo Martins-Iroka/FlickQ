@@ -7,7 +7,8 @@ import org.koin.core.module.Module
 expect fun httpClientEngine(): HttpClientEngine
 
 /**
- * Platform Koin module supplying the platform-specific [TokenStorage]:
+ * Platform Koin module supplying the platform-specific [TokenStorage] (and the push
+ * [com.martdev.flickq.core.data.push.SecurePreferences] over the same secure store):
  * - Android: EncryptedSharedPreferences (Keystore-backed)
  * - iOS: Keychain
  * - Web (js/wasm): [WebTokenStorage] (access token in memory; refresh in httpOnly cookie)

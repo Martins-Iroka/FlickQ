@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.martdev.flickq.core.data.push.InMemorySecurePreferences
+import com.martdev.flickq.core.data.push.SecurePreferences
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.SharedPreferencesSettings
 import io.ktor.client.engine.HttpClientEngine
@@ -13,17 +15,21 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 
 private const val SECURE_PREFS_NAME = "flickq_secure_prefs"
+
+// Separate file so Phase 2 can exclude push state from backup on its own.
+private const val PUSH_PREFS_NAME = "flickq_push_prefs"
 private const val TAG = "PlatformDataModule"
 
 actual fun httpClientEngine(): HttpClientEngine = OkHttp.create()
 
 actual fun platformDataModule(): Module = module {
     single<TokenStorage> { resolveTokenStorage(androidContext()) }
+    single<SecurePreferences> { resolvePushPreferences(androidContext()) }
 }
 
 private fun resolveTokenStorage(context: Context): TokenStorage {
     try {
-        return AndroidSettingsStorage(createEncryptedSettings(context))
+        return AndroidSettingsStorage(createEncryptedSettings(context, SECURE_PREFS_NAME))
     } catch (e: Exception) {
         Log.w(TAG, "Encrypted token storage unreadable, clearing and retrying once", e)
     }
@@ -31,7 +37,7 @@ private fun resolveTokenStorage(context: Context): TokenStorage {
     context.deleteSharedPreferences(SECURE_PREFS_NAME)
 
     return try {
-        AndroidSettingsStorage(createEncryptedSettings(context))
+        AndroidSettingsStorage(createEncryptedSettings(context, SECURE_PREFS_NAME))
     } catch (e: Exception) {
         Log.e(
             TAG,
@@ -43,13 +49,30 @@ private fun resolveTokenStorage(context: Context): TokenStorage {
     }
 }
 
-private fun createEncryptedSettings(context: Context): Settings {
+private fun resolvePushPreferences(context: Context): SecurePreferences {
+    try {
+        return SettingsSecurePreferences(createEncryptedSettings(context, PUSH_PREFS_NAME))
+    } catch (e: Exception) {
+        Log.w(TAG, "Encrypted push storage unreadable, clearing and retrying once", e)
+    }
+
+    context.deleteSharedPreferences(PUSH_PREFS_NAME)
+
+    return try {
+        SettingsSecurePreferences(createEncryptedSettings(context, PUSH_PREFS_NAME))
+    } catch (e: Exception) {
+        Log.e(TAG, "Encrypted push storage unavailable after retry — falling back to in-memory storage.", e)
+        InMemorySecurePreferences()
+    }
+}
+
+private fun createEncryptedSettings(context: Context, fileName: String): Settings {
     val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
     val prefs = EncryptedSharedPreferences.create(
         context,
-        "flickq_secure_prefs",
+        fileName,
         masterKey,
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
