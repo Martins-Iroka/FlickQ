@@ -10,6 +10,6 @@ val authDataModule = module {
     if (AppConfig.USE_FAKES) {
         singleOf(::FakeAuthDataSource) { bind<AuthRepository>() }
     } else {
-        single<AuthRepository> { RealAuthDataSource(get(), get()) }
+        single<AuthRepository> { RealAuthDataSource(get(), get(), get(), get()) }
     }
 }

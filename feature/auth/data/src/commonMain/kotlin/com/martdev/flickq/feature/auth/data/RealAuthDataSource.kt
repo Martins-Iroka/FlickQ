@@ -6,7 +6,7 @@ import com.martdev.flickq.auth.model.OtpResendResult
 import com.martdev.flickq.auth.model.RegistrationResult
 import com.martdev.flickq.auth.model.VerificationInput
 import com.martdev.flickq.auth.request.CreateUserRequest
-import com.martdev.flickq.auth.request.RefreshTokenRequest
+import com.martdev.flickq.auth.request.LogoutRequest
 import com.martdev.flickq.auth.request.ResendOTPRequest
 import com.martdev.flickq.auth.request.UserLoginRequest
 import com.martdev.flickq.auth.request.UserVerificationRequest
@@ -17,12 +17,18 @@ import com.martdev.flickq.core.common.DataError
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.core.data.JwtDecoder
 import com.martdev.flickq.core.data.TokenStorage
+import com.martdev.flickq.core.data.deleteForStatus
 import com.martdev.flickq.core.data.postData
 import com.martdev.flickq.core.data.postForStatus
 import com.martdev.flickq.core.data.postForStatusNoBody
+import com.martdev.flickq.core.data.push.DeviceRegistrationStore
+import com.martdev.flickq.core.data.push.PushInstallationIdSource
+import com.martdev.flickq.core.data.push.PushRoutes
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Ktor-backed [AuthRepository] hitting the `/authentication` endpoints. Login persists the issued tokens
@@ -33,6 +39,8 @@ import io.ktor.client.HttpClient
 class RealAuthDataSource(
     private val client: HttpClient,
     private val tokenStorage: TokenStorage,
+    private val pushInstallationIdSource: PushInstallationIdSource,
+    private val deviceRegistrationStore: DeviceRegistrationStore,
 ) : AuthRepository {
 
     override suspend fun register(credentials: Credentials): Result<RegistrationResult, AuthError> =
@@ -120,16 +128,30 @@ class RealAuthDataSource(
         }
 
     override suspend fun logout(): Result<Unit, AuthError> {
-        // Best-effort server revoke: native sends the stored refresh token in the body; on web it
-        // is null and the browser's httpOnly cookie carries it. Clear local tokens regardless so
-        // logout always succeeds locally even if the network call fails.
-        val refresh = tokenStorage.getRefreshToken()
-        if (refresh != null) {
-            client.postForStatus("/authentication/logout", RefreshTokenRequest(refresh))
-        } else {
-            client.postForStatusNoBody("/authentication/logout")
+        try {
+            val fid = pushInstallationIdSource.lastKnown()
+            // 1. Unregister the push installation id while the JWT is still valid (best-effort).
+            if (fid != null) {
+                client.deleteForStatus(PushRoutes.device(fid))
+            }
+            // 2. Best-effort server revoke, also carrying the id as a second unregister path:
+            //    native sends the stored refresh token in the body; on web it is null and the
+            //    browser's httpOnly cookie carries it.
+            val refresh = tokenStorage.getRefreshToken()
+            if (refresh != null || fid != null) {
+                client.postForStatus("/authentication/logout", LogoutRequest(refresh, fid))
+            } else {
+                client.postForStatusNoBody("/authentication/logout")
+            }
+        } finally {
+            // 3. Clear local state regardless — even if both calls fail or the caller is
+            //    cancelled — so logout always succeeds locally. The id itself is kept: the next
+            //    login's PUT reassigns it.
+            withContext(NonCancellable) {
+                tokenStorage.clear()
+                deviceRegistrationStore.clear()
+            }
         }
-        tokenStorage.clear()
         return Result.Success(Unit)
     }
 }
