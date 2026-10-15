@@ -40,7 +40,16 @@ suspend inline fun <reified Request, reified Response : Any> HttpClient.postResu
 ): Result<Response, DataError.Network> = safeCall {
     post {
         url(constructRoute(route))
-        contentType(ContentType.Application.Json)
+        setBody(body)
+    }
+}
+
+suspend inline fun <reified Request> HttpClient.putForStatus(
+    route: String,
+    body: Request
+): Result<Unit, DataError.Network> = safeCall {
+    put {
+        url(constructRoute(route))
         setBody(body)
     }
 }

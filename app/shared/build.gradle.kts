@@ -70,6 +70,9 @@ kotlin {
             api(projects.feature.payment.presentation)
             implementation(projects.feature.reservation.data)
             implementation(projects.feature.reservation.presentation)
+            implementation(projects.feature.notification.domain)
+            implementation(projects.feature.notification.data)
+            implementation(projects.feature.notification.presentation)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
