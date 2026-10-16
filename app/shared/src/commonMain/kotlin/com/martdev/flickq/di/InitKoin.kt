@@ -8,6 +8,9 @@ import com.martdev.flickq.feature.booking.data.bookingDataModule
 import com.martdev.flickq.feature.booking.presentation.bookingPresentationModule
 import com.martdev.flickq.feature.movie.data.movieDataModule
 import com.martdev.flickq.feature.movie.presentation.moviePresentationModule
+import com.martdev.flickq.feature.notification.data.notificationDataModule
+import com.martdev.flickq.feature.notification.data.notificationDataPlatformModule
+import com.martdev.flickq.feature.notification.presentation.notificationPresentationModule
 import com.martdev.flickq.feature.payment.data.paymentDataModule
 import com.martdev.flickq.feature.payment.presentation.paymentPlatformModule
 import com.martdev.flickq.feature.payment.presentation.paymentPresentationModule
@@ -40,7 +43,10 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
             paymentPresentationModule,
             reservationDataModule,
             reservationPresentationModule,
-            paymentPlatformModule()
+            paymentPlatformModule(),
+            notificationDataPlatformModule(),
+            notificationDataModule,
+            notificationPresentationModule
         )
     }
 }

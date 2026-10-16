@@ -21,7 +21,6 @@ import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import com.martdev.flickq.shared.domain.model.DataResult
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
