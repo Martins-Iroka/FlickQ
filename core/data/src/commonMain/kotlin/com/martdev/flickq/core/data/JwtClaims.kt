@@ -5,7 +5,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
  * The subset of JWT payload claims the client cares about. Decoded WITHOUT verifying the
@@ -25,7 +24,6 @@ object JwtDecoder {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    @OptIn(ExperimentalEncodingApi::class)
     fun decode(token: String?): JwtClaims? {
         if (token.isNullOrBlank()) return null
         val parts = token.split(".")
