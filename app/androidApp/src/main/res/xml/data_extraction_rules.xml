@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Push state (FID, registration debounce, prompt snooze) is per-install; never restore it. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="flickq_push_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="flickq_push_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

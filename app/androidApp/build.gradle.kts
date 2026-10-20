@@ -26,6 +26,13 @@ dependencies {
     implementation(libs.compose.uiToolingPreview)
     implementation(platform(libs.firebase.bom))
     implementation(libs.bundles.firebase.libs)
+
+    implementation(projects.core.data)
+    implementation(projects.feature.notification.domain)
+    implementation(projects.feature.notification.presentation)
+    implementation(projects.core.common)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.kotlinx.coroutines.core)
     debugImplementation(libs.compose.uiTooling)
 }
 

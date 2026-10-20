@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">FlickQ</string>
+    <string name="notification_channel_bookings_name">Bookings</string>
+    <string name="notification_channel_bookings_description">Seat holds and booking confirmations</string>
+    <string name="notification_channel_new_releases_name">New releases</string>
+    <string name="notification_channel_new_releases_description">Movies just added to FlickQ</string>
+    <string name="notification_booking_public_title">Booking update</string>
 </resources>
