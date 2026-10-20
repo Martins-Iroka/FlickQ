@@ -6,16 +6,20 @@ import assertk.assertions.isNull
 import com.martdev.flickq.core.common.DataError
 import com.martdev.flickq.core.common.Result
 import com.martdev.flickq.movie.GenreDTO
+import com.martdev.flickq.notification.request.RegisterDeviceRequestDTO
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
+import io.ktor.http.contentType
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
@@ -29,7 +33,13 @@ import kotlin.test.fail
 private fun jsonClient(
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData
 ): HttpClient = HttpClient(MockEngine(handler)) {
-    install(ContentNegotiation) { json(HttpClientFactory.json) }
+    install(ContentNegotiation) {
+        json(HttpClientFactory.json)
+    }
+
+    defaultRequest {
+        contentType(ContentType.Application.Json)
+    }
 }
 
 private fun MockRequestHandleScope.jsonOk(body: String, status: HttpStatusCode = HttpStatusCode.OK) =
@@ -162,5 +172,42 @@ class HttpClientExtTest {
         assertThat(result).isEqualTo(Result.Success(Unit))
         assertThat(method).isEqualTo("POST")
         assertThat(hadBody).isEqualTo(false)
+    }
+
+    @Test
+    fun `putForStatus sends the body and resolves a 204 to Unit without reading a body`() = runTest {
+        var method = ""
+        var sentBody = ""
+        val client = jsonClient { request ->
+            method = request.method.value
+            sentBody = (request.body as? TextContent)?.text.orEmpty()
+            respond(content = ByteReadChannel.Empty, status = HttpStatusCode.NoContent)
+        }
+
+        val result = client.putForStatus(
+            "/devices",
+            RegisterDeviceRequestDTO(
+                token = "fid-123",
+                platform = "ANDROID",
+                appVersion = "1.0",
+                locale = "en"
+            )
+        )
+
+        assertThat(result).isEqualTo(Result.Success(Unit))
+        assertThat(method).isEqualTo("PUT")
+        assertThat(sentBody.contains("\"token\":\"fid-123\"")).isEqualTo(true)
+    }
+
+    @Test
+    fun `putForStatus maps a 429 to TOO_MANY_REQUESTS`() = runTest {
+        val client = jsonClient { jsonOk("""{"error":"Slow down"}""", HttpStatusCode.TooManyRequests) }
+
+        val result = client.putForStatus(
+            "/devices",
+            RegisterDeviceRequestDTO(token = "fid-123", platform = "IOS", appVersion = "1.0", locale = "en")
+        )
+
+        assertThat((result as? Result.Error)?.error).isEqualTo(DataError.Network.TOO_MANY_REQUESTS)
     }
 }

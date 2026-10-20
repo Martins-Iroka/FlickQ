@@ -145,7 +145,7 @@ class RealAuthDataSource(
             }
         } finally {
             // 3. Clear local state regardless — even if both calls fail or the caller is
-            //    cancelled — so logout always succeeds locally. The id itself is kept: the next
+            //    canceled — so logout always succeeds locally. The id itself is kept: the next
             //    login's PUT reassigns it.
             withContext(NonCancellable) {
                 tokenStorage.clear()

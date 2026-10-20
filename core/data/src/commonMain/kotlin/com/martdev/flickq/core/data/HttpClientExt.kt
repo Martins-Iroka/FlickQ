@@ -19,8 +19,6 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
 import io.ktor.client.statement.HttpResponse
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerializationException
 
@@ -92,7 +90,6 @@ suspend inline fun <reified Request> HttpClient.postForStatus(
     val response = try {
         post {
             url(constructRoute(route))
-            contentType(ContentType.Application.Json)
             setBody(body)
         }
     } catch (e: CancellationException) {
@@ -141,7 +138,6 @@ suspend inline fun <reified Request, reified Response : Any> HttpClient.putData(
     safeCall<DataResponse<Response>> {
         put {
             url(constructRoute(route))
-            contentType(ContentType.Application.Json)
             setBody(body)
         }
     }.map { it.data }
@@ -159,7 +155,6 @@ suspend inline fun <reified Request, reified Response : Any> HttpClient.patchDat
         patch {
             url(constructRoute(route))
             if (body != null) {
-                contentType(ContentType.Application.Json)
                 setBody(body)
             }
         }
