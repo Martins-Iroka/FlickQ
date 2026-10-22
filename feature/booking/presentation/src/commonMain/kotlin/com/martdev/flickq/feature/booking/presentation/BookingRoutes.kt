@@ -1,5 +1,6 @@
 package com.martdev.flickq.feature.booking.presentation
 
+import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -22,7 +23,9 @@ data class TicketRoute(val reservationId: Long)
 fun NavGraphBuilder.bookingGraph(
     navController: NavController,
     onProceedToPayment: (Long) -> Unit,
-    onExitToBrowse: () -> Unit
+    onExitToBrowse: () -> Unit,
+    /** Shown under the ticket; :app:shared fills it with the notification prompt. */
+    ticketFooter: @Composable () -> Unit = {},
 ) {
     composable<SeatSelectionRoute> { backStackEntry ->
         val route = backStackEntry.toRoute<SeatSelectionRoute>()
@@ -41,7 +44,8 @@ fun NavGraphBuilder.bookingGraph(
         TicketRoot(
             reservationId = route.reservationId,
             onProceedToPayment = onProceedToPayment,
-            onNavigateBack = onExitToBrowse
+            onNavigateBack = onExitToBrowse,
+            ticketFooter
         )
     }
 }

@@ -1,7 +1,6 @@
 package com.martdev.flickq.feature.booking.presentation.ticket
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +34,7 @@ fun TicketRoot(
     reservationId: Long,
     onProceedToPayment: (Long) -> Unit,
     onNavigateBack: () -> Unit,
+    footer: @Composable () -> Unit = {},
     viewModel: TicketViewModel = koinViewModel { parametersOf(reservationId) }
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -46,13 +46,14 @@ fun TicketRoot(
         }
     }
 
-    TicketScreen(state = state, onAction = viewModel::onAction)
+    TicketScreen(state = state, onAction = viewModel::onAction, footer = footer)
 }
 
 @Composable
 fun TicketScreen(
     state: TicketState,
-    onAction: (TicketAction) -> Unit
+    onAction: (TicketAction) -> Unit,
+    footer: @Composable () -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -119,6 +120,8 @@ fun TicketScreen(
                 ) {
                     Text(text = "Back to movies", color = FlickQColors.GoldHighlight)
                 }
+
+                footer()
             }
         }
     }

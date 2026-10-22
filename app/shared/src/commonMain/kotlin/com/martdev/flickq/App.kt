@@ -32,6 +32,8 @@ import com.martdev.flickq.feature.booking.presentation.bookingGraph
 import com.martdev.flickq.feature.movie.presentation.MovieGraphRoute
 import com.martdev.flickq.feature.movie.presentation.MovieListRoute
 import com.martdev.flickq.feature.movie.presentation.movieGraph
+import com.martdev.flickq.feature.notification.presentation.NotificationPromptRoot
+import com.martdev.flickq.feature.notification.presentation.PushDeepLinkDispatcher
 import com.martdev.flickq.feature.payment.presentation.PaymentRoute
 import com.martdev.flickq.feature.payment.presentation.paymentGraph
 import com.martdev.flickq.feature.reservation.presentation.ReservationGraphRoute
@@ -39,6 +41,8 @@ import com.martdev.flickq.feature.reservation.presentation.ReservationListRoute
 import com.martdev.flickq.feature.reservation.presentation.reservationGraph
 import com.martdev.flickq.feature.showtime.presentation.ShowtimeListRoute
 import com.martdev.flickq.feature.showtime.presentation.showtimeGraph
+import com.martdev.flickq.push.PushDeepLinkEffect
+import com.martdev.flickq.push.RegisterDeviceEffect
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -47,6 +51,7 @@ fun FlickQApp() {
     FlickQTheme {
         val navController = rememberNavController()
         val sessionManager = koinInject<SessionManager>()
+        val pushDeepLinks = koinInject<PushDeepLinkDispatcher>()
         var hasAuthenticated by remember {
             mutableStateOf(false)
         }
@@ -82,11 +87,16 @@ fun FlickQApp() {
         }
         // Refresh token expired/revoked anywhere in the app → clear the stack and re-auth.
         ObserveAsEvents(sessionManager.events) {
+            // Signed out: stop push registration and drop any link from the previous session.
+            hasAuthenticated = false
+            pushDeepLinks.clear()
             navController.navigate(AuthGraphRoute) {
                 popUpTo(navController.graph.id) { inclusive = true }
                 launchSingleTop = true
             }
         }
+        RegisterDeviceEffect(isAuthenticated = hasAuthenticated)
+        PushDeepLinkEffect(navController = navController, isAuthenticated = hasAuthenticated)
         Scaffold(
             bottomBar = {
                 if (showNavBar) {
@@ -175,7 +185,8 @@ fun FlickQApp() {
                         navController.navigate(MovieGraphRoute) {
                             popUpTo(MovieGraphRoute) { inclusive = true }
                         }
-                    }
+                    },
+                    ticketFooter = { NotificationPromptRoot() }
                 )
                 paymentGraph(
                     navController = navController,
