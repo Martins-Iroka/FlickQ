@@ -6,5 +6,9 @@
 	<true/>
     <key>NSFaceIDUsageDescription</key>
     <string>Use faceID to authenticate user</string>
+    <key>FirebaseMessagingInstallationIdEnabled</key>
+    <true/>
+    <key>FirebaseAppDelegateProxyEnabled</key>
+    <false/>
 </dict>
 </plist>

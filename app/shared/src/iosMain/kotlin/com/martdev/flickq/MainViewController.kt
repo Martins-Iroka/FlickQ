@@ -1,13 +1,10 @@
 package com.martdev.flickq
 
 import androidx.compose.ui.window.ComposeUIViewController
-import com.martdev.flickq.di.initKoin
-import org.koin.mp.KoinPlatform
 import platform.UIKit.UIViewController
 
 fun MainViewController(): UIViewController {
-    if (KoinPlatform.getKoinOrNull() == null) {
-        initKoin()
-    }
+    // Normally already started by the AppDelegate; the guard keeps previews and tests safe.
+    startKoinIfNeeded()
     return ComposeUIViewController { FlickQApp() }
 }
