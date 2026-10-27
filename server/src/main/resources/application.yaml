@@ -22,7 +22,7 @@ paystack:
   publicKey: ${PAYSTACK_PUBLIC_KEY}
   baseUrl: ${PAYSTACK_BASE_URL:https://api.paystack.co}
   callbackUrl: ${PAYSTACK_CALLBACK_URL}
-  currency: ${PAYSTACK_CURRENCY:-NGN}
+  currency: ${PAYSTACK_CURRENCY:NGN}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -35,7 +35,7 @@ cors:
   allowAnyHost: ${CORS_ALLOW_ANY_HOST:false}
 
 cookie:
-  secure: ${COOKIE_SECURE:-true}
+  secure: ${COOKIE_SECURE:true}
   sameSite: ${COOKIE_SAME_SITE:-Strict}
 
 sentry:
@@ -49,21 +49,21 @@ openTele:
   auth: ${OTEL_AUTH}
 
 fcm:
-  enabled: ${FCM_ENABLED:-false}
-  projectId: ${FCM_PROJECT_ID:-flickq-124ad}
+  enabled: ${FCM_ENABLED:false}
+  projectId: ${FCM_PROJECT_ID:flickq-124ad}
   credentials: ${FCM_SERVICE_ACCOUNT_B64:-}
-  dryRun: ${FCM_DRY_RUN:-false}
-  topicPrefix: ${FCM_TOPIC_PREFIX:-dev-}
+  dryRun: ${FCM_DRY_RUN:false}
+  topicPrefix: ${FCM_TOPIC_PREFIX:dev-}
   worker:
     batchSize: 100
     concurrency: 16
     pollMs: 1000
-    ratePerSecond: ${FCM_RATE_PER_SECOND:-500}
+    ratePerSecond: ${FCM_RATE_PER_SECOND:500}
     leaseSeconds: 60
   retry:
     baseMs: 5000
     capMs: 3600000
-    maxAttempts: ${FCM_RETRY_MAX_ATTEMPTS:-8}
+    maxAttempts: ${FCM_RETRY_MAX_ATTEMPTS:8}
   retention:
     sentDays: 7
     deadDays: 30
