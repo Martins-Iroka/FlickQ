@@ -1,17 +1,13 @@
 package com.martdev.flickq.features.movie.domain.service.movie
 
 import com.martdev.flickq.features.movie.domain.repository.MovieRepository
-import com.martdev.flickq.features.showtime.domain.service.ShowtimeService
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.util.returnValue
-import kotlinx.datetime.LocalDate
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 
 @Singleton
 class MovieServiceImpl(
-    private val movieRepository: MovieRepository,
-    private val showtimeService: ShowtimeService
+    private val movieRepository: MovieRepository
 ) : MovieService {
     override suspend fun createMovie(movie: Movie) {
         movieRepository.createMovie(movie).returnValue()
@@ -20,8 +16,8 @@ class MovieServiceImpl(
     override suspend fun getMovies(limit: Int, offset: Long): List<Movie> {
         return movieRepository.getMovies(limit, offset).returnValue()
     }
-    override suspend fun getScheduledMovies(limit: Int, offset: Long, date: LocalDate): List<Movie> {
-        val movieIds = showtimeService.getShowtimeMovieIds(date)
+
+    override suspend fun getMovies(movieIds: List<Long>, limit: Int, offset: Long): List<Movie> {
         return movieRepository.getMoviesByIds(movieIds, limit, offset).returnValue()
     }
 

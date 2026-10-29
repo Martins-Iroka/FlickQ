@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import org.koin.ktor.ext.inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 private val jobLog = getLoggerFactory("BackgroundJobs")
 
@@ -43,17 +44,17 @@ fun Application.configureBackgroundJobs() {
     // Every machine ticks; the advisory lock makes exactly one of them do the work.
     singletonJob(
         SingletonJob.REFRESH_TOKEN_CLEANUP,
-        1.hours,
+        15.minutes,
         jobLock
     ) { userService.deleteExpiredRefreshToken() }
     singletonJob(
         SingletonJob.RESERVATION_EXPIRY,
-        1.hours,
+        5.minutes,
         jobLock
     ) { reservationService.cancelExpiredReservations() }
     singletonJob(
         SingletonJob.PAYMENT_RECONCILE,
-        1.hours,
+        5.minutes,
         jobLock
     ) { paymentService.reconcilePendingPayments() }
     notificationScope.singletonJob(

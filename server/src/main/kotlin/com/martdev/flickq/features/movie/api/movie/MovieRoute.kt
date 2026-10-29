@@ -79,17 +79,6 @@ private fun Route.adminMovieRoute(service: MovieService) {
 
 private fun Route.moviePublicRoute(service: MovieService) {
     route(moviePath) {
-        get("/scheduled-movies") {
-            val (limit, offset) = getLimitAndOffset()
-            val date = getLocalDate("date")
-            val response = service.getScheduledMovies(limit, offset, date).map {
-                it.toMovieDto()
-            }
-            val nextOffset = if (response.size < limit) -1L else limit + offset
-            val dataResponse = DataResponse(MovieData(response, nextOffset))
-            call.respond(HttpStatusCode.OK, dataResponse)
-        }
-
         get("/get-movie-by-id/{movie_id}") {
             val movieId = getParameterFromPath("movie_id")
             val movie = service.getMovieById(movieId)

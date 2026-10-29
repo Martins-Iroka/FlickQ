@@ -14,7 +14,6 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.testing.testApplication
@@ -22,13 +21,10 @@ import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.koin.dsl.module
 import kotlin.test.assertEquals
-import kotlin.time.Clock
 
 @ExtendWith(MockKExtension::class)
 class MovieRouteTest {
@@ -136,37 +132,6 @@ class MovieRouteTest {
         val client = clientConfiguration(userToken)
         client.get("movie/get-movie-by-id/5").apply {
             assertEquals(HttpStatusCode.OK, status)
-        }
-    }
-
-    @Test
-    fun testGetScheduledMovies() = testApplication {
-        coEvery {
-            service.getScheduledMovies(any(), any(), any())
-        } returns listOf(Movie())
-
-        application {
-            configure()
-        }
-        val client = clientConfiguration(userToken)
-        client.get("movie/scheduled-movies?date=2026-07-04&limit=10&offset=0").apply {
-            assertEquals(HttpStatusCode.OK, status)
-        }
-    }
-
-    @Test
-    fun testGetScheduledMovies_dateIsNull_returnList() = testApplication {
-        val today = Clock.System.todayIn(TimeZone.UTC)
-        coEvery {
-            service.getScheduledMovies(any(), any(), today)
-        } returns listOf(Movie())
-
-        application {
-            configure()
-        }
-        val client = clientConfiguration(userToken)
-        client.get("movie/scheduled-movies?limit=10&offset=0").apply {
-            assertEquals(HttpStatusCode.OK, status, bodyAsText())
         }
     }
 

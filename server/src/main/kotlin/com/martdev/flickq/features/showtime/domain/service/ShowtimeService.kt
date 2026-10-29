@@ -1,5 +1,6 @@
 package com.martdev.flickq.features.showtime.domain.service
 
+import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.showtime.model.ShowtimeStatus
 import kotlinx.datetime.LocalDate
@@ -13,4 +14,5 @@ interface ShowtimeService {
     suspend fun deleteShowtime(id: Long)
     suspend fun updateShowtimeStatus(id: Long, status: ShowtimeStatus): Showtime
     suspend fun getShowtimeMovieIds(date: LocalDate): List<Long>
+    suspend fun getShowtimeMovies(date: LocalDate, limit: Int, offset: Long): List<Movie>
 }

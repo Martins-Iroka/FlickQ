@@ -1,27 +1,35 @@
 package com.martdev.flickq.features.showtime.api
 
 import com.martdev.flickq.auth.model.Role
+import com.martdev.flickq.features.movie.api.toMovieDto
 import com.martdev.flickq.features.showtime.domain.service.ShowtimeService
+import com.martdev.flickq.movie.MovieData
 import com.martdev.flickq.shared.DataResponse
 import com.martdev.flickq.shared.api.AUTH_JWT
+import com.martdev.flickq.shared.api.getLimitAndOffset
+import com.martdev.flickq.shared.api.getParameterFromPath
 import com.martdev.flickq.shared.api.withRole
+import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.showtime.ShowtimeDTO
 import com.martdev.flickq.showtime.UpdateShowtimeStatusRequest
 import com.martdev.flickq.showtime.model.ShowtimeStatus
-import com.martdev.flickq.shared.api.getLimitAndOffset
-import com.martdev.flickq.shared.api.getParameterFromPath
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.ktor.ext.inject
+import kotlin.time.Clock
 
 const val showtimePath = "/showtime"
 const val adminShowtimePath = "/admin$showtimePath"
@@ -97,5 +105,23 @@ private fun Route.showtimePublicRoute(service: ShowtimeService) {
             val response = DataResponse(result)
             call.respond(HttpStatusCode.OK, response)
         }
+
+        get("/showtime-movies") {
+            val (limit, offset) = getLimitAndOffset()
+            val date = getLocalDate("date")
+            val response = service.getShowtimeMovies(date, limit, offset).map {
+                it.toMovieDto()
+            }
+            val nextOffset = if (response.size < limit) -1L else limit + offset
+            val dataResponse = DataResponse(MovieData(response, nextOffset))
+            call.respond(HttpStatusCode.OK, dataResponse)
+        }
     }
+}
+
+private fun RoutingContext.getLocalDate(name: String): LocalDate {
+    val raw = call.request.queryParameters[name]?.trim()
+    if (raw.isNullOrBlank()) return Clock.System.todayIn(TimeZone.UTC)
+    return runCatching { LocalDate.parse(raw) }.getOrNull()
+        ?: throw BadRequestException("Invalid '$name' (expected ISO-8601 date, yyyy-MM-dd")
 }

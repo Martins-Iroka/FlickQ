@@ -1,12 +1,11 @@
 package com.martdev.flickq.features.movie.domain.service.movie
 
 import com.martdev.flickq.movie.model.Movie
-import kotlinx.datetime.LocalDate
 
 interface MovieService {
     suspend fun createMovie(movie: Movie)
     suspend fun getMovies(limit: Int, offset: Long): List<Movie>
-    suspend fun getScheduledMovies(limit: Int, offset: Long, date: LocalDate): List<Movie>
+    suspend fun getMovies(movieIds: List<Long>, limit: Int, offset: Long): List<Movie>
     suspend fun getMovieById(movieId: Long): Movie
     suspend fun updateMovie(movie: Movie): Movie
     suspend fun deleteMovie(id: Long)

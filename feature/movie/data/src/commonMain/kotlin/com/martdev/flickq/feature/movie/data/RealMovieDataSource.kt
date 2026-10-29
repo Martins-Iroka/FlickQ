@@ -7,7 +7,6 @@ import com.martdev.flickq.core.data.getData
 import com.martdev.flickq.feature.movie.domain.MovieRepository
 import com.martdev.flickq.movie.MovieDTO
 import com.martdev.flickq.movie.MovieData
-import com.martdev.flickq.movie.MovieListItemDTO
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.movie.model.MovieDataModel
 import io.ktor.client.HttpClient
@@ -21,16 +20,6 @@ class RealMovieDataSource(
     private val client: HttpClient
 ) : MovieRepository {
 
-    override suspend fun getMovies(
-        limit: Int,
-        offset: Int,
-        date: LocalDate?
-    ): Result<List<Movie>, DataError> =
-        client.getData<List<MovieListItemDTO>>(
-            "/movie/scheduled-movies",
-            queryParameters = mapOf("limit" to limit, "offset" to offset, "date" to date?.toString()),
-        ).map { items -> items.map { it.toMovie() } }
-
     override suspend fun getMovieById(id: Long): Result<Movie, DataError> =
         client.getData<MovieDTO>("/movie/get-movie-by-id/$id")
             .map { it.toMovie() }
@@ -41,7 +30,7 @@ class RealMovieDataSource(
         offset: Long
     ): Result<MovieDataModel, DataError> {
         return client.getData<MovieData>(
-            "/movie/scheduled-movies",
+            "/showtime/showtime-movies",
             queryParameters = mapOf("limit" to limit, "offset" to offset, "date" to date.toString())
         ).map { (movies, nextOffset) ->
             MovieDataModel(movies = movies.map { it.toMovie() }, nextOffset)

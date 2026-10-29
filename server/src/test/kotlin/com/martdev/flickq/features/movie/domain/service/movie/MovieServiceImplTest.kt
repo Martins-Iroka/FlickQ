@@ -1,7 +1,6 @@
 package com.martdev.flickq.features.movie.domain.service.movie
 
 import com.martdev.flickq.features.movie.domain.repository.MovieRepository
-import com.martdev.flickq.features.showtime.domain.service.ShowtimeService
 import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.shared.domain.exception.InternalServerException
 import com.martdev.flickq.shared.domain.exception.NotFoundException
@@ -11,15 +10,12 @@ import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import kotlin.time.Clock
 
 @ExtendWith(MockKExtension::class)
 class MovieServiceImplTest {
@@ -27,17 +23,12 @@ class MovieServiceImplTest {
     @MockK
     private lateinit var repository: MovieRepository
 
-    @MockK
-    private lateinit var showtimeService: ShowtimeService
-
     private lateinit var service: MovieService
 
     @BeforeEach
     fun setup() {
-        service = MovieServiceImpl(repository, showtimeService)
+        service = MovieServiceImpl(repository)
     }
-
-    val date = Clock.System.now().toLocalDateTime(TimeZone.UTC).date
 
     @Test
     fun `should create movie successfully`() = runTest {
@@ -73,21 +64,6 @@ class MovieServiceImplTest {
         val result = service.getMovies(5, 0)
         assertTrue(result.isNotEmpty())
         assertEquals(1, result.size)
-    }
-
-    @Test
-    fun `get scheduled list of movies returns movies`() = runTest {
-        coEvery {
-            showtimeService.getShowtimeMovieIds(any())
-        } returns listOf(1, 2, 3)
-
-        coEvery {
-            repository.getMoviesByIds(any(), any(), any())
-        } returns DataResult.Success(listOf(Movie(id = 1), Movie(id = 2), Movie(id = 3)))
-
-        val result = service.getScheduledMovies(2, 0, date)
-        assertTrue(result.isNotEmpty())
-        assertEquals(3, result.size)
     }
 
     @Test

@@ -7,9 +7,6 @@ import com.martdev.flickq.movie.model.MovieDataModel
 import kotlinx.datetime.LocalDate
 
 interface MovieRepository {
-    /** A page of the catalog. The server applies [limit]/[offset]; callers paginate via offset. */
-    suspend fun getMovies(limit: Int = 20, offset: Int = 0, date: LocalDate? = null): Result<List<Movie>, DataError>
-
     suspend fun getMovieById(id: Long): Result<Movie, DataError>
 
     suspend fun getScheduledMovies(date: LocalDate, limit: Int, offset: Long): Result<MovieDataModel, DataError>

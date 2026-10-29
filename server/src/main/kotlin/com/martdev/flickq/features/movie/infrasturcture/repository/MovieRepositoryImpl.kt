@@ -6,7 +6,6 @@ import com.martdev.flickq.features.movie.infrasturcture.tables.MovieGenreTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesEntity
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.toMovie
-import com.martdev.flickq.features.notification.domain.model.NotificationEvent
 import com.martdev.flickq.features.notification.domain.repository.NotificationEnqueuer
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
@@ -17,7 +16,6 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.SizedCollection
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 
 @Singleton
@@ -38,11 +36,11 @@ class MovieRepositoryImpl(
                 rollback()
                 return@withSuspendTransaction result
             }
-            enqueuer.enqueueInCurrentTx(
+            /*enqueuer.enqueueInCurrentTx(
                 NotificationEvent.MovieAdded(
                     movieEntity.id.value, movie.title, movie.posterUrl
                 )
-            )
+            )*/
             DataResult.Success(movieEntity.id.value)
         }
     }
