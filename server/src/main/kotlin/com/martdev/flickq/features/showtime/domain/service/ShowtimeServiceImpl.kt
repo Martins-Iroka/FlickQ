@@ -33,7 +33,7 @@ class ShowtimeServiceImpl(
                 val showtime = result.value
                 try {
                     val movie = movieService.getMovieById(showtime.movieId)
-                    enqueuer.enqueueInCurrentTx(
+                    enqueuer.suspendedEnqueueInCurrentTx(
                         NotificationEvent.MovieAdded(
                             showtime.movieId, movie.title, movie.posterUrl
                         )

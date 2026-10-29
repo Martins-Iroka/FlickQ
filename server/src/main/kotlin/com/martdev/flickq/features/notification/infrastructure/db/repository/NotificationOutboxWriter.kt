@@ -8,12 +8,13 @@ import com.martdev.flickq.features.notification.domain.service.NotificationCompo
 import com.martdev.flickq.features.notification.infrastructure.db.table.NotificationOutboxTable
 import com.martdev.flickq.features.notification.infrastructure.db.table.toStored
 import com.martdev.flickq.notification.model.NotificationType
+import com.martdev.flickq.shared.domain.model.DataResult
+import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
 import io.opentelemetry.api.trace.Span
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.statements.StatementInterceptor
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -24,6 +25,12 @@ class NotificationOutboxWriter(
 ) : NotificationEnqueuer {
     override fun enqueueInCurrentTx(event: NotificationEvent): Boolean {
         return enqueueInCurrentTx(composer.compose(event))
+    }
+
+    override suspend fun suspendedEnqueueInCurrentTx(event: NotificationEvent): DataResult<Boolean> {
+        return withSuspendTransaction {
+            DataResult.Success(enqueueInCurrentTx(composer.compose(event)))
+        }
     }
 
     override fun enqueueInCurrentTx(draft: OutboxDraft): Boolean {
