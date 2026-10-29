@@ -9,7 +9,6 @@ sealed interface NotificationEvent {
     data class ReservationHeld(
         val reservationId: Long,
         val userId: Long,
-        val movieTitle: String,
         val seats: List<String>,
         val expiresAt: Instant
     ) : NotificationEvent

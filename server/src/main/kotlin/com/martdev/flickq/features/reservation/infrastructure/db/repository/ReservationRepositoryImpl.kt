@@ -94,7 +94,6 @@ class ReservationRepositoryImpl(
             NotificationEvent.ReservationHeld(
                 reservationId = entity.id.value,
                 userId = reservation.userId,
-                movieTitle = reservation.movieTitle,
                 seats = seatLabels(seatIds),
                 expiresAt = entity.expiresAt
             )

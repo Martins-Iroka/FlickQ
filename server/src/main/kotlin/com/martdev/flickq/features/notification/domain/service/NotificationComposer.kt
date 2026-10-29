@@ -5,7 +5,6 @@ import com.martdev.flickq.features.notification.domain.model.NotificationEvent
 import com.martdev.flickq.features.notification.domain.model.OutboxDraft
 import com.martdev.flickq.notification.model.NotificationTargetKind
 import com.martdev.flickq.notification.model.NotificationType
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 import java.security.MessageDigest
 import kotlin.time.Instant
@@ -54,7 +53,7 @@ class NotificationComposer(private val config: FcmConfig) {
             expiresAt = event.expiresAt,
             push = PushMessage(
                 title = "Seats held",
-                body = "${event.seats.joinToString(", ")} for ${event.movieTitle} are held. Pay within 15 minutes.",
+                body = "${event.seats.joinToString(", ")} are held. Pay within 15 minutes.",
                 data = mapOf(
                     "type" to "reservation_held",
                     "reservationId" to "${event.reservationId}",
