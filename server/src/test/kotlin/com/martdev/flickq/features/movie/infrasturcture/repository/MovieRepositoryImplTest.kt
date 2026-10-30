@@ -47,7 +47,7 @@ class MovieRepositoryImplTest {
             PostgresContainer.connectToDBAndMigrate(postgres)
             genreRepo = GenreRepositoryImpl()
             movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
-            showtimeRepo = ShowtimeRepositoryImpl()
+            showtimeRepo = ShowtimeRepositoryImpl(TestNotifications.enqueuer())
             roomRepo = RoomRepositoryImpl()
         }
     }

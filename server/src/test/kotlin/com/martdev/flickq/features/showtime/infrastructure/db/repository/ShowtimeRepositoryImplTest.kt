@@ -56,7 +56,7 @@ class ShowtimeRepositoryImplTest {
         @JvmStatic
         fun connectDBAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
-            repo = ShowtimeRepositoryImpl()
+            repo = ShowtimeRepositoryImpl(TestNotifications.enqueuer())
             movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             roomRepo = RoomRepositoryImpl()
             genreRepo = GenreRepositoryImpl()

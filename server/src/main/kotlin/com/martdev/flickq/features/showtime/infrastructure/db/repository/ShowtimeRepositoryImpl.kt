@@ -1,11 +1,15 @@
 package com.martdev.flickq.features.showtime.infrastructure.db.repository
 
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
+import com.martdev.flickq.features.notification.domain.model.NotificationEvent
+import com.martdev.flickq.features.notification.domain.repository.NotificationEnqueuer
+import com.martdev.flickq.features.reservation.infrastructure.db.table.ReservationTable
 import com.martdev.flickq.features.room.infrastructure.db.table.RoomTable
 import com.martdev.flickq.features.showtime.domain.repository.ShowtimeRepository
 import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeEntity
 import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTable
 import com.martdev.flickq.features.showtime.infrastructure.db.table.toShowtime
+import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
 import com.martdev.flickq.showtime.model.Showtime
@@ -21,13 +25,15 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 
 @Singleton
-class ShowtimeRepositoryImpl : ShowtimeRepository {
+class ShowtimeRepositoryImpl(
+    private val enqueuer: NotificationEnqueuer
+) : ShowtimeRepository {
     private val notFoundMessage = "Showtime not found"
     override suspend fun createShowtime(showtime: Showtime): DataResult<Showtime> {
         return withSuspendTransaction {
@@ -80,12 +86,19 @@ class ShowtimeRepositoryImpl : ShowtimeRepository {
 
     override suspend fun updateShowtime(showtime: Showtime): DataResult<Showtime> {
         return withSuspendTransaction {
+            val previous = lockStatus(showtime.id)
+                ?: return@withSuspendTransaction DataResult.Failure.NotFound(notFoundMessage)
+
             val updatedShowtime = ShowtimeEntity.findByIdAndUpdate(showtime.id) {
                 it.startsAt = showtime.startsAt
                 it.endsAt = showtime.endsAt
                 it.price = showtime.price
                 it.status = showtime.status
             }?.toShowtime() ?: return@withSuspendTransaction DataResult.Failure.NotFound(notFoundMessage)
+
+            if (previous != ShowtimeStatus.CANCELLED && updatedShowtime.status == ShowtimeStatus.CANCELLED) {
+                notifyConfirmedHolders(updatedShowtime)
+            }
 
             DataResult.Success(updatedShowtime)
         }
@@ -107,9 +120,16 @@ class ShowtimeRepositoryImpl : ShowtimeRepository {
         status: ShowtimeStatus
     ): DataResult<Showtime> {
         return withSuspendTransaction {
+            val previous = lockStatus(id)
+                ?: return@withSuspendTransaction DataResult.Failure.NotFound(notFoundMessage)
+
             val showtime = ShowtimeEntity.findByIdAndUpdate(id) {
                 it.status = status
             }?.toShowtime() ?: return@withSuspendTransaction DataResult.Failure.NotFound(notFoundMessage)
+
+            if (previous != ShowtimeStatus.CANCELLED && status == ShowtimeStatus.CANCELLED) {
+                notifyConfirmedHolders(showtime)
+            }
 
             DataResult.Success(showtime)
         }
@@ -128,5 +148,39 @@ class ShowtimeRepositoryImpl : ShowtimeRepository {
                 .map { it[ShowtimeTable.movieId].value }
             DataResult.Success(movieIds)
         }
+    }
+
+    // Concurrent cancels must not both see SCHEDULED and notify twice, and an in-flight confirmation (FOR SHARE)
+    // must land wholly before or after. NO KEY UPDATE still lets reservation inserts' FK checks through.
+    private fun lockStatus(id: Long): ShowtimeStatus? = ShowtimeTable
+        .select(ShowtimeTable.status)
+        .where { ShowtimeTable.id eq id }
+        .forUpdate(ForUpdateOption.PostgreSQL.ForNoKeyUpdate)
+        .firstOrNull()?.get(ShowtimeTable.status)
+
+    private fun notifyConfirmedHolders(showtime: Showtime) {
+        val movieTitle = MoviesTable
+            .select(MoviesTable.title)
+            .where { MoviesTable.id eq showtime.movieId }
+            .single()[MoviesTable.title]
+
+        ReservationTable
+            .select(ReservationTable.id, ReservationTable.userId)
+            .where {
+                (ReservationTable.showtimeId eq showtime.id) and
+                        (ReservationTable.status eq ReservationStatus.CONFIRMED)
+            }
+            .forEach {
+                enqueuer.enqueueInCurrentTx(
+                    NotificationEvent.ReservationCancelled(
+                        reservationId = it[ReservationTable.id].value,
+                        userId = it[ReservationTable.userId].value,
+                        showtimeId = showtime.id,
+                        movieTitle = movieTitle,
+                        startsAt = showtime.startsAt,
+                        reason = NotificationEvent.ReservationCancelled.Reason.SHOWTIME_CANCELLED
+                    )
+                )
+            }
     }
 }

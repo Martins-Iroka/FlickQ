@@ -62,7 +62,7 @@ class ShowtimeSeatRepositoryImplTest {
         fun connectToDBAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
             repo = ShowtimeSeatRepositoryImpl()
-            showtimeRepo = ShowtimeRepositoryImpl()
+            showtimeRepo = ShowtimeRepositoryImpl(TestNotifications.enqueuer())
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
             movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())

@@ -19,4 +19,15 @@ sealed interface NotificationEvent {
         val movieTitle: String,
         val startsAt: Instant
     ) : NotificationEvent
+
+    data class ReservationCancelled(
+        val reservationId: Long,
+        val userId: Long,
+        val showtimeId: Long,
+        val movieTitle: String,
+        val startsAt: Instant,
+        val reason: Reason
+    ) : NotificationEvent {
+        enum class Reason { SHOWTIME_CANCELLED, ADMIN_CANCELLED }
+    }
 }

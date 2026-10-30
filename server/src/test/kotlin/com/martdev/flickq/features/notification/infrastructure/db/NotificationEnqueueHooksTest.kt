@@ -1,6 +1,7 @@
 package com.martdev.flickq.features.notification.infrastructure.db
 
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
@@ -55,6 +56,7 @@ import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.shared.domain.model.DataResult
+import com.martdev.flickq.showtime.model.ShowtimeStatus
 import com.martdev.flickq.showtime.model.Showtime
 import com.martdev.flickq.utils.PostgresContainer
 import com.martdev.flickq.utils.TestNotifications
@@ -72,6 +74,11 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.util.concurrent.CountDownLatch
+import kotlin.concurrent.thread
+import kotlinx.coroutines.Dispatchers
+import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import kotlin.test.assertTrue
@@ -110,7 +117,7 @@ class NotificationEnqueueHooksTest {
             genreRepo = GenreRepositoryImpl()
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
-            showtimeRepo = ShowtimeRepositoryImpl()
+            showtimeRepo = ShowtimeRepositoryImpl(enqueuer)
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
             userRepo = UserRepositoryImpl()
         }
@@ -178,6 +185,7 @@ class NotificationEnqueueHooksTest {
     fun `a failing enqueue rolls back the movie too`() = runTest {
         val throwing = object : NotificationEnqueuer {
             override fun enqueueInCurrentTx(event: NotificationEvent): Boolean = error("boom")
+            override suspend fun suspendedEnqueueInCurrentTx(event: NotificationEvent): DataResult<Boolean> = error("boom")
             override fun enqueueInCurrentTx(draft: OutboxDraft): Boolean = error("boom")
         }
         val genre = (genreRepo.saveGenre(Genre(name = "G-${Uuid.random()}")) as DataResult.Success).value
@@ -290,6 +298,236 @@ class NotificationEnqueueHooksTest {
         assertThat((reservationRepo.getReservationById(reservation.id) as DataResult.Success).value.status)
             .isEqualTo(ReservationStatus.CONFIRMED)
     }
+
+    @Test
+    fun `cancelling a showtime enqueues one push per confirmed reservation only`() = runTest {
+        val ctx = setupContext(seatCount = 3)
+        val first = holdSeat(ctx, ctx.seatIds[0])
+        val second = holdSeat(ctx, ctx.seatIds[1])
+        holdSeat(ctx, ctx.seatIds[2])   // stays PENDING
+        reservationRepo.updateReservationStatus(first.id, ReservationStatus.CONFIRMED)
+        reservationRepo.updateReservationStatus(second.id, ReservationStatus.CONFIRMED)
+
+        val result = showtimeRepo.updateShowtimeStatus(ctx.showtimeId, ShowtimeStatus.CANCELLED)
+
+        assertTrue(result is DataResult.Success, result.toString())
+        val cancelled = rows(NotificationType.RESERVATION_CANCELLED)
+        assertThat(cancelled.map { it[NotificationOutboxTable.idempotencyKey] }.toSet()).isEqualTo(
+            setOf("reservation_cancelled:showtime_cancelled:${first.id}", "reservation_cancelled:showtime_cancelled:${second.id}")
+        )
+        assertThat(cancelled.all { it[NotificationOutboxTable.userId]?.value == ctx.userId }).isTrue()
+        assertThat(cancelled.first()[NotificationOutboxTable.payload].body).contains(ctx.movieTitle)
+    }
+
+    @Test
+    fun `re-cancelling a cancelled showtime or completing one enqueues nothing new`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val reservation = hold(ctx)
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CONFIRMED)
+
+        showtimeRepo.updateShowtimeStatus(ctx.showtimeId, ShowtimeStatus.COMPLETED)
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED)).isEmpty()
+
+        showtimeRepo.updateShowtimeStatus(ctx.showtimeId, ShowtimeStatus.CANCELLED)
+        transaction { NotificationOutboxTable.deleteAll() }   // a resend would insert a fresh row
+        showtimeRepo.updateShowtimeStatus(ctx.showtimeId, ShowtimeStatus.CANCELLED)
+
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED)).isEmpty()
+    }
+
+    @Test
+    fun `paying for a hold after its showtime was cancelled sends the cancellation, not a confirmation`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val reservation = hold(ctx)
+        showtimeRepo.updateShowtimeStatus(ctx.showtimeId, ShowtimeStatus.CANCELLED)
+
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CONFIRMED)
+
+        assertThat(rows(NotificationType.BOOKING_CONFIRMED)).isEmpty()
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED).single()[NotificationOutboxTable.idempotencyKey])
+            .isEqualTo("reservation_cancelled:showtime_cancelled:${reservation.id}")
+    }
+
+    @Test
+    fun `a payment confirming while a showtime cancel is in flight still gets the cancellation`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val hold = hold(ctx)
+        val locked = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        var holderPid = 0
+        // A showtime cancel that has locked and flipped the row but not yet committed.
+        val cancel = thread {
+            transaction {
+                ShowtimeTable.selectAll().where { ShowtimeTable.id eq ctx.showtimeId }
+                    .forUpdate(ForUpdateOption.PostgreSQL.ForNoKeyUpdate).single()
+                ShowtimeTable.update({ ShowtimeTable.id eq ctx.showtimeId }) { it[status] = ShowtimeStatus.CANCELLED }
+                holderPid = exec("SELECT pg_backend_pid()") { it.next(); it.getInt(1) }!!
+                locked.countDown()
+                release.await()
+            }
+        }
+        locked.await()
+
+        val confirm = async(Dispatchers.IO) { reservationRepo.updateReservationStatus(hold.id, ReservationStatus.CONFIRMED) }
+        awaitBlockedBy(holderPid)
+        release.countDown()
+        cancel.join()
+        confirm.await()
+
+        assertThat(rows(NotificationType.BOOKING_CONFIRMED)).isEmpty()
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED).single()[NotificationOutboxTable.idempotencyKey])
+            .isEqualTo("reservation_cancelled:showtime_cancelled:${hold.id}")
+    }
+
+    @Test
+    fun `confirming a reservation the expiry sweep already cancelled is a conflict`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val hold = hold(ctx)
+        reservationRepo.updateReservationStatus(hold.id, ReservationStatus.CANCELLED)
+
+        val result = reservationRepo.updateReservationStatus(hold.id, ReservationStatus.CONFIRMED)
+
+        assertTrue(result is DataResult.Failure.Conflict, result.toString())
+        assertThat((reservationRepo.getReservationById(hold.id) as DataResult.Success).value.status)
+            .isEqualTo(ReservationStatus.CANCELLED)
+        assertThat(rows(NotificationType.BOOKING_CONFIRMED)).isEmpty()
+    }
+
+    @Test
+    fun `cancelling a showtime through a full update also notifies confirmed holders`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val hold = hold(ctx)
+        reservationRepo.updateReservationStatus(hold.id, ReservationStatus.CONFIRMED)
+        val showtime = (showtimeRepo.getShowtimeById(ctx.showtimeId) as DataResult.Success).value
+
+        showtimeRepo.updateShowtime(showtime.copy(status = ShowtimeStatus.CANCELLED))
+        showtimeRepo.updateShowtime(showtime.copy(status = ShowtimeStatus.CANCELLED))
+
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED).single()[NotificationOutboxTable.idempotencyKey])
+            .isEqualTo("reservation_cancelled:showtime_cancelled:${hold.id}")
+    }
+
+    @Test
+    fun `the expiry sweep never cancels a reservation whose confirmation committed mid-sweep`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val hold = (reservationRepo.createReservation(
+            reservation(ctx, Clock.System.now() - 1.minutes), ctx.seatIds
+        ) as DataResult.Success).value
+        val locked = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        var holderPid = 0
+        // A payment confirmation that has locked and flipped the row but not yet committed.
+        val confirm = thread {
+            transaction {
+                ReservationTable.selectAll().where { ReservationTable.id eq hold.id }.forUpdate().single()
+                ReservationTable.update({ ReservationTable.id eq hold.id }) { it[status] = ReservationStatus.CONFIRMED }
+                holderPid = exec("SELECT pg_backend_pid()") { it.next(); it.getInt(1) }!!
+                locked.countDown()
+                release.await()
+            }
+        }
+        locked.await()
+
+        val sweep = async(Dispatchers.IO) { reservationRepo.cancelExpiredReservation() }
+        awaitBlockedBy(holderPid)
+        release.countDown()
+        confirm.join()
+        sweep.await()
+
+        assertThat((reservationRepo.getReservationById(hold.id) as DataResult.Success).value.status)
+            .isEqualTo(ReservationStatus.CONFIRMED)
+    }
+
+    @Test
+    fun `cancelling a showtime with no confirmed holders still succeeds`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        hold(ctx)
+
+        val result = showtimeRepo.updateShowtimeStatus(ctx.showtimeId, ShowtimeStatus.CANCELLED)
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED)).isEmpty()
+    }
+
+    @Test
+    fun `a failing enqueue rolls back the showtime cancellation`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val reservation = hold(ctx)
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CONFIRMED)
+        val throwing = object : NotificationEnqueuer {
+            override fun enqueueInCurrentTx(event: NotificationEvent): Boolean = error("boom")
+            override suspend fun suspendedEnqueueInCurrentTx(event: NotificationEvent): DataResult<Boolean> = error("boom")
+            override fun enqueueInCurrentTx(draft: OutboxDraft): Boolean = error("boom")
+        }
+
+        val result = ShowtimeRepositoryImpl(throwing).updateShowtimeStatus(ctx.showtimeId, ShowtimeStatus.CANCELLED)
+
+        assertTrue(result is DataResult.Failure.UnknownError, result.toString())
+        assertThat((showtimeRepo.getShowtimeById(ctx.showtimeId) as DataResult.Success).value.status)
+            .isEqualTo(ShowtimeStatus.SCHEDULED)
+    }
+
+    @Test
+    fun `admin-cancelling a refunded confirmed reservation enqueues an admin_cancelled push`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val reservation = hold(ctx)
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CONFIRMED)
+        val ref = "ref_${Uuid.random()}"
+        paymentRepo.createPayment(
+            Payment(
+                reservationId = reservation.id, userId = ctx.userId, reference = ref,
+                amount = 1_000_000L, status = PaymentStatus.SUCCESS
+            )
+        )
+        paymentRepo.markRefundPending(ref)
+
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CANCELLED)
+
+        val row = rows(NotificationType.RESERVATION_CANCELLED).single()
+        assertThat(row[NotificationOutboxTable.idempotencyKey])
+            .isEqualTo("reservation_cancelled:admin_cancelled:${reservation.id}")
+        assertThat(row[NotificationOutboxTable.payload].title).isEqualTo("Booking cancelled")
+    }
+
+    @Test
+    fun `cancelling a confirmed reservation with no refund on record promises no refund`() = runTest {
+        // e.g. payment confirmed after the cancel's PENDING check, so no refund was issued
+        val ctx = setupContext(seatCount = 1)
+        val reservation = hold(ctx)
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CONFIRMED)
+
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CANCELLED)
+
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED)).isEmpty()
+    }
+
+    @Test
+    fun `cancelling a pending reservation enqueues no cancellation push`() = runTest {
+        val ctx = setupContext(seatCount = 1)
+        val reservation = hold(ctx)
+
+        reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.CANCELLED)
+
+        assertThat(rows(NotificationType.RESERVATION_CANCELLED)).isEmpty()
+    }
+
+    /** Waits until a session is blocked by [holderPid], so the interleaving under test really happened. */
+    private fun awaitBlockedBy(holderPid: Int) {
+        val deadline = System.currentTimeMillis() + 10_000
+        while (System.currentTimeMillis() < deadline) {
+            val blocked = transaction {
+                exec("SELECT count(*) FROM pg_stat_activity WHERE $holderPid = ANY(pg_blocking_pids(pid))") {
+                    it.next(); it.getInt(1)
+                }
+            }
+            if (blocked != null && blocked > 0) return
+            Thread.sleep(20)
+        }
+        error("No session blocked by pid $holderPid within 10s")
+    }
+
+    private suspend fun holdSeat(ctx: Ctx, seatId: Long) =
+        (reservationRepo.createReservation(reservation(ctx), listOf(seatId)) as DataResult.Success).value
 
     private fun rows(type: NotificationType) = transaction {
         NotificationOutboxTable.selectAll().where { NotificationOutboxTable.type eq type }.toList()

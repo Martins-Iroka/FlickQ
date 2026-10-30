@@ -47,7 +47,7 @@ class NotificationComposerTest {
     fun `reservation held targets the user, expires with the hold and is high priority`() {
         val expires = now + 15.minutes
         val reservationHeld = NotificationEvent.ReservationHeld(
-            9, 42, "Dune", listOf("A1", "A2"), expires
+            9, 42, listOf("A1", "A2"), expires
         )
         val d = composer.compose(reservationHeld)
 
@@ -64,7 +64,6 @@ class NotificationComposerTest {
         val reservationHeldEvent = NotificationEvent.ReservationHeld(
             9,
             42,
-            "Dune",
             listOf("A1"),
             now)
         val bookingConfirmedEvent = NotificationEvent.BookingConfirmed(
@@ -76,6 +75,44 @@ class NotificationComposerTest {
         assertThat(done.push.collapseKey).isEqualTo(held.push.collapseKey)
         assertThat(done.push.data["deeplink"]).isEqualTo("flickq://ticket/9")
         assertThat(done.idempotencyKey).isEqualTo("booking_confirmed:9")
+    }
+
+    @Test
+    fun `showtime cancelled targets the holder, opens the ticket and replaces earlier booking pushes`() {
+        val event = NotificationEvent.ReservationCancelled(
+            9, 42, 3, "Dune", now, NotificationEvent.ReservationCancelled.Reason.SHOWTIME_CANCELLED
+        )
+        val d = composer.compose(event)
+        val confirmed = composer.compose(NotificationEvent.BookingConfirmed(9, 42, "Dune", now))
+
+        assertThat(d.type).isEqualTo(NotificationType.RESERVATION_CANCELLED)
+        assertThat(d.targetKind).isEqualTo(NotificationTargetKind.USER)
+        assertThat(d.userId).isEqualTo(42L)
+        assertThat(d.expiresAt).isNull()
+        assertThat(d.idempotencyKey).isEqualTo("reservation_cancelled:showtime_cancelled:9")
+        assertThat(d.push.title).isEqualTo("Showtime cancelled")
+        assertThat(d.push.body).contains("Dune")
+        assertThat(d.push.highPriority).isTrue()
+        assertThat(d.push.collapseKey).isEqualTo(confirmed.push.collapseKey)
+        assertThat(d.push.androidChannelId).isEqualTo("bookings")
+        assertThat(d.push.data["type"]).isEqualTo("reservation_cancelled")
+        assertThat(d.push.data["reason"]).isEqualTo("showtime_cancelled")
+        assertThat(d.push.data["showtimeId"]).isEqualTo("3")
+        assertThat(d.push.data["deeplink"]).isEqualTo("flickq://ticket/9")
+    }
+
+    @Test
+    fun `admin cancellation mentions the refund and is keyed apart from a showtime cancellation`() {
+        fun compose(reason: NotificationEvent.ReservationCancelled.Reason) =
+            composer.compose(NotificationEvent.ReservationCancelled(9, 42, 3, "Dune", now, reason))
+
+        val admin = compose(NotificationEvent.ReservationCancelled.Reason.ADMIN_CANCELLED)
+        val showtime = compose(NotificationEvent.ReservationCancelled.Reason.SHOWTIME_CANCELLED)
+
+        assertThat(admin.push.title).isEqualTo("Booking cancelled")
+        assertThat(admin.push.body).contains("refund")
+        assertThat(admin.idempotencyKey).isEqualTo("reservation_cancelled:admin_cancelled:9")
+        assertThat(admin.idempotencyKey).isNotEqualTo(showtime.idempotencyKey)
     }
 
     @Test

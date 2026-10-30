@@ -64,6 +64,36 @@ class NotificationComposer(private val config: FcmConfig) {
                 androidChannelId = "bookings"
             )
         )
+        is NotificationEvent.ReservationCancelled -> {
+            val reason = event.reason.name.lowercase()
+            val (title, body) = when (event.reason) {
+                NotificationEvent.ReservationCancelled.Reason.SHOWTIME_CANCELLED ->
+                    "Showtime cancelled" to "${event.movieTitle} has been cancelled. We'll be in touch about your booking."
+                NotificationEvent.ReservationCancelled.Reason.ADMIN_CANCELLED ->
+                    "Booking cancelled" to "Your booking for ${event.movieTitle} was cancelled. A refund has been initiated."
+            }
+            OutboxDraft(
+                type = NotificationType.RESERVATION_CANCELLED,
+                idempotencyKey = "reservation_cancelled:$reason:${event.reservationId}",
+                targetKind = NotificationTargetKind.USER,
+                userId = event.userId,
+                push = PushMessage(
+                    title = title,
+                    body = body,
+                    data = mapOf(
+                        "type" to "reservation_cancelled",
+                        "reason" to reason,
+                        "reservationId" to "${event.reservationId}",
+                        "showtimeId" to "${event.showtimeId}",
+                        "startsAt" to event.startsAt.toString(),
+                        "deeplink" to "flickq://ticket/${event.reservationId}"
+                    ),
+                    highPriority = true,
+                    collapseKey = "reservation-${event.reservationId}",
+                    androidChannelId = "bookings"
+                )
+            )
+        }
     }
 
     fun subscribeToNewMovies(token: String, now: Instant) = topicChange(

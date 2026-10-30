@@ -21,6 +21,7 @@ object PushDeepLinkParser {
 
     private const val TYPE_BOOKING_CONFIRMED = "booking_confirmed"
     private const val TYPE_RESERVATION_HELD = "reservation_held"
+    private const val TYPE_RESERVATION_CANCELLED = "reservation_cancelled"
     private const val TYPE_MOVIE_ADDED = "movie_added"
 
     private const val HOST_TICKET = "ticket"
@@ -33,7 +34,7 @@ object PushDeepLinkParser {
         val link = data[KEY_DEEPLINK]
         if (link != null) return parseLink(link)
         return when (data[KEY_TYPE]) {
-            TYPE_BOOKING_CONFIRMED, TYPE_RESERVATION_HELD ->
+            TYPE_BOOKING_CONFIRMED, TYPE_RESERVATION_HELD, TYPE_RESERVATION_CANCELLED ->
                 parseId(data[KEY_RESERVATION_ID])?.let { PushDeepLink.Ticket(it) }
             TYPE_MOVIE_ADDED -> parseId(data[KEY_MOVIE_ID])?.let { PushDeepLink.Movie(it) }
             else -> null

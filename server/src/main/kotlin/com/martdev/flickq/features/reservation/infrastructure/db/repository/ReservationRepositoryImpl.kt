@@ -21,6 +21,7 @@ import com.martdev.flickq.reservation.model.ReservationTicket
 import com.martdev.flickq.reservation.model.SeatStatus
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
+import com.martdev.flickq.showtime.model.ShowtimeStatus
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
@@ -28,10 +29,10 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -234,12 +235,25 @@ class ReservationRepositoryImpl(
         id: Long,
         status: ReservationStatus
     ): DataResult<Reservation> = withSuspendTransaction {
+        val showtimeId = ReservationTable
+            .select(ReservationTable.showtimeId)
+            .where { ReservationTable.id eq id }
+            .firstOrNull()?.get(ReservationTable.showtimeId)?.value
+            ?: return@withSuspendTransaction DataResult.Failure.NotFound("Reservation not found.")
+        // Showtime before reservation: the same lock order as deleteShowtime's FK checks, so no deadlock.
+        val showtimeStatus = if (status == ReservationStatus.CONFIRMED) lockShowtimeStatus(showtimeId) else null
+
         // Row lock: webhook + verify + reconciler can confirm concurrently; only the first sees PENDING.
         val previous = ReservationTable
             .select(ReservationTable.status)
             .where { ReservationTable.id eq id }
             .forUpdate()
             .firstOrNull()?.get(ReservationTable.status) ?: return@withSuspendTransaction DataResult.Failure.NotFound("Reservation not found.")
+
+        // The expiry sweep may have cancelled it (and freed its seats) since the caller's status check.
+        if (status == ReservationStatus.CONFIRMED && previous == ReservationStatus.CANCELLED) {
+            return@withSuspendTransaction DataResult.Failure.Conflict("Cannot confirm a cancelled reservation")
+        }
 
         val entity = ReservationEntity[id]
         entity.status = status
@@ -263,12 +277,40 @@ class ReservationRepositoryImpl(
 
         if (previous == ReservationStatus.PENDING && status == ReservationStatus.CONFIRMED) {
             val (title, startAt) = showTimeMovie(entity.showtimeId.value)
-            enqueuer.enqueueInCurrentTx(
+            // A showtime cancel already committed only notified holders that were CONFIRMED then,
+            // so a payment landing afterwards must carry the cancellation itself.
+            val event = if (showtimeStatus == ShowtimeStatus.CANCELLED) {
+                NotificationEvent.ReservationCancelled(
+                    reservationId = id,
+                    userId = entity.userId.value,
+                    showtimeId = entity.showtimeId.value,
+                    movieTitle = title,
+                    startsAt = startAt,
+                    reason = NotificationEvent.ReservationCancelled.Reason.SHOWTIME_CANCELLED
+                )
+            } else {
                 NotificationEvent.BookingConfirmed(
                     reservationId = id,
                     userId = entity.userId.value,
                     movieTitle = title,
                     startsAt = startAt
+                )
+            }
+            enqueuer.enqueueInCurrentTx(event)
+        }
+
+        // The admin path refunds before cancelling a CONFIRMED reservation. Gate on the refund being on
+        // record so a payment that confirmed after the caller's status check never gets a "refund" push.
+        if (previous == ReservationStatus.CONFIRMED && status == ReservationStatus.CANCELLED && hasRefund(id)) {
+            val (title, startAt) = showTimeMovie(entity.showtimeId.value)
+            enqueuer.enqueueInCurrentTx(
+                NotificationEvent.ReservationCancelled(
+                    reservationId = id,
+                    userId = entity.userId.value,
+                    showtimeId = entity.showtimeId.value,
+                    movieTitle = title,
+                    startsAt = startAt,
+                    reason = NotificationEvent.ReservationCancelled.Reason.ADMIN_CANCELLED
                 )
             )
         }
@@ -279,10 +321,12 @@ class ReservationRepositoryImpl(
     override suspend fun cancelExpiredReservation(): DataResult<Unit> = withSuspendTransaction {
         val now = Clock.System.now()
 
+        // FOR UPDATE: a confirm committing mid-sweep makes Postgres re-check the WHERE and skip the row,
+        // instead of this sweep overwriting a paid reservation with CANCELLED.
         val expired = ReservationEntity.find {
             (ReservationTable.status eq ReservationStatus.PENDING) and
                     (ReservationTable.expiresAt less now)
-        }.toList()
+        }.forUpdate().toList()
 
         expired.forEach { reservation ->
             reservation.status = ReservationStatus.CANCELLED
@@ -319,6 +363,22 @@ class ReservationRepositoryImpl(
             paidAt = row[PaymentTable.paidAt]
         )
     }
+
+    private fun hasRefund(reservationId: Long): Boolean = !PaymentTable
+        .select(PaymentTable.id)
+        .where {
+            (PaymentTable.reservationId eq reservationId) and
+                    (PaymentTable.status inList listOf(PaymentStatus.REFUND_PENDING, PaymentStatus.REFUNDED))
+        }
+        .empty()
+
+    // FOR SHARE waits out an in-flight showtime cancel (FOR NO KEY UPDATE) and blocks a later one until
+    // this confirm commits, so the cancel's CONFIRMED-holder query always sees it.
+    private fun lockShowtimeStatus(showtimeId: Long): ShowtimeStatus = ShowtimeTable
+        .select(ShowtimeTable.status)
+        .where { ShowtimeTable.id eq showtimeId }
+        .forUpdate(ForUpdateOption.PostgreSQL.ForShare)
+        .single()[ShowtimeTable.status]
 
     private fun showTimeMovie(showtimeId: Long): Pair<String, Instant> = ShowtimeTable
         .innerJoin(MoviesTable)

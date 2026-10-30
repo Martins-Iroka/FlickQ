@@ -82,7 +82,7 @@ class ReservationRepositoryImplTest {
             PostgresContainer.connectToDBAndMigrate(postgres)
             repo = ReservationRepositoryImpl(TestNotifications.enqueuer())
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
-            showtimeRepo = ShowtimeRepositoryImpl()
+            showtimeRepo = ShowtimeRepositoryImpl(TestNotifications.enqueuer())
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
             movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())

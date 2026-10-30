@@ -91,7 +91,7 @@ class PaymentRepositoryImplTest {
             repo = PaymentRepositoryImpl()
             reservationRepo = ReservationRepositoryImpl(TestNotifications.enqueuer())
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
-            showtimeRepo = ShowtimeRepositoryImpl()
+            showtimeRepo = ShowtimeRepositoryImpl(TestNotifications.enqueuer())
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()
             movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
