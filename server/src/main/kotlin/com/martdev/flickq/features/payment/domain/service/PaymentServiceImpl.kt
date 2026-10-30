@@ -18,6 +18,7 @@ import com.martdev.flickq.shared.domain.exception.ConflictException
 import com.martdev.flickq.shared.domain.exception.ForbiddenException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import com.martdev.flickq.shared.util.returnValue
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
@@ -264,24 +265,27 @@ class PaymentServiceImpl(
     override suspend fun refundPaymentForReservation(reservationId: Long): Payment? {
         val payments = paymentRepository.getPaymentsByReservationId(reservationId).returnValue()
         val refundable = payments.firstOrNull { it.status in PaymentTransitions.REFUNDABLE } ?: return null
+        return refund(refundable.reference)
+    }
 
-        val claim = paymentRepository.markRefundPending(refundable.reference).returnValue()
+    private suspend fun refund(reference: String): Payment {
+        val claim = paymentRepository.markRefundPending(reference).returnValue()
         if (!claim.transitioned) {
             throw ConflictException("A refund for this reservation is already in progress")
         }
         val response = try {
-            paystackClient.refundTransaction(refundable.reference, amount = null)
+            paystackClient.refundTransaction(reference, amount = null)
         } catch (e: Exception) {
-            paymentRepository.markRefundFailed(refundable.reference, e.message).returnValue()
+            paymentRepository.markRefundFailed(reference, e.message).returnValue()
             throw e
         }
 
         if (!response.status) {
-            paymentRepository.markRefundFailed(refundable.reference, response.message).returnValue()
+            paymentRepository.markRefundFailed(reference, response.message).returnValue()
             throw BadRequestException(response.message.ifBlank { "Paystack rejected the refund" })
         }
         // Final REFUNDED state is confirmed by webhook (refund.processed).
-        return paymentRepository.getPaymentByReference(refundable.reference).returnValue()
+        return paymentRepository.getPaymentByReference(reference).returnValue()
     }
 
     override suspend fun getPaymentsByReservationId(reservationId: Long): List<Payment> {
@@ -295,9 +299,7 @@ class PaymentServiceImpl(
 
         val pending =
             paymentRepository.findPendingPaymentsOlderThan(verifyAfter, giveUpBefore).returnValue()
-        if (pending.isEmpty()) return
-
-        log.info("Reconciling {} stuck PENDING payment(s)", pending.size)
+        if (pending.isNotEmpty()) log.info("Reconciling {} stuck PENDING payment(s)", pending.size)
         pending.forEach { payment ->
             runCatching { verifyPayment(payment.reference, requestingUserId = null) }
                 .onFailure {
@@ -305,6 +307,20 @@ class PaymentServiceImpl(
                         "Reconciliation failed for payment ref={}",
                         payment.reference,
                         it
+                    )
+                }
+        }
+
+        // Paid but never confirmed: a confirm that failed after the charge settled. verifyPayment stops at SUCCESS,
+        // so this is the only retry. A row leaves the set once it's CONFIRMED or its refund has started.
+        val unsettled = paymentRepository.findSuccessfulPaymentsWithUnconfirmedReservation().returnValue()
+        if (unsettled.isNotEmpty()) log.info("Settling {} paid but unconfirmed reservation(s)", unsettled.size)
+        unsettled.forEach { payment ->
+            runCatching { settleSuccessfulCharge(payment) }
+                .onFailure {
+                    log.warn(
+                        "Settlement failed again for payment ref={} (reservation={})",
+                        payment.reference, payment.reservationId, it
                     )
                 }
         }
@@ -353,9 +369,10 @@ class PaymentServiceImpl(
         }
 
         if (updated.status == PaymentStatus.SUCCESS) {
-            runCatching { reservationService.confirmReservationFromPayment(updated.reservationId) }
+            runCatching { settleSuccessfulCharge(updated) }
                 .onFailure {
-                    // If reservation update fails, the reconciler will retry — payment SUCCESS is durable.
+                    // Payment SUCCESS is durable and the reservation is still PENDING (or its refund failed to
+                    // start): reconcilePendingPayments picks up SUCCESS payments with an unconfirmed reservation.
                     log.warn(
                         "Payment SUCCESS but reservation confirm failed (reservation={}, ref={})",
                         updated.reservationId, reference, it
@@ -364,6 +381,42 @@ class PaymentServiceImpl(
         }
 
         return updated
+    }
+
+    /**
+     * Gives a SUCCESS payment what it paid for. If the reservation was cancelled first (expiry sweep, or a
+     * cancel while the charge was in flight) its seats are already released, so the money goes back instead.
+     * Any other failure is rethrown with the reservation still PENDING, for the reconciler to retry.
+     */
+    private suspend fun settleSuccessfulCharge(payment: Payment) {
+        val confirmFailure = try {
+            reservationService.confirmReservationFromPayment(payment.reservationId)
+            return
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e
+        }
+        // Both "cancelled" signals (service BadRequest, repository Conflict) are re-checked against the row.
+        if (reservationService.getReservationById(payment.reservationId).status != ReservationStatus.CANCELLED) {
+            throw confirmFailure
+        }
+        refundStrandedPayment(payment)
+    }
+
+    private suspend fun refundStrandedPayment(payment: Payment) {
+        try {
+            refund(payment.reference)
+            paymentEvents.strandedPaymentRefund(payment.reservationId, payment.amount, "refund_pending")
+        } catch (e: ConflictException) {
+            // A concurrent webhook/verify/reconciler run already claimed this refund.
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // refund() left it REFUND_FAILED: out of the reconciler's set, into the admin refund retry.
+            paymentEvents.strandedPaymentRefund(payment.reservationId, payment.amount, "refund_failed")
+            log.error("Refund of stranded payment failed (reservation={}, ref={})", payment.reservationId, payment.reference, e)
+        }
     }
 
     private fun publishTransition(payment: Payment, requested: PaymentStatus) {

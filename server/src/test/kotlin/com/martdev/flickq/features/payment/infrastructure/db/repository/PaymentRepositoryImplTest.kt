@@ -37,6 +37,7 @@ import com.martdev.flickq.movie.model.Movie
 import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.payment.model.PaymentStatus
 import com.martdev.flickq.reservation.model.Reservation
+import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.room.model.Room
 import com.martdev.flickq.room.model.Seat
 import com.martdev.flickq.shared.domain.model.DataResult
@@ -495,6 +496,34 @@ class PaymentRepositoryImplTest {
             assertTrue(result is DataResult.Success, result.toString())
             val refs = result.value.map { it.reference }
             assertEquals(listOf("ref_in_window"), refs)
+        }
+
+    @Test
+    fun `findSuccessfulPaymentsWithUnconfirmedReservation returns paid payments whose reservation is not CONFIRMED`() =
+        runTest {
+            suspend fun paidFor(reservationStatus: ReservationStatus, paymentStatus: PaymentStatus, reference: String) {
+                val ctx = setupPaymentContext()
+                repo.createPayment(payment(ctx, reference).copy(status = paymentStatus))
+                transaction {
+                    ReservationTable.update({ ReservationTable.id eq ctx.reservationId }) {
+                        it[status] = reservationStatus
+                    }
+                }
+            }
+            paidFor(ReservationStatus.PENDING, PaymentStatus.SUCCESS, "ref_paid_pending")
+            paidFor(ReservationStatus.CANCELLED, PaymentStatus.SUCCESS, "ref_paid_cancelled")
+            paidFor(ReservationStatus.CONFIRMED, PaymentStatus.SUCCESS, "ref_paid_confirmed")
+            paidFor(ReservationStatus.CANCELLED, PaymentStatus.PENDING, "ref_unpaid_cancelled")
+            paidFor(ReservationStatus.CANCELLED, PaymentStatus.REFUND_PENDING, "ref_refunding_cancelled")
+            paidFor(ReservationStatus.CANCELLED, PaymentStatus.REFUND_FAILED, "ref_refund_failed_cancelled")
+
+            val result = repo.findSuccessfulPaymentsWithUnconfirmedReservation()
+
+            assertTrue(result is DataResult.Success, result.toString())
+            assertEquals(
+                setOf("ref_paid_pending", "ref_paid_cancelled"),
+                result.value.map { it.reference }.toSet()
+            )
         }
 
     @Test

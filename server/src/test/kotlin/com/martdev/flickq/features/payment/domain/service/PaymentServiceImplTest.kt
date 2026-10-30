@@ -18,6 +18,7 @@ import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.shared.domain.exception.BadRequestException
 import com.martdev.flickq.shared.domain.exception.ConflictException
 import com.martdev.flickq.shared.domain.exception.ForbiddenException
+import com.martdev.flickq.shared.domain.exception.InternalServerException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import com.martdev.flickq.shared.domain.model.DataResult
 import io.mockk.coEvery
@@ -620,6 +621,80 @@ class PaymentServiceImplTest {
 
         assertEquals(PaymentStatus.REFUND_PENDING, result?.status)
         coVerify(exactly = 1) { paystackClient.refundTransaction(storedReference, null) }
+    }
+
+    @Test
+    fun `a charge success for a reservation cancelled first refunds that payment`() = runTest {
+        val succeeded = pendingPayment.copy(status = PaymentStatus.SUCCESS)
+        val body =
+            """{"event":"charge.success","data":{"id":99,"reference":"$storedReference","status":"success","amount":${pendingPayment.amount}}}"""
+        coEvery { paymentRepository.applyChargeResult(any(), any(), any(), any(), any(), any()) } returns
+                applied(succeeded)
+        coEvery { reservationService.confirmReservationFromPayment(reservationId) } throws
+                BadRequestException("Cannot confirm a cancelled reservation")
+        coEvery { reservationService.getReservationById(reservationId) } returns
+                pendingReservation.copy(status = ReservationStatus.CANCELLED)
+        coEvery { paymentRepository.markRefundPending(storedReference) } returns
+                applied(succeeded.copy(status = PaymentStatus.REFUND_PENDING), from = PaymentStatus.SUCCESS)
+        coEvery { paystackClient.refundTransaction(storedReference, amount = null) } returns
+                RefundResponse(status = true, message = "Refund queued")
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns
+                DataResult.Success(succeeded.copy(status = PaymentStatus.REFUND_PENDING))
+
+        service.handleWebhook(body, hmacSha512(body, webhookSecret))
+
+        coVerify(exactly = 1) { paystackClient.refundTransaction(storedReference, null) }
+        verify(exactly = 1) {
+            paymentEvents.strandedPaymentRefund(reservationId, pendingPayment.amount, "refund_pending")
+        }
+    }
+
+    @Test
+    fun `a transient confirm failure on a still-pending reservation never refunds`() = runTest {
+        val body =
+            """{"event":"charge.success","data":{"id":99,"reference":"$storedReference","status":"success","amount":${pendingPayment.amount}}}"""
+        coEvery { paymentRepository.applyChargeResult(any(), any(), any(), any(), any(), any()) } returns
+                applied(pendingPayment.copy(status = PaymentStatus.SUCCESS))
+        coEvery { reservationService.confirmReservationFromPayment(reservationId) } throws InternalServerException()
+        coEvery { reservationService.getReservationById(reservationId) } returns pendingReservation
+
+        service.handleWebhook(body, hmacSha512(body, webhookSecret))
+
+        coVerify(exactly = 0) { paymentRepository.markRefundPending(any()) }
+        coVerify(exactly = 0) { paystackClient.refundTransaction(any(), any()) }
+    }
+
+    @Test
+    fun `a refund already claimed by a concurrent charge result is not reported again`() = runTest {
+        val succeeded = pendingPayment.copy(status = PaymentStatus.SUCCESS)
+        coEvery { paymentRepository.findPendingPaymentsOlderThan(any(), any()) } returns DataResult.Success(emptyList())
+        coEvery { paymentRepository.findSuccessfulPaymentsWithUnconfirmedReservation() } returns
+                DataResult.Success(listOf(succeeded))
+        coEvery { reservationService.confirmReservationFromPayment(reservationId) } throws
+                ConflictException("Cannot confirm a cancelled reservation")
+        coEvery { reservationService.getReservationById(reservationId) } returns
+                pendingReservation.copy(status = ReservationStatus.CANCELLED)
+        coEvery { paymentRepository.markRefundPending(storedReference) } returns
+                noOp(succeeded.copy(status = PaymentStatus.REFUND_PENDING))
+
+        service.reconcilePendingPayments()
+
+        coVerify(exactly = 0) { paystackClient.refundTransaction(any(), any()) }
+        verify(exactly = 0) { paymentEvents.strandedPaymentRefund(any(), any(), any()) }
+    }
+
+    @Test
+    fun `reconcilePendingPayments re-confirms SUCCESS payments whose reservation is still pending`() = runTest {
+        coEvery { paymentRepository.findPendingPaymentsOlderThan(any(), any()) } returns DataResult.Success(emptyList())
+        coEvery { paymentRepository.findSuccessfulPaymentsWithUnconfirmedReservation() } returns
+                DataResult.Success(listOf(pendingPayment.copy(status = PaymentStatus.SUCCESS)))
+        coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns
+                pendingReservation.copy(status = ReservationStatus.CONFIRMED)
+
+        service.reconcilePendingPayments()
+
+        coVerify(exactly = 1) { reservationService.confirmReservationFromPayment(reservationId) }
+        coVerify(exactly = 0) { paystackClient.refundTransaction(any(), any()) }
     }
 
     private fun hmacSha512(payload: String, secret: String): String {

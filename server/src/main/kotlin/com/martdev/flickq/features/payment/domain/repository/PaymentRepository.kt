@@ -30,4 +30,7 @@ interface PaymentRepository {
     suspend fun markRefundFailed(reference: String, gatewayResponse: String?): DataResult<PaymentUpdate>
 
     suspend fun findPendingPaymentsOlderThan(threshold: Instant, giveUpBefore: Instant): DataResult<List<Payment>>
+
+    /** SUCCESS payments whose reservation never reached CONFIRMED: money taken, nothing delivered yet. */
+    suspend fun findSuccessfulPaymentsWithUnconfirmedReservation(): DataResult<List<Payment>>
 }

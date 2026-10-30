@@ -29,6 +29,7 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.notExists
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -323,9 +324,17 @@ class ReservationRepositoryImpl(
 
         // FOR UPDATE: a confirm committing mid-sweep makes Postgres re-check the WHERE and skip the row,
         // instead of this sweep overwriting a paid reservation with CANCELLED.
+        // A SUCCESS payment means the money is in and only the confirm failed; the payment reconciler retries
+        // that confirm, so the seats stay held instead of being freed and the charge refunded.
         val expired = ReservationEntity.find {
             (ReservationTable.status eq ReservationStatus.PENDING) and
-                    (ReservationTable.expiresAt less now)
+                    (ReservationTable.expiresAt less now) and
+                    notExists(
+                        PaymentTable.select(PaymentTable.id).where {
+                            (PaymentTable.reservationId eq ReservationTable.id) and
+                                    (PaymentTable.status eq PaymentStatus.SUCCESS)
+                        }
+                    )
         }.forUpdate().toList()
 
         expired.forEach { reservation ->

@@ -24,4 +24,12 @@ class LoggingPaymentEvents : PaymentEvents {
     override fun refundProcessed(paymentId: Long, amount: Long) {
         logger.info("event=payment.refund payment_id={}", paymentId)
     }
+
+    override fun strandedPaymentRefund(reservationId: Long, amount: Long, outcome: String) {
+        if (outcome == "refund_failed") {
+            logger.error("event=payment.stranded_refund reservation_id={} outcome={}", reservationId, outcome)
+        } else {
+            logger.warn("event=payment.stranded_refund reservation_id={} outcome={}", reservationId, outcome)
+        }
+    }
 }

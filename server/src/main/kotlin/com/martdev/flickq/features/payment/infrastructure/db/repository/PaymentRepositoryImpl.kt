@@ -10,6 +10,7 @@ import com.martdev.flickq.features.payment.infrastructure.db.table.toPayment
 import com.martdev.flickq.features.reservation.infrastructure.db.table.ReservationTable
 import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.payment.model.PaymentStatus
+import com.martdev.flickq.reservation.model.ReservationStatus
 import com.martdev.flickq.shared.domain.model.DataResult
 import com.martdev.flickq.shared.infrastruce.db.withSuspendTransaction
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -18,6 +19,7 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
@@ -170,6 +172,19 @@ class PaymentRepositoryImpl : PaymentRepository {
         }.map { it.toPayment() }
         DataResult.Success(payments)
     }
+
+    override suspend fun findSuccessfulPaymentsWithUnconfirmedReservation(): DataResult<List<Payment>> =
+        withSuspendTransaction {
+            val payments = PaymentEntity.wrapRows(
+                PaymentTable.innerJoin(ReservationTable)
+                    .select(PaymentTable.columns)
+                    .where {
+                        (PaymentTable.status eq PaymentStatus.SUCCESS) and
+                                (ReservationTable.status neq ReservationStatus.CONFIRMED)
+                    }
+            ).map { it.toPayment() }
+            DataResult.Success(payments)
+        }
 
     /**
      * Locks the row, then applies [to] only if the table allows it. A replay (already in [to]) and an
