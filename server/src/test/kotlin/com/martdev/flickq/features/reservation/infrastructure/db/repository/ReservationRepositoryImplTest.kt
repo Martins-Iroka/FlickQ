@@ -88,7 +88,7 @@ class ReservationRepositoryImplTest {
             movieRepo = MovieRepositoryImpl(TestNotifications.enqueuer())
             genreRepo = GenreRepositoryImpl()
             userRepo = UserRepositoryImpl()
-            paymentRepo = PaymentRepositoryImpl()
+            paymentRepo = PaymentRepositoryImpl(TestNotifications.enqueuer())
         }
     }
 

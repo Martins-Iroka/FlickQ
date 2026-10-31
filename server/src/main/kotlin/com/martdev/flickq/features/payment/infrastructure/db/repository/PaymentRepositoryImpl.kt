@@ -1,6 +1,8 @@
 package com.martdev.flickq.features.payment.infrastructure.db.repository
 
 import com.martdev.flickq.features.auth.infrastructure.db.table.UserTable
+import com.martdev.flickq.features.notification.domain.model.NotificationEvent
+import com.martdev.flickq.features.notification.domain.repository.NotificationEnqueuer
 import com.martdev.flickq.features.payment.domain.model.PaymentTransitions
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
 import com.martdev.flickq.features.payment.domain.repository.PaymentUpdate
@@ -19,7 +21,10 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.alias
+import org.jetbrains.exposed.v1.core.exists
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
@@ -27,7 +32,9 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 @Singleton
-class PaymentRepositoryImpl : PaymentRepository {
+class PaymentRepositoryImpl(
+    private val enqueuer: NotificationEnqueuer
+) : PaymentRepository {
 
     override suspend fun createPayment(payment: Payment): DataResult<Payment> =
         withSuspendTransaction {
@@ -145,6 +152,25 @@ class PaymentRepositoryImpl : PaymentRepository {
     override suspend fun markRefundPending(reference: String): DataResult<PaymentUpdate> =
         transition(reference, PaymentStatus.REFUND_PENDING)
 
+    override suspend fun enqueueRefundNotice(
+        reference: String,
+        reason: NotificationEvent.PaymentRefunded.Reason
+    ): DataResult<Unit> = withSuspendTransaction {
+        val payment = PaymentEntity.find { PaymentTable.reference eq reference }.firstOrNull()
+            ?: return@withSuspendTransaction DataResult.Failure.NotFound("Payment not found.")
+        enqueuer.enqueueInCurrentTx(
+            NotificationEvent.PaymentRefunded(
+                paymentId = payment.id.value,
+                reservationId = payment.reservationId.value,
+                userId = payment.userId.value,
+                amount = payment.amount,
+                currency = payment.currency,
+                reason = reason
+            )
+        )
+        DataResult.Success(Unit)
+    }
+
     override suspend fun markRefunded(
         reference: String,
         refundedAt: Instant
@@ -173,16 +199,33 @@ class PaymentRepositoryImpl : PaymentRepository {
         DataResult.Success(payments)
     }
 
-    override suspend fun findSuccessfulPaymentsWithUnconfirmedReservation(): DataResult<List<Payment>> =
+    override suspend fun findUnsettledSuccessfulPayments(): DataResult<List<Payment>> =
         withSuspendTransaction {
+            val earlier = PaymentTable.alias("earlier")
             val payments = PaymentEntity.wrapRows(
                 PaymentTable.innerJoin(ReservationTable)
                     .select(PaymentTable.columns)
                     .where {
-                        (PaymentTable.status eq PaymentStatus.SUCCESS) and
-                                (ReservationTable.status neq ReservationStatus.CONFIRMED)
+                        (PaymentTable.status eq PaymentStatus.SUCCESS) and (
+                                (ReservationTable.status neq ReservationStatus.CONFIRMED) or
+                                        exists(
+                                            earlier.select(earlier[PaymentTable.id]).where {
+                                                (earlier[PaymentTable.reservationId] eq PaymentTable.reservationId) and
+                                                        (earlier[PaymentTable.status] eq PaymentStatus.SUCCESS) and
+                                                        (earlier[PaymentTable.id] less PaymentTable.id)
+                                            }
+                                        )
+                                )
                     }
             ).map { it.toPayment() }
+            DataResult.Success(payments)
+        }
+
+    override suspend fun findRefundPendingOlderThan(threshold: Instant): DataResult<List<Payment>> =
+        withSuspendTransaction {
+            val payments = PaymentEntity.find {
+                (PaymentTable.status eq PaymentStatus.REFUND_PENDING) and (PaymentTable.updatedAt less threshold)
+            }.map { it.toPayment() }
             DataResult.Success(payments)
         }
 

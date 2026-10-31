@@ -116,6 +116,41 @@ class NotificationComposerTest {
     }
 
     @Test
+    fun `payment refunded targets the payer, states the amount and is keyed by payment`() {
+        val d = composer.compose(
+            NotificationEvent.PaymentRefunded(
+                paymentId = 77, reservationId = 9, userId = 42, amount = 1_000_050, currency = "NGN",
+                reason = NotificationEvent.PaymentRefunded.Reason.RESERVATION_CANCELLED
+            )
+        )
+
+        assertThat(d.type).isEqualTo(NotificationType.PAYMENT_REFUNDED)
+        assertThat(d.targetKind).isEqualTo(NotificationTargetKind.USER)
+        assertThat(d.userId).isEqualTo(42L)
+        assertThat(d.idempotencyKey).isEqualTo("payment_refunded:77")
+        assertThat(d.push.title).isEqualTo("Refund on its way")
+        assertThat(d.push.body).contains("NGN 10,000.50")
+        assertThat(d.push.data["type"]).isEqualTo("payment_refunded")
+        assertThat(d.push.data["reason"]).isEqualTo("reservation_cancelled")
+        assertThat(d.push.data["reservationId"]).isEqualTo("9")
+        assertThat(d.push.data["deeplink"]).isEqualTo("flickq://ticket/9")
+    }
+
+    @Test
+    fun `a duplicate charge refund says the booking itself stands`() {
+        val d = composer.compose(
+            NotificationEvent.PaymentRefunded(
+                paymentId = 78, reservationId = 9, userId = 42, amount = 500_000, currency = "NGN",
+                reason = NotificationEvent.PaymentRefunded.Reason.DUPLICATE_CHARGE
+            )
+        )
+
+        assertThat(d.push.body).contains("charged twice")
+        assertThat(d.push.body).contains("booking is still confirmed")
+        assertThat(d.push.data["reason"]).isEqualTo("duplicate_charge")
+    }
+
+    @Test
     fun `subscribe draft carries the token but never puts it in the idempotency key`() {
         val token = "x".repeat(150)
         val d = composer.subscribeToNewMovies(token, now)

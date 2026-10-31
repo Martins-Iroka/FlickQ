@@ -15,6 +15,8 @@ import com.martdev.flickq.features.movie.infrasturcture.repository.GenreReposito
 import com.martdev.flickq.features.movie.infrasturcture.repository.MovieRepositoryImpl
 import com.martdev.flickq.features.movie.infrasturcture.tables.GenresTable
 import com.martdev.flickq.features.movie.infrasturcture.tables.MoviesTable
+import com.martdev.flickq.features.notification.domain.model.NotificationEvent
+import com.martdev.flickq.features.notification.infrastructure.db.table.NotificationOutboxTable
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
 import com.martdev.flickq.features.payment.domain.repository.PaymentUpdate
 import com.martdev.flickq.features.payment.infrastructure.db.table.PaymentTable
@@ -34,6 +36,7 @@ import com.martdev.flickq.features.showtime.infrastructure.db.repository.Showtim
 import com.martdev.flickq.features.showtime.infrastructure.db.table.ShowtimeTable
 import com.martdev.flickq.movie.model.Genre
 import com.martdev.flickq.movie.model.Movie
+import com.martdev.flickq.notification.model.NotificationType
 import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.payment.model.PaymentStatus
 import com.martdev.flickq.reservation.model.Reservation
@@ -49,6 +52,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -89,7 +93,7 @@ class PaymentRepositoryImplTest {
         @JvmStatic
         fun connectToDBAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
-            repo = PaymentRepositoryImpl()
+            repo = PaymentRepositoryImpl(TestNotifications.enqueuer())
             reservationRepo = ReservationRepositoryImpl(TestNotifications.enqueuer())
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
             showtimeRepo = ShowtimeRepositoryImpl(TestNotifications.enqueuer())
@@ -104,6 +108,7 @@ class PaymentRepositoryImplTest {
     @BeforeEach
     fun cleanDatabase() {
         transaction {
+            NotificationOutboxTable.deleteAll()
             PaymentTable.deleteAll()
             ShowtimeSeatTable.deleteAll()
             ReservationTable.deleteAll()
@@ -499,7 +504,7 @@ class PaymentRepositoryImplTest {
         }
 
     @Test
-    fun `findSuccessfulPaymentsWithUnconfirmedReservation returns paid payments whose reservation is not CONFIRMED`() =
+    fun `findUnsettledSuccessfulPayments returns paid payments whose reservation is not CONFIRMED`() =
         runTest {
             suspend fun paidFor(reservationStatus: ReservationStatus, paymentStatus: PaymentStatus, reference: String) {
                 val ctx = setupPaymentContext()
@@ -517,7 +522,7 @@ class PaymentRepositoryImplTest {
             paidFor(ReservationStatus.CANCELLED, PaymentStatus.REFUND_PENDING, "ref_refunding_cancelled")
             paidFor(ReservationStatus.CANCELLED, PaymentStatus.REFUND_FAILED, "ref_refund_failed_cancelled")
 
-            val result = repo.findSuccessfulPaymentsWithUnconfirmedReservation()
+            val result = repo.findUnsettledSuccessfulPayments()
 
             assertTrue(result is DataResult.Success, result.toString())
             assertEquals(
@@ -525,6 +530,61 @@ class PaymentRepositoryImplTest {
                 result.value.map { it.reference }.toSet()
             )
         }
+
+    @Test
+    fun `findUnsettledSuccessfulPayments returns every later SUCCESS charge on a confirmed reservation`() = runTest {
+        val ctx = setupPaymentContext()
+        val first = (repo.createPayment(payment(ctx, "ref_first").copy(status = PaymentStatus.SUCCESS)) as DataResult.Success).value
+        repo.createPayment(payment(ctx, "ref_second").copy(status = PaymentStatus.SUCCESS))
+        repo.createPayment(payment(ctx, "ref_third").copy(status = PaymentStatus.SUCCESS))
+        repo.createPayment(payment(ctx, "ref_refunded").copy(status = PaymentStatus.REFUNDED))
+        transaction {
+            ReservationTable.update({ ReservationTable.id eq ctx.reservationId }) {
+                it[status] = ReservationStatus.CONFIRMED
+            }
+        }
+
+        val refs = (repo.findUnsettledSuccessfulPayments() as DataResult.Success).value.map { it.reference }
+
+        assertEquals(setOf("ref_second", "ref_third"), refs.toSet())
+        assertFalse(first.reference in refs)
+    }
+
+    @Test
+    fun `findRefundPendingOlderThan returns only REFUND_PENDING payments untouched since the threshold`() = runTest {
+        val ctx = setupPaymentContext()
+        suspend fun create(reference: String, status: PaymentStatus, updatedAt: Instant) {
+            repo.createPayment(payment(ctx, reference).copy(status = status))
+            transaction {
+                PaymentTable.update({ PaymentTable.reference eq reference }) { it[PaymentTable.updatedAt] = updatedAt }
+            }
+        }
+        create("ref_stale", PaymentStatus.REFUND_PENDING, clock.minus(2.hours))
+        create("ref_fresh", PaymentStatus.REFUND_PENDING, clock.minus(5.minutes))
+        create("ref_old_success", PaymentStatus.SUCCESS, clock.minus(2.hours))
+
+        val result = repo.findRefundPendingOlderThan(clock.minus(1.hours))
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertEquals(listOf("ref_stale"), result.value.map { it.reference })
+    }
+
+    @Test
+    fun `enqueueRefundNotice enqueues one refund push per payment however often it is called`() = runTest {
+        val ctx = setupPaymentContext()
+        val saved = (repo.createPayment(payment(ctx, "ref_push").copy(status = PaymentStatus.REFUND_PENDING)) as DataResult.Success).value
+
+        repo.enqueueRefundNotice("ref_push", NotificationEvent.PaymentRefunded.Reason.DUPLICATE_CHARGE)
+        val replay = repo.enqueueRefundNotice("ref_push", NotificationEvent.PaymentRefunded.Reason.DUPLICATE_CHARGE)
+
+        assertTrue(replay is DataResult.Success, replay.toString())
+        val keys = transaction {
+            NotificationOutboxTable.selectAll()
+                .where { NotificationOutboxTable.type eq NotificationType.PAYMENT_REFUNDED }
+                .map { it[NotificationOutboxTable.idempotencyKey] }
+        }
+        assertEquals(listOf("payment_refunded:${saved.id}"), keys)
+    }
 
     @Test
     fun `applyChargeResult reports a transition only the first time`() = runTest {

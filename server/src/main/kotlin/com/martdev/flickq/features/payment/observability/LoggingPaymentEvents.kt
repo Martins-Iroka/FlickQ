@@ -25,11 +25,15 @@ class LoggingPaymentEvents : PaymentEvents {
         logger.info("event=payment.refund payment_id={}", paymentId)
     }
 
-    override fun strandedPaymentRefund(reservationId: Long, amount: Long, outcome: String) {
+    override fun automaticRefund(reservationId: Long, amount: Long, reason: String, outcome: String) {
         if (outcome == "refund_failed") {
-            logger.error("event=payment.stranded_refund reservation_id={} outcome={}", reservationId, outcome)
+            logger.error("event=payment.auto_refund reservation_id={} reason={} outcome={}", reservationId, reason, outcome)
         } else {
-            logger.warn("event=payment.stranded_refund reservation_id={} outcome={}", reservationId, outcome)
+            logger.warn("event=payment.auto_refund reservation_id={} reason={} outcome={}", reservationId, reason, outcome)
         }
+    }
+
+    override fun refundsStuck(count: Int) {
+        logger.error("event=payment.refunds_stuck count={}", count)
     }
 }

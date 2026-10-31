@@ -30,4 +30,16 @@ sealed interface NotificationEvent {
     ) : NotificationEvent {
         enum class Reason { SHOWTIME_CANCELLED, ADMIN_CANCELLED }
     }
+
+    /** A refund the server started on its own; admin refunds are announced by [ReservationCancelled]. */
+    data class PaymentRefunded(
+        val paymentId: Long,
+        val reservationId: Long,
+        val userId: Long,
+        val amount: Long,   // minor unit (kobo)
+        val currency: String,
+        val reason: Reason
+    ) : NotificationEvent {
+        enum class Reason { RESERVATION_CANCELLED, DUPLICATE_CHARGE }
+    }
 }

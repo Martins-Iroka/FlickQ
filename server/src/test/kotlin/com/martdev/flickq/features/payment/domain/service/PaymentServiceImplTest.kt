@@ -638,6 +638,7 @@ class PaymentServiceImplTest {
                 applied(succeeded.copy(status = PaymentStatus.REFUND_PENDING), from = PaymentStatus.SUCCESS)
         coEvery { paystackClient.refundTransaction(storedReference, amount = null) } returns
                 RefundResponse(status = true, message = "Refund queued")
+        coEvery { paymentRepository.enqueueRefundNotice(storedReference, any()) } returns DataResult.Success(Unit)
         coEvery { paymentRepository.getPaymentByReference(storedReference) } returns
                 DataResult.Success(succeeded.copy(status = PaymentStatus.REFUND_PENDING))
 
@@ -645,7 +646,7 @@ class PaymentServiceImplTest {
 
         coVerify(exactly = 1) { paystackClient.refundTransaction(storedReference, null) }
         verify(exactly = 1) {
-            paymentEvents.strandedPaymentRefund(reservationId, pendingPayment.amount, "refund_pending")
+            paymentEvents.automaticRefund(reservationId, pendingPayment.amount, "reservation_cancelled", "refund_pending")
         }
     }
 
@@ -668,33 +669,56 @@ class PaymentServiceImplTest {
     fun `a refund already claimed by a concurrent charge result is not reported again`() = runTest {
         val succeeded = pendingPayment.copy(status = PaymentStatus.SUCCESS)
         coEvery { paymentRepository.findPendingPaymentsOlderThan(any(), any()) } returns DataResult.Success(emptyList())
-        coEvery { paymentRepository.findSuccessfulPaymentsWithUnconfirmedReservation() } returns
+        coEvery { paymentRepository.findUnsettledSuccessfulPayments() } returns
                 DataResult.Success(listOf(succeeded))
         coEvery { reservationService.confirmReservationFromPayment(reservationId) } throws
                 ConflictException("Cannot confirm a cancelled reservation")
         coEvery { reservationService.getReservationById(reservationId) } returns
                 pendingReservation.copy(status = ReservationStatus.CANCELLED)
+        coEvery { paymentRepository.findRefundPendingOlderThan(any()) } returns DataResult.Success(emptyList())
         coEvery { paymentRepository.markRefundPending(storedReference) } returns
                 noOp(succeeded.copy(status = PaymentStatus.REFUND_PENDING))
 
         service.reconcilePendingPayments()
 
         coVerify(exactly = 0) { paystackClient.refundTransaction(any(), any()) }
-        verify(exactly = 0) { paymentEvents.strandedPaymentRefund(any(), any(), any()) }
+        verify(exactly = 0) { paymentEvents.automaticRefund(any(), any(), any(), any()) }
     }
 
     @Test
     fun `reconcilePendingPayments re-confirms SUCCESS payments whose reservation is still pending`() = runTest {
         coEvery { paymentRepository.findPendingPaymentsOlderThan(any(), any()) } returns DataResult.Success(emptyList())
-        coEvery { paymentRepository.findSuccessfulPaymentsWithUnconfirmedReservation() } returns
+        coEvery { paymentRepository.findUnsettledSuccessfulPayments() } returns
                 DataResult.Success(listOf(pendingPayment.copy(status = PaymentStatus.SUCCESS)))
+        coEvery { paymentRepository.findRefundPendingOlderThan(any()) } returns DataResult.Success(emptyList())
         coEvery { reservationService.confirmReservationFromPayment(reservationId) } returns
                 pendingReservation.copy(status = ReservationStatus.CONFIRMED)
+        coEvery { paymentRepository.getPaymentsByReservationId(reservationId) } returns
+                DataResult.Success(listOf(pendingPayment.copy(status = PaymentStatus.SUCCESS)))
 
         service.reconcilePendingPayments()
 
         coVerify(exactly = 1) { reservationService.confirmReservationFromPayment(reservationId) }
         coVerify(exactly = 0) { paystackClient.refundTransaction(any(), any()) }
+    }
+
+    @Test
+    fun `a refund claim that fails in the database is not reported as a failed refund`() = runTest {
+        val succeeded = pendingPayment.copy(status = PaymentStatus.SUCCESS)
+        coEvery { paymentRepository.findPendingPaymentsOlderThan(any(), any()) } returns DataResult.Success(emptyList())
+        coEvery { paymentRepository.findRefundPendingOlderThan(any()) } returns DataResult.Success(emptyList())
+        coEvery { paymentRepository.findUnsettledSuccessfulPayments() } returns DataResult.Success(listOf(succeeded))
+        coEvery { reservationService.confirmReservationFromPayment(reservationId) } throws
+                ConflictException("Cannot confirm a cancelled reservation")
+        coEvery { reservationService.getReservationById(reservationId) } returns
+                pendingReservation.copy(status = ReservationStatus.CANCELLED)
+        coEvery { paymentRepository.markRefundPending(storedReference) } returns DataResult.Failure.UnknownError("deadlock")
+        coEvery { paymentRepository.getPaymentByReference(storedReference) } returns DataResult.Success(succeeded)
+
+        service.reconcilePendingPayments()
+
+        coVerify(exactly = 0) { paystackClient.refundTransaction(any(), any()) }
+        verify(exactly = 0) { paymentEvents.automaticRefund(any(), any(), any(), any()) }
     }
 
     private fun hmacSha512(payload: String, secret: String): String {

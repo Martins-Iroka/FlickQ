@@ -5,7 +5,13 @@ interface PaymentEvents {
     fun paymentFailed(reservationId: Long, reason: String, gatewayErrorCode: String?)
     fun refundProcessed(paymentId: Long, amount: Long)
 
-    /** A charge succeeded for a reservation that was already cancelled; [outcome] is refund_pending or refund_failed. */
-    fun strandedPaymentRefund(reservationId: Long, amount: Long, outcome: String)
+    /**
+     * A refund the server started on its own. [reason]: reservation_cancelled (paid after the hold ended) or
+     * duplicate_charge; [outcome]: refund_pending or refund_failed (needs the admin refund retry).
+     */
+    fun automaticRefund(reservationId: Long, amount: Long, reason: String, outcome: String)
+
+    /** Refunds sitting in REFUND_PENDING for days that Paystack doesn't show reversed; reported every reconcile run. */
+    fun refundsStuck(count: Int)
 //    fun fraudAlertTriggered(userId: Long, activityDetails: String)
 }

@@ -6,7 +6,9 @@ import com.martdev.flickq.features.notification.domain.model.OutboxDraft
 import com.martdev.flickq.notification.model.NotificationTargetKind
 import com.martdev.flickq.notification.model.NotificationType
 import org.koin.core.annotation.Singleton
+import java.math.BigDecimal
 import java.security.MessageDigest
+import java.util.Locale
 import kotlin.time.Instant
 
 @Singleton
@@ -90,6 +92,33 @@ class NotificationComposer(private val config: FcmConfig) {
                     ),
                     highPriority = true,
                     collapseKey = "reservation-${event.reservationId}",
+                    androidChannelId = "bookings"
+                )
+            )
+        }
+        is NotificationEvent.PaymentRefunded -> {
+            val amount = String.format(Locale.US, "%s %,.2f", event.currency, BigDecimal.valueOf(event.amount, 2))
+            val body = when (event.reason) {
+                NotificationEvent.PaymentRefunded.Reason.RESERVATION_CANCELLED ->
+                    "Your seat hold ended before your payment came through, so we've started a refund of $amount."
+                NotificationEvent.PaymentRefunded.Reason.DUPLICATE_CHARGE ->
+                    "You were charged twice. Your booking is still confirmed and we've started a refund of the extra $amount."
+            }
+            OutboxDraft(
+                type = NotificationType.PAYMENT_REFUNDED,
+                idempotencyKey = "payment_refunded:${event.paymentId}",
+                targetKind = NotificationTargetKind.USER,
+                userId = event.userId,
+                push = PushMessage(
+                    title = "Refund on its way",
+                    body = body,
+                    data = mapOf(
+                        "type" to "payment_refunded",
+                        "reason" to event.reason.name.lowercase(),
+                        "reservationId" to "${event.reservationId}",
+                        "deeplink" to "flickq://ticket/${event.reservationId}"
+                    ),
+                    highPriority = true,
                     androidChannelId = "bookings"
                 )
             )

@@ -2,6 +2,7 @@ package com.martdev.flickq.features.payment.domain.service
 
 import com.martdev.flickq.config.PaystackConfig
 import com.martdev.flickq.features.auth.domain.repository.UserRepository
+import com.martdev.flickq.features.notification.domain.model.NotificationEvent
 import com.martdev.flickq.features.payment.domain.model.PaymentTransitions
 import com.martdev.flickq.features.payment.domain.repository.PaymentRepository
 import com.martdev.flickq.features.payment.domain.repository.PaymentUpdate
@@ -19,12 +20,15 @@ import com.martdev.flickq.shared.domain.exception.ForbiddenException
 import com.martdev.flickq.shared.domain.exception.UnauthorizedException
 import com.martdev.flickq.shared.util.returnValue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -264,27 +268,41 @@ class PaymentServiceImpl(
 
     override suspend fun refundPaymentForReservation(reservationId: Long): Payment? {
         val payments = paymentRepository.getPaymentsByReservationId(reservationId).returnValue()
-        val refundable = payments.firstOrNull { it.status in PaymentTransitions.REFUNDABLE } ?: return null
-        return refund(refundable.reference)
+        // Every charge goes back, a not-yet-settled duplicate included; the booking's own payment is returned.
+        val refundable = payments.filter { it.status in PaymentTransitions.REFUNDABLE }.sortedBy { it.id }
+        if (refundable.isEmpty()) return null
+        return refundable.map { refund(it.reference) }.first()
     }
 
-    private suspend fun refund(reference: String): Payment {
+    private suspend fun refund(
+        reference: String,
+        notifyReason: NotificationEvent.PaymentRefunded.Reason? = null
+    ): Payment {
         val claim = paymentRepository.markRefundPending(reference).returnValue()
         if (!claim.transitioned) {
             throw ConflictException("A refund for this reservation is already in progress")
         }
-        val response = try {
-            paystackClient.refundTransaction(reference, amount = null)
-        } catch (e: Exception) {
-            paymentRepository.markRefundFailed(reference, e.message).returnValue()
-            throw e
-        }
+        // Claimed: finish the Paystack call and record its outcome even if the caller is cancelled (shutdown,
+        // client gone), or the row sits in REFUND_PENDING with no refund behind it.
+        withContext(NonCancellable) {
+            val response = try {
+                paystackClient.refundTransaction(reference, amount = null)
+            } catch (e: Exception) {
+                paymentRepository.markRefundFailed(reference, e.message).returnValue()
+                throw e
+            }
 
-        if (!response.status) {
-            paymentRepository.markRefundFailed(reference, response.message).returnValue()
-            throw BadRequestException(response.message.ifBlank { "Paystack rejected the refund" })
+            if (!response.status) {
+                paymentRepository.markRefundFailed(reference, response.message).returnValue()
+                throw BadRequestException(response.message.ifBlank { "Paystack rejected the refund" })
+            }
+            // Only once Paystack has taken the refund, so a rejected one never tells the customer otherwise.
+            if (notifyReason != null) {
+                runCatching { paymentRepository.enqueueRefundNotice(reference, notifyReason).returnValue() }
+                    .onFailure { log.warn("Refund push not enqueued (ref={})", reference, it) }
+            }
         }
-        // Final REFUNDED state is confirmed by webhook (refund.processed).
+        // Final REFUNDED state is confirmed by webhook (refund.processed), or by the reconciler if that never comes.
         return paymentRepository.getPaymentByReference(reference).returnValue()
     }
 
@@ -311,9 +329,9 @@ class PaymentServiceImpl(
                 }
         }
 
-        // Paid but never confirmed: a confirm that failed after the charge settled. verifyPayment stops at SUCCESS,
-        // so this is the only retry. A row leaves the set once it's CONFIRMED or its refund has started.
-        val unsettled = paymentRepository.findSuccessfulPaymentsWithUnconfirmedReservation().returnValue()
+        // Paid but never confirmed (a confirm that failed after the charge settled), or paid twice. verifyPayment
+        // stops at SUCCESS, so this is the only retry. A row leaves the set once it's CONFIRMED or its refund started.
+        val unsettled = paymentRepository.findUnsettledSuccessfulPayments().returnValue()
         if (unsettled.isNotEmpty()) log.info("Settling {} paid but unconfirmed reservation(s)", unsettled.size)
         unsettled.forEach { payment ->
             runCatching { settleSuccessfulCharge(payment) }
@@ -324,6 +342,28 @@ class PaymentServiceImpl(
                     )
                 }
         }
+
+        // refund.processed should settle these; if it never arrives, ask Paystack. Never resubmits a refund:
+        // we can't tell "Paystack still processing" from "never reached Paystack", and a resubmit could pay out twice.
+        // Past two weeks Paystack's answer won't change, so those are only counted, not re-checked.
+        val refunding = paymentRepository.findRefundPendingOlderThan(now.minus(1.hours)).returnValue()
+        val stuck = refunding.count { payment ->
+            val settled = payment.updatedAt > now.minus(14.days) &&
+                    runCatching { settlePendingRefund(payment, now) }
+                        .onFailure { log.warn("Refund status check failed for payment ref={}", payment.reference, it) }
+                        .getOrDefault(false)
+            !settled && payment.updatedAt < now.minus(3.days)
+        }
+        if (stuck > 0) paymentEvents.refundsStuck(stuck)
+    }
+
+    /** True once the payment is REFUNDED. A fully refunded Paystack transaction reports status "reversed". */
+    private suspend fun settlePendingRefund(payment: Payment, now: Instant): Boolean {
+        val data = paystackClient.verifyTransaction(payment.reference).data
+        if (data?.status?.lowercase() != "reversed") return false
+        val update = paymentRepository.markRefunded(payment.reference, now).returnValue()
+        if (update.transitioned) paymentEvents.refundProcessed(update.payment.id, update.payment.amount)
+        return true
     }
 
     /**
@@ -391,31 +431,58 @@ class PaymentServiceImpl(
     private suspend fun settleSuccessfulCharge(payment: Payment) {
         val confirmFailure = try {
             reservationService.confirmReservationFromPayment(payment.reservationId)
-            return
+            null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             e
         }
+        if (confirmFailure == null) {
+            refundDuplicateCharges(payment.reservationId)
+            return
+        }
         // Both "cancelled" signals (service BadRequest, repository Conflict) are re-checked against the row.
         if (reservationService.getReservationById(payment.reservationId).status != ReservationStatus.CANCELLED) {
             throw confirmFailure
         }
-        refundStrandedPayment(payment)
+        refundAutomatically(payment, NotificationEvent.PaymentRefunded.Reason.RESERVATION_CANCELLED)
     }
 
-    private suspend fun refundStrandedPayment(payment: Payment) {
+    /**
+     * Two checkouts for one reservation can both be paid. The lowest-id SUCCESS payment keeps the booking and the
+     * rest go back; settling either charge applies the same rule, so the order they land in doesn't matter.
+     */
+    private suspend fun refundDuplicateCharges(reservationId: Long) {
+        paymentRepository.getPaymentsByReservationId(reservationId).returnValue()
+            .filter { it.status == PaymentStatus.SUCCESS }
+            .sortedBy { it.id }
+            .drop(1)
+            .forEach { refundAutomatically(it, NotificationEvent.PaymentRefunded.Reason.DUPLICATE_CHARGE) }
+    }
+
+    private suspend fun refundAutomatically(payment: Payment, reason: NotificationEvent.PaymentRefunded.Reason) {
+        val reasonTag = reason.name.lowercase()
         try {
-            refund(payment.reference)
-            paymentEvents.strandedPaymentRefund(payment.reservationId, payment.amount, "refund_pending")
+            refund(payment.reference, notifyReason = reason)
+            paymentEvents.automaticRefund(payment.reservationId, payment.amount, reasonTag, "refund_pending")
         } catch (e: ConflictException) {
             // A concurrent webhook/verify/reconciler run already claimed this refund.
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // refund() left it REFUND_FAILED: out of the reconciler's set, into the admin refund retry.
-            paymentEvents.strandedPaymentRefund(payment.reservationId, payment.amount, "refund_failed")
-            log.error("Refund of stranded payment failed (reservation={}, ref={})", payment.reservationId, payment.reference, e)
+            val status = runCatching { paymentRepository.getPaymentByReference(payment.reference).returnValue().status }
+                .getOrNull()
+            if (status == PaymentStatus.REFUND_FAILED) {
+                // Paystack refused it: out of the reconciler's set, into the admin refund retry.
+                paymentEvents.automaticRefund(payment.reservationId, payment.amount, reasonTag, "refund_failed")
+                log.error(
+                    "Automatic refund failed (reservation={}, ref={}, reason={})",
+                    payment.reservationId, payment.reference, reasonTag, e
+                )
+            } else {
+                // The claim itself failed (still SUCCESS): the reconciler tries again next run.
+                log.warn("Automatic refund not started (ref={}, reason={})", payment.reference, reasonTag, e)
+            }
         }
     }
 

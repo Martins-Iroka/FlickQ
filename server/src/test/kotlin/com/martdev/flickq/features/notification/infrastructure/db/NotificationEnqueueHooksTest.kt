@@ -113,7 +113,7 @@ class NotificationEnqueueHooksTest {
             val enqueuer = TestNotifications.enqueuer()
             movieRepo = MovieRepositoryImpl(enqueuer)
             reservationRepo = ReservationRepositoryImpl(enqueuer)
-            paymentRepo = PaymentRepositoryImpl()
+            paymentRepo = PaymentRepositoryImpl(TestNotifications.enqueuer())
             genreRepo = GenreRepositoryImpl()
             roomRepo = RoomRepositoryImpl()
             seatRepo = SeatRepositoryImpl()

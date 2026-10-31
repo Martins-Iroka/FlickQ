@@ -85,7 +85,7 @@ class ReportRepositoryImplIntegrationTest {
         fun connectAndMigrate() {
             PostgresContainer.connectToDBAndMigrate(postgres)
             reportRepo = ReportRepositoryImpl()
-            paymentRepo = PaymentRepositoryImpl()
+            paymentRepo = PaymentRepositoryImpl(TestNotifications.enqueuer())
             reservationRepo = ReservationRepositoryImpl(TestNotifications.enqueuer())
             showtimeSeatRepo = ShowtimeSeatRepositoryImpl()
             showtimeRepo = ShowtimeRepositoryImpl(TestNotifications.enqueuer())

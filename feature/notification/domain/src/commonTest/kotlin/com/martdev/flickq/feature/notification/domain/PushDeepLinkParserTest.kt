@@ -64,6 +64,8 @@ class PushDeepLinkParserTest {
             .isEqualTo(PushDeepLink.Ticket(6))
         assertThat(PushDeepLinkParser.parse(mapOf("type" to "reservation_cancelled", "reservationId" to "7")))
             .isEqualTo(PushDeepLink.Ticket(7))
+        assertThat(PushDeepLinkParser.parse(mapOf("type" to "payment_refunded", "reservationId" to "9")))
+            .isEqualTo(PushDeepLink.Ticket(9))
         assertThat(PushDeepLinkParser.parse(mapOf("type" to "movie_added", "movieId" to "8")))
             .isEqualTo(PushDeepLink.Movie(8))
     }
