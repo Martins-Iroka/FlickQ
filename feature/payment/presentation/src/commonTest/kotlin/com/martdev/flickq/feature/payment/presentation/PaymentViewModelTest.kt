@@ -14,7 +14,10 @@ import com.martdev.flickq.payment.model.Payment
 import com.martdev.flickq.payment.model.PaymentStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -28,6 +31,7 @@ private class FakePaymentRepository(
     var initializeFails = false
     var initializeError: DataError = DataError.Network.SERVER_ERROR
     var initializeCount = 0
+    var getInitializedCount = 0
     var verifyCount = 0
     var lastReservationId: Long? = null
 
@@ -36,6 +40,15 @@ private class FakePaymentRepository(
 
     override suspend fun initializePayment(reservationId: Long): Result<Payment, DataError> {
         initializeCount++
+        return initialized(reservationId)
+    }
+
+    override suspend fun getInitializedPaymentData(reservationId: Long): Result<Payment, DataError> {
+        getInitializedCount++
+        return initialized(reservationId)
+    }
+
+    private fun initialized(reservationId: Long): Result<Payment, DataError> {
         lastReservationId = reservationId
         return if (initializeFails) {
             Result.Error(initializeError)
@@ -45,7 +58,7 @@ private class FakePaymentRepository(
                     id = 1,
                     reservationId = reservationId,
                     reference = "REF-1",
-                    amount = 7000,
+                    amount = 700_000, // kobo
                     status = PaymentStatus.PENDING,
                     authorizationUrl = authorizationUrl
                 )
@@ -57,7 +70,7 @@ private class FakePaymentRepository(
         val index = minOf(verifyCount, verifyStatuses.lastIndex)
         verifyCount++
         val status = verifyStatuses[index] ?: return Result.Error(DataError.Network.SERVER_ERROR)
-        return Result.Success(Payment(id = 1, reference = reference, amount = 7000, status = status))
+        return Result.Success(Payment(id = 1, reference = reference, amount = 700_000, status = status))
     }
 }
 
@@ -97,11 +110,14 @@ class PaymentViewModelTest {
         repo: FakePaymentRepository,
         opener: UrlOpener = RecordingUrlOpener(),
         maxPollAttempts: Int = 5,
+        isPaymentInitialized: Boolean = false,
+        pollDelayMillis: Long = 0,
     ) = PaymentViewModel(
         reservationId = 42,
+        isPaymentInitialized = isPaymentInitialized,
         paymentRepository = repo,
         urlOpener = opener,
-        pollDelayMillis = 0,
+        pollDelayMillis = pollDelayMillis,
         maxPollAttempts = maxPollAttempts,
     )
 
@@ -134,14 +150,61 @@ class PaymentViewModelTest {
     }
 
     @Test
-    fun `a null authorization url skips the browser hand-off and confirms immediately`() = runTest {
-        val repo = FakePaymentRepository(authorizationUrl = null)
-        val opener = RecordingUrlOpener()
+    fun `a missing authorization url emits ReservationExpired without a hand-off`() = runTest {
+        for (url in listOf(null, "", "NA")) {
+            val repo = FakePaymentRepository(authorizationUrl = url)
+            val opener = RecordingUrlOpener()
+            val vm = viewModel(repo, opener)
 
-        val state = viewModel(repo, opener).state.value
+            vm.events.test {
+                assertThat(awaitItem(), "url=$url").isEqualTo(PaymentEvent.ReservationExpired)
+            }
+            assertThat(vm.state.value.phase, "url=$url").isEqualTo(PaymentPhase.INITIALIZING)
+            assertThat(vm.state.value.authorizationUrl, "url=$url").isNull()
+            assertThat(opener.opened, "url=$url").isEmpty()
+        }
+    }
 
-        assertThat(state.phase).isEqualTo(PaymentPhase.CONFIRMED)
-        assertThat(opener.opened).isEmpty()
+    @Test
+    fun `retry after a failed fetch of an initialized payment fetches again`() = runTest {
+        val repo = FakePaymentRepository().apply { initializeFails = true }
+        val vm = viewModel(repo, isPaymentInitialized = true)
+        assertThat(vm.state.value.error).isNotNull()
+
+        repo.initializeFails = false
+        vm.onAction(PaymentAction.OnRetry)
+
+        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.READY_TO_PAY)
+        assertThat(repo.getInitializedCount).isEqualTo(2)
+        assertThat(repo.initializeCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `polling waits pollDelayMillis milliseconds between attempts`() = runTest(StandardTestDispatcher()) {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val repo = FakePaymentRepository().apply {
+            verifyStatuses = listOf(PaymentStatus.PENDING, PaymentStatus.SUCCESS)
+        }
+        val vm = viewModel(repo, pollDelayMillis = 2_500)
+        advanceUntilIdle()
+
+        vm.onAction(PaymentAction.OnProceedToPayment)
+        advanceUntilIdle()
+
+        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.CONFIRMED)
+        // One gap between two attempts: 2.5 s of virtual time, not 2,500 s.
+        assertThat(currentTime).isEqualTo(2_500L)
+    }
+
+    @Test
+    fun `an already-initialized payment is fetched instead of re-initialized`() = runTest {
+        val repo = FakePaymentRepository()
+
+        val vm = viewModel(repo, isPaymentInitialized = true)
+
+        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.READY_TO_PAY)
+        assertThat(repo.getInitializedCount).isEqualTo(1)
+        assertThat(repo.initializeCount).isEqualTo(0)
     }
 
     @Test
@@ -219,15 +282,14 @@ class PaymentViewModelTest {
 
     @Test
     fun `retry after an initialize failure re-initializes`() = runTest {
-        // null authorization url so the re-initialized flow confirms without a proceed tap.
-        val repo = FakePaymentRepository(authorizationUrl = null).apply { initializeFails = true }
+        val repo = FakePaymentRepository().apply { initializeFails = true }
         val vm = viewModel(repo)
         assertThat(vm.state.value.error).isNotNull()
 
         repo.initializeFails = false
         vm.onAction(PaymentAction.OnRetry)
 
-        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.CONFIRMED)
+        assertThat(vm.state.value.phase).isEqualTo(PaymentPhase.READY_TO_PAY)
         assertThat(repo.initializeCount).isEqualTo(2)
     }
 

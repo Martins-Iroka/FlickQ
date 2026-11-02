@@ -13,10 +13,13 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
@@ -27,6 +30,10 @@ private fun jsonClient(
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData
 ): HttpClient = HttpClient(MockEngine(handler)) {
     install(ContentNegotiation) { json(HttpClientFactory.json) }
+    // Mirrors HttpClientFactory: Content-Type is set once via defaultRequest, not per call.
+    defaultRequest {
+        contentType(ContentType.Application.Json)
+    }
 }
 
 private fun MockRequestHandleScope.jsonOk(body: String, status: HttpStatusCode = HttpStatusCode.OK) =
@@ -87,8 +94,8 @@ class RealBookingDataSourceTest {
             )
         }
 
-        val reservation = (RealBookingDataSource(client).createReservation(10, listOf(100)) as? Result.Success)?.data
-            ?: fail("expected success")
+        val result = RealBookingDataSource(client).createReservation(10, listOf(100))
+        val reservation = (result as? Result.Success)?.data ?: fail("expected success, was $result")
         assertThat(reservation.id).isEqualTo(42L)
         assertThat(reservation.status).isEqualTo(ReservationStatus.PENDING)
         assertThat(reservation.totalAmount).isEqualTo(7000L)

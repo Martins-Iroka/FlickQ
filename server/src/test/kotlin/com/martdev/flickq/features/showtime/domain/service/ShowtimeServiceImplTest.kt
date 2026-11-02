@@ -59,7 +59,9 @@ class ShowtimeServiceImplTest {
             title = "Apex", posterUrl = "image_url"
         )
 
-        coJustRun { notificationEnqueuer.enqueueInCurrentTx(event = capture(notificationEventSlot)) }
+        coEvery {
+            notificationEnqueuer.suspendedEnqueueInCurrentTx(capture(notificationEventSlot))
+        } returns DataResult.Success(true)
 
         val result = service.createShowtime(sampleShowtime)
 

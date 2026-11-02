@@ -258,6 +258,19 @@ class UserServiceImplTest {
         coVerify { events.loginFailed("wrong_password") }
     }
 
+    // The admin role check moved here from the admin client (cf694d5); this is now its only guard.
+    @Test
+    fun `admin login rejects a verified non-admin with Forbidden and issues no tokens`() = runTest {
+        coEvery { repository.getUserByEmail(any()) } returns DataResult.Success(savedUser.copy(role = Role.USER))
+        every { passwordHasher.verifyPassword(any(), any()) } returns true
+
+        assertFailsWith<ForbiddenException> { service.loginUser(credentials, isAdmin = true) }
+
+        coVerify { events.loginFailed("not_admin") }
+        verify(exactly = 0) { auth.generateAccessToken(any(), any()) }
+        coVerify(exactly = 0) { repository.saveRefreshToken(any(), any(), any()) }
+    }
+
     @Test
     fun `loginUser does not check password for unverified user`() = runTest {
         coEvery { repository.getUserByEmail(any()) } returns DataResult.Success(

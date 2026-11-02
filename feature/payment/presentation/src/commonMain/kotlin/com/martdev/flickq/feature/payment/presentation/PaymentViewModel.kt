@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.seconds
 
 enum class PaymentPhase { INITIALIZING, READY_TO_PAY, AWAITING_PAYMENT, CONFIRMED }
 
@@ -55,8 +54,8 @@ sealed interface PaymentEvent {
  *
  * Opening is gated behind an explicit user gesture (the proceed action) rather than fired
  * automatically: web browsers block `window.open` unless it happens inside a click handler.
- * On fakes the authorization url is absent, so verify confirms immediately and the screen
- * never stops at [PaymentPhase.READY_TO_PAY].
+ * A missing authorization url (null, blank or the server's "NA" sentinel) means there is no
+ * checkout to hand off to, so the reservation is treated as no longer payable.
  *
  * [pollDelayMillis]/[maxPollAttempts] are injectable so tests can run without real delays.
  */
@@ -152,7 +151,7 @@ class PaymentViewModel(
                             )
                         }
                     } else {
-                        // No hand-off (fakes): go straight to verifying.
+                        // No checkout to hand off to: the reservation can't be paid.
                         _events.send(PaymentEvent.ReservationExpired)
                     }
                 }
@@ -184,7 +183,7 @@ class PaymentViewModel(
         var lastError: DataError? = null
         var lastMessage: String? = null
         repeat(maxPollAttempts) { attempt ->
-            if (attempt > 0) delay(pollDelayMillis.seconds)
+            if (attempt > 0) delay(pollDelayMillis)
             when (val result = paymentRepository.verifyPayment(reference)) {
                 is Result.Success -> {
                     lastError = null

@@ -17,11 +17,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
+import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.fail
-import kotlin.time.Clock
 
 private fun jsonClient(
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> io.ktor.client.request.HttpResponseData
@@ -41,10 +39,10 @@ private fun MockRequestHandleScope.jsonOk(
 
 class RealMovieDataSourceTest {
 
-    private val date = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    private val date = LocalDate(2026, 9, 15)
 
     @Test
-    fun `get scheduled movies hits scheduled-movies and maps list items to domain`() = runTest {
+    fun `get scheduled movies hits showtime-movies and maps list items to domain`() = runTest {
         var path = ""
         val client = jsonClient { request ->
             path = request.url.encodedPath
@@ -60,11 +58,11 @@ class RealMovieDataSourceTest {
         assertThat(movieDataModel.movies[0].title).isEqualTo("Neon Skyline")
         assertThat(movieDataModel.movies[0].posterUrl).isEqualTo("neon.jpg")
         assertThat(movieDataModel.nextOffset).isEqualTo(2)
-        assertThat(path.endsWith("/movie/scheduled-movies")).isEqualTo(true)
+        assertThat(path.endsWith("/showtime/showtime-movies")).isEqualTo(true)
     }
 
     @Test
-    fun `getMovies forwards limit, offset and date as query parameters`() = runTest {
+    fun `getScheduledMovies forwards limit, offset and date as query parameters`() = runTest {
         var query = ""
         val client = jsonClient { request ->
             query = request.url.encodedQuery

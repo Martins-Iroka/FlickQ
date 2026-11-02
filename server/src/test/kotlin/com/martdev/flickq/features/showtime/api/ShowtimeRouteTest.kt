@@ -20,6 +20,8 @@ import io.ktor.server.application.Application
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.coJustRun
+import kotlinx.datetime.LocalDate
+import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import org.junit.jupiter.api.Test
@@ -162,6 +164,35 @@ class ShowtimeRouteTest {
         val client = clientConfiguration(userToken)
         client.get("/showtime/get-showtimes-by-movie-id/11").apply {
             assertEquals(HttpStatusCode.OK, status)
+        }
+    }
+
+    @Test
+    fun testGetShowtimeMovies() = testApplication {
+        coEvery {
+            service.getShowtimeMovies(any(), any(), any())
+        } returns emptyList()
+
+        application {
+            appConfig()
+        }
+        val client = clientConfiguration(userToken)
+        client.get("/showtime/showtime-movies?date=2026-07-04&limit=6&offset=12").apply {
+            assertEquals(HttpStatusCode.OK, status)
+        }
+        coVerify { service.getShowtimeMovies(LocalDate(2026, 7, 4), 6, 12L) }
+    }
+
+    // Moved from MovieRouteTest along with the endpoint (6eaddb0: /movie/scheduled-movies → here).
+    @Test
+    fun testGetShowtimeMovies_throwsBadRequestException() = testApplication {
+        application {
+            appConfig()
+        }
+
+        val client = clientConfiguration(userToken)
+        client.get("/showtime/showtime-movies?date=04-07-2026&limit=6&offset=0").apply {
+            assertEquals(HttpStatusCode.BadRequest, status)
         }
     }
 

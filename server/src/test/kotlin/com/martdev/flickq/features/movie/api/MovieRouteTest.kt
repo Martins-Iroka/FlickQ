@@ -136,18 +136,6 @@ class MovieRouteTest {
     }
 
     @Test
-    fun testGetScheduledMovies_throwsBadRequestException() = testApplication {
-        application {
-            configure()
-        }
-
-        val client = clientConfiguration(userToken)
-        client.get("movie/scheduled-movies?date=04-07-2026").apply {
-            assertEquals(HttpStatusCode.BadRequest, status)
-        }
-    }
-
-    @Test
     fun testGetMovies_returnList() = testApplication {
         coEvery {
             service.getMovies(any(), any())

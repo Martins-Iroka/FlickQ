@@ -17,11 +17,14 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
+import io.ktor.http.contentType
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
@@ -48,6 +51,10 @@ private fun clientRecording(
     handler(request)
 }) {
     install(ContentNegotiation) { json(HttpClientFactory.json) }
+    // Mirrors HttpClientFactory: Content-Type is set once via defaultRequest, not per call.
+    defaultRequest {
+        contentType(ContentType.Application.Json)
+    }
 }
 
 private fun MockRequestHandleScope.jsonOk(body: String, status: HttpStatusCode = HttpStatusCode.OK) =
@@ -59,7 +66,10 @@ class RealAdminCatalogDataSourceTest {
     fun `getMovies maps the list-item envelope and sends pagination`() = runTest {
         val rec = Recorder()
         val client = clientRecording(rec) {
-            jsonOk("""{"data":[{"id":1,"title":"Neon","posterUrl":"p1"},{"id":2,"title":"Coast","posterUrl":"p2"}]}""")
+            jsonOk(
+                """{"data":{"movies":[{"id":1,"title":"Neon","posterUrl":"p1"},{"id":2,"title":"Coast","posterUrl":"p2"}],""" +
+                    """"next_offset":-1}}"""
+            )
         }
 
         val result = RealAdminCatalogDataSource(client).getMovies(limit = 25, offset = 5)
@@ -67,7 +77,7 @@ class RealAdminCatalogDataSourceTest {
         val movies = (result as? Result.Success)?.data ?: fail("expected success, was $result")
         assertThat(movies).hasSize(2)
         assertThat(movies[0].title).isEqualTo("Neon")
-        assertThat(rec.path.endsWith("/movie/get-movies")).isEqualTo(true)
+        assertThat(rec.path.endsWith("/admin/movie/get-movies")).isEqualTo(true)
         assertThat(rec.query.contains("limit=25")).isEqualTo(true)
         assertThat(rec.query.contains("offset=5")).isEqualTo(true)
     }

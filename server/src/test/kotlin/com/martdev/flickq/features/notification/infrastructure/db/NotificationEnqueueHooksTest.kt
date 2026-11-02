@@ -141,30 +141,24 @@ class NotificationEnqueueHooksTest {
         }
     }
 
+    // MOVIE_ADDED moved from movie creation to showtime scheduling in 6eaddb0
+    // (ShowtimeServiceImpl.createShowtime; covered by ShowtimeServiceImplTest).
     @Test
-    fun `creating a movie enqueues one topic announcement`() = runTest {
+    fun `creating a movie enqueues no announcement`() = runTest {
         val genre =
             (genreRepo.saveGenre(Genre(name = "G-${Uuid.random()}")) as DataResult.Success).value
-        val movieId = (movieRepo.createMovie(
+
+        val result = movieRepo.createMovie(
             Movie(
                 title = "Dune",
                 description = "d",
                 posterUrl = "https://cdn.example.test/dune.jpg",
                 genres = listOf(genre)
             )
-        ) as DataResult.Success).value
-
-        val row = rows(NotificationType.MOVIE_ADDED).single()
-
-        assertThat(row[NotificationOutboxTable.idempotencyKey]).isEqualTo("movie_added:$movieId")
-        assertThat(row[NotificationOutboxTable.targetKind]).isEqualTo(NotificationTargetKind.TOPIC)
-        assertThat(row[NotificationOutboxTable.topic]).isEqualTo("test-new-movies")
-        assertThat(row[NotificationOutboxTable.payload].imageUrl).isEqualTo(
-            "https://cdn.example.test/dune.jpg"
         )
-        assertThat(row[NotificationOutboxTable.payload].data["deeplink"]).isEqualTo(
-            "flickq://movie/$movieId"
-        )
+
+        assertTrue(result is DataResult.Success, result.toString())
+        assertThat(rows(NotificationType.MOVIE_ADDED)).isEmpty()
     }
 
     @Test
@@ -182,21 +176,6 @@ class NotificationEnqueueHooksTest {
     }
 
     @Test
-    fun `a failing enqueue rolls back the movie too`() = runTest {
-        val throwing = object : NotificationEnqueuer {
-            override fun enqueueInCurrentTx(event: NotificationEvent): Boolean = error("boom")
-            override suspend fun suspendedEnqueueInCurrentTx(event: NotificationEvent): DataResult<Boolean> = error("boom")
-            override fun enqueueInCurrentTx(draft: OutboxDraft): Boolean = error("boom")
-        }
-        val genre = (genreRepo.saveGenre(Genre(name = "G-${Uuid.random()}")) as DataResult.Success).value
-
-        val result = MovieRepositoryImpl(throwing).createMovie(Movie(title = "Dune", description = "d", genres = listOf(genre)))
-
-        assertTrue(result is DataResult.Failure.UnknownError, result.toString())
-        assertThat(transaction { MoviesTable.selectAll().count() }).isEqualTo(0L)
-    }
-
-    @Test
     fun `holding seats enqueues one user push with seat labels and the hold expiry`() = runTest {
         val ctx = setupContext(seatCount = 2)
         val expiresAt = Instant.fromEpochSeconds(Clock.System.now().epochSeconds + 900)   // whole seconds: TIMESTAMP(0)
@@ -208,7 +187,7 @@ class NotificationEnqueueHooksTest {
         assertThat(row[NotificationOutboxTable.userId]?.value).isEqualTo(ctx.userId)
         assertThat(row[NotificationOutboxTable.expiresAt]).isEqualTo(expiresAt)
         assertThat(row[NotificationOutboxTable.payload].body)
-            .isEqualTo("A1, A2 for ${ctx.movieTitle} are held. Pay within 15 minutes.")
+            .isEqualTo("A1, A2 are held. Pay within 15 minutes.")
     }
 
     @Test

@@ -12,7 +12,6 @@ import com.martdev.flickq.auth.model.RegistrationResult
 import com.martdev.flickq.auth.model.VerificationInput
 import com.martdev.flickq.core.common.EmptyResult
 import com.martdev.flickq.core.common.Result
-import com.martdev.flickq.core.data.InMemoryTokenStorage
 import com.martdev.flickq.feature.auth.domain.AuthError
 import com.martdev.flickq.feature.auth.domain.AuthRepository
 import kotlinx.coroutines.Dispatchers
@@ -21,22 +20,21 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
-@OptIn(ExperimentalEncodingApi::class)
-private fun jwt(payload: String): String {
-    val encoded = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(payload.encodeToByteArray())
-    return "header.$encoded.signature"
-}
-
+/**
+ * Admin login goes through [AuthRepository.newLogin] against the admin-only endpoint
+ * (`isAdmin = true`); role gating is enforced server-side, so the fake only records the call
+ * and returns the configured outcome.
+ */
 private class FakeAuthRepository(
-    private val accessToken: String = "",
-    private val loginFails: Boolean = false,
+    private val loginError: AuthError? = null,
 ) : AuthRepository {
+    var lastCredentials: Credentials? = null
+    var lastIsAdmin: Boolean? = null
+
     override suspend fun register(credentials: Credentials): Result<RegistrationResult, AuthError> =
         Result.Error(AuthError.UNKNOWN)
 
@@ -46,9 +44,16 @@ private class FakeAuthRepository(
     override suspend fun login(
         credentials: Credentials,
         isAdmin: Boolean
-    ): Result<LoginResult, AuthError> =
-        if (loginFails) Result.Error(AuthError.INVALID_CREDENTIALS)
-        else Result.Success(LoginResult(userId = 7, accessToken = accessToken, refreshToken = "refresh"))
+    ): Result<LoginResult, AuthError> = Result.Error(AuthError.UNKNOWN)
+
+    override suspend fun newLogin(
+        credentials: Credentials,
+        isAdmin: Boolean
+    ): Result<Unit, AuthError> {
+        lastCredentials = credentials
+        lastIsAdmin = isAdmin
+        return loginError?.let { Result.Error(it) } ?: Result.Success(Unit)
+    }
 
     override suspend fun resendOtp(email: String): Result<OtpResendResult, AuthError> =
         Result.Error(AuthError.UNKNOWN)
@@ -71,42 +76,45 @@ class AdminLoginViewModelTest {
 
     private fun fillCredentials(vm: AdminLoginViewModel) {
         vm.onAction(AdminLoginAction.OnEmailChange("admin@flickq.com"))
-        vm.onAction(AdminLoginAction.OnPasswordChange("secret1"))
+        vm.onAction(AdminLoginAction.OnPasswordChange("Secret123"))
     }
 
     @Test
-    fun `an admin JWT authenticates`() = runTest {
-        val repo = FakeAuthRepository(accessToken = jwt("""{"userId":"7","role":"ADMIN"}"""))
-        val vm = AdminLoginViewModel(repo, InMemoryTokenStorage())
+    fun `a successful admin login authenticates`() = runTest {
+        val repo = FakeAuthRepository()
+        val vm = AdminLoginViewModel(repo)
 
         vm.events.test {
             fillCredentials(vm)
             vm.onAction(AdminLoginAction.OnSubmit)
             assertThat(awaitItem()).isEqualTo(AdminLoginEvent.Authenticated)
         }
+        assertThat(vm.state.value.error).isNull()
+        assertThat(vm.state.value.isLoading).isEqualTo(false)
     }
 
     @Test
-    fun `a non-admin JWT is rejected and the session is cleared`() = runTest {
-        val storage = InMemoryTokenStorage().apply { saveTokens("stale", "stale") }
-        val repo = FakeAuthRepository(accessToken = jwt("""{"userId":"7","role":"USER"}"""))
-        val vm = AdminLoginViewModel(repo, storage)
+    fun `submit logs in against the admin endpoint with trimmed credentials`() = runTest {
+        val repo = FakeAuthRepository()
+        val vm = AdminLoginViewModel(repo)
 
-        fillCredentials(vm)
+        vm.onAction(AdminLoginAction.OnEmailChange("  admin@flickq.com  "))
+        vm.onAction(AdminLoginAction.OnPasswordChange("Secret123"))
         vm.onAction(AdminLoginAction.OnSubmit)
 
-        assertThat(vm.state.value.error).isNotNull()
-        assertThat(storage.getAccessToken()).isNull()
+        assertThat(repo.lastIsAdmin).isEqualTo(true)
+        assertThat(repo.lastCredentials).isEqualTo(Credentials("admin@flickq.com", "Secret123"))
     }
 
     @Test
     fun `invalid credentials surface an error`() = runTest {
-        val repo = FakeAuthRepository(loginFails = true)
-        val vm = AdminLoginViewModel(repo, InMemoryTokenStorage())
+        val repo = FakeAuthRepository(loginError = AuthError.INVALID_CREDENTIALS)
+        val vm = AdminLoginViewModel(repo)
 
         fillCredentials(vm)
         vm.onAction(AdminLoginAction.OnSubmit)
 
+        assertThat(repo.lastIsAdmin).isEqualTo(true)
         assertThat(vm.state.value.error).isNotNull()
         assertThat(vm.state.value.isLoading).isEqualTo(false)
     }

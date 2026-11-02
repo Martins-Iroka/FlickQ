@@ -28,6 +28,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -223,7 +224,9 @@ class NotificationOutboxRepositoryImpl(
             }) {
                 it[status] = NotificationStatus.PENDING
                 it[attempts] = 0            // full budget again; BackoffPolicy restarts from base
-                it[nextAttemptAt] = CurrentTimestamp      // claimable on the next poll
+                // Claimable on the next poll. Floor to whole seconds: TIMESTAMP(0) rounds half-up, so
+                // NOW() could be stored up to 0.5 s ahead and miss the claim's `<= NOW()`.
+                it[nextAttemptAt] = Instant.fromEpochSeconds(Clock.System.now().epochSeconds)
                 // pending_tokens kept: devices that already got it on a partial send aren't pushed twice.
                 // last_error kept until the next attempt overwrites it, so the cause stays visible.
             }
