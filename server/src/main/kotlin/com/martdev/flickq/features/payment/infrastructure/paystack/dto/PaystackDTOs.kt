@@ -78,6 +78,8 @@ data class PaystackWebhookEvent(
     data class WebhookData(
         val id: Long = 0,
         val reference: String = "",
+        @SerialName("transaction_reference")
+        val transactionReference: String = "",
         val status: String = "",
         val amount: Long = 0,
         val currency: String = "",

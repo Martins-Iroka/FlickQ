@@ -23,7 +23,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import org.koin.core.annotation.Single
 import org.koin.core.annotation.Singleton
 import org.slf4j.LoggerFactory
 import java.util.UUID
@@ -229,9 +228,11 @@ class PaymentServiceImpl(
             }
 
             "refund.processed" -> {
+                log.info("Paystack webhook refund.processed ref={}", data.reference)
+                log.info("Paystack webhook refund.processed ref2={}", data.transactionReference)
                 val refundedAt = parseInstantOrNow(data.paidAt)
                 val update =
-                    paymentRepository.markRefunded(data.reference, refundedAt).returnValue()
+                    paymentRepository.markRefunded(data.reference.ifEmpty { data.transactionReference }, refundedAt).returnValue()
                 when (update.result) {
                     PaymentUpdate.Result.APPLIED ->
                         paymentEvents.refundProcessed(update.payment.id, update.payment.amount)
